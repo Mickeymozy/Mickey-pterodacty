@@ -1,0 +1,111 @@
+<%- include('partials/header') %>
+
+<main class="mx-auto flex max-w-7xl flex-col gap-10 px-4 py-10 sm:px-6 lg:px-8">
+  <section class="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+    <article class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/30 backdrop-blur-xl">
+      <p class="text-sm uppercase tracking-[0.35em] text-cyan-200/80">Automated operations center</p>
+      <h1 class="mt-4 max-w-xl text-4xl font-black tracking-tight text-white sm:text-5xl">Run your hosting stack like a modern cloud team.</h1>
+      <p class="mt-4 max-w-xl text-slate-300">Monitor payments, launch servers, automate backups, and handle support in one polished client area built for Pterodactyl operators.</p>
+      <div class="mt-6 flex flex-wrap gap-3">
+        <a href="/servers" class="rounded-full bg-gradient-to-r from-cyan-400 to-sky-500 px-5 py-3 text-sm font-semibold text-slate-950 shadow-glow hover:opacity-95">Open server fleet</a>
+        <a href="/billing" class="rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-slate-100 hover:border-cyan-400/60 hover:bg-cyan-400/10">Review billing</a>
+      </div>
+      <div class="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div class="rounded-2xl border border-white/10 bg-slate-900/90 p-4">
+          <p class="text-xs uppercase tracking-[0.3em] text-slate-400">Monthly revenue</p>
+          <p class="mt-3 text-2xl font-bold text-white"><%= metrics.revenue %></p>
+          <p class="mt-1 text-sm text-emerald-300">+12.4% vs last month</p>
+        </div>
+        <div class="rounded-2xl border border-white/10 bg-slate-900/90 p-4">
+          <p class="text-xs uppercase tracking-[0.3em] text-slate-400">Active servers</p>
+          <p class="mt-3 text-2xl font-bold text-white"><%= metrics.activeServers %></p>
+          <p class="mt-1 text-sm text-cyan-200">2 scaling events scheduled</p>
+        </div>
+        <div class="rounded-2xl border border-white/10 bg-slate-900/90 p-4">
+          <p class="text-xs uppercase tracking-[0.3em] text-slate-400">Pending tickets</p>
+          <p class="mt-3 text-2xl font-bold text-white"><%= metrics.pendingTickets %></p>
+          <p class="mt-1 text-sm text-amber-200">Average reply in 18 min</p>
+        </div>
+        <div class="rounded-2xl border border-white/10 bg-slate-900/90 p-4">
+          <p class="text-xs uppercase tracking-[0.3em] text-slate-400">Uptime SLA</p>
+          <p class="mt-3 text-2xl font-bold text-white"><%= metrics.uptime %></p>
+          <p class="mt-1 text-sm text-emerald-300">Protected by auto-healing</p>
+        </div>
+      </div>
+    </article>
+
+    <aside class="rounded-3xl border border-cyan-400/30 bg-gradient-to-br from-cyan-400/10 to-slate-900 p-6 shadow-2xl shadow-cyan-950/40 backdrop-blur-xl">
+      <p class="text-sm uppercase tracking-[0.35em] text-cyan-100/80">Automation snapshot</p>
+      <h2 class="mt-4 text-2xl font-semibold text-white">Smart hosting automation</h2>
+      <ul class="mt-6 space-y-4 text-sm text-slate-200">
+        <li class="rounded-2xl border border-white/10 bg-slate-950/70 p-4">Backup rotation: 3 locations with 7-day retention.</li>
+        <li class="rounded-2xl border border-white/10 bg-slate-950/70 p-4">Scaling rules: CPU > 85% triggers a new worker within 90 seconds.</li>
+        <li class="rounded-2xl border border-white/10 bg-slate-950/70 p-4">Billing sync: invoices and renewals updated every 5 minutes.</li>
+      </ul>
+      <div class="mt-8 rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-4 text-sm text-emerald-100">
+        <p class="font-semibold">Next automation window</p>
+        <p class="mt-1 text-emerald-50">Backup verification at 04:30 UTC • Cost optimization at 06:00 UTC</p>
+      </div>
+    </aside>
+  </section>
+
+  <section class="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+    <article class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/30 backdrop-blur-xl">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm uppercase tracking-[0.35em] text-cyan-200/80">Server fleet</p>
+          <h2 class="mt-2 text-xl font-semibold text-white">Live infrastructure overview</h2>
+        </div>
+        <a class="text-sm text-cyan-200 hover:text-cyan-100" href="/servers">View all</a>
+      </div>
+      <div class="mt-6 space-y-4">
+        <% servers.forEach((server) => { %>
+          <article class="rounded-2xl border border-white/10 bg-slate-950/85 p-4">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p class="text-lg font-semibold text-white"><%= server.name %></p>
+                <p class="text-sm text-slate-300"><%= server.plan %> • <%= server.location %></p>
+              </div>
+              <span class="rounded-full px-3 py-1 text-xs font-semibold <%= server.badge %>"><%= server.status %></span>
+            </div>
+            <dl class="mt-4 grid gap-3 text-sm text-slate-200 sm:grid-cols-2 xl:grid-cols-4">
+              <div><dt class="text-slate-400">CPU</dt><dd><%= server.cpu %></dd></div>
+              <div><dt class="text-slate-400">RAM</dt><dd><%= server.ram %></dd></div>
+              <div><dt class="text-slate-400">Storage</dt><dd><%= server.disk %></dd></div>
+              <div><dt class="text-slate-400">Uptime</dt><dd><%= server.uptime %></dd></div>
+            </dl>
+          </article>
+        <% }); %>
+      </div>
+    </article>
+
+    <article class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/30 backdrop-blur-xl">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm uppercase tracking-[0.35em] text-cyan-200/80">Billing pulse</p>
+          <h2 class="mt-2 text-xl font-semibold text-white">Latest invoices</h2>
+        </div>
+        <a class="text-sm text-cyan-200 hover:text-cyan-100" href="/billing">Manage</a>
+      </div>
+      <div class="mt-6 space-y-4">
+        <% invoices.forEach((invoice) => { %>
+          <article class="rounded-2xl border border-white/10 bg-slate-950/85 p-4">
+            <div class="flex items-center justify-between gap-4">
+              <div>
+                <p class="text-sm text-slate-200"><%= invoice.id %></p>
+                <p class="text-xs text-slate-400"><%= invoice.type %> • due <%= invoice.due %></p>
+              </div>
+              <span class="rounded-full px-3 py-1 text-xs font-semibold <%= invoice.status === 'Paid' ? 'bg-emerald-500/10 text-emerald-300' : invoice.status === 'Pending' ? 'bg-amber-500/10 text-amber-200' : 'bg-rose-500/10 text-rose-200' %>"><%= invoice.status %></span>
+            </div>
+            <div class="mt-4 flex items-end justify-between">
+              <p class="text-xl font-semibold text-white"><%= invoice.amount %></p>
+              <button class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs text-slate-100 hover:border-cyan-400/60 hover:bg-cyan-400/10">Download</button>
+            </div>
+          </article>
+        <% }); %>
+      </div>
+    </article>
+  </section>
+</main>
+
+<%- include('partials/footer') %>

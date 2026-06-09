@@ -1,0 +1,30 @@
+<%- include('partials/header') %>
+
+<main class="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-10 sm:px-6 lg:px-8">
+  <section class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/30 backdrop-blur-xl">
+    <p class="text-sm uppercase tracking-[0.35em] text-cyan-200/80">Account settings</p>
+    <h1 class="mt-4 text-3xl font-black text-white sm:text-4xl">Security, notifications, and preferences</h1>
+    <p class="mt-4 text-slate-300">Configure access controls, team notifications, and automation preferences from one secure profile surface.</p>
+  </section>
+
+  <section class="grid gap-6 lg:grid-cols-2">
+    <article class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/30 backdrop-blur-xl">
+      <h2 class="text-xl font-semibold text-white">Security profile</h2>
+      <div class="mt-5 space-y-4 text-sm text-slate-200">
+        <label class="block">Email<input class="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/90 px-4 py-3 text-white outline-none ring-0 placeholder:text-slate-400 focus:border-cyan-400/60" value="ops@pterodactyl.demo" /></label>
+        <label class="block">Two-factor authentication<input class="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/90 px-4 py-3 text-white outline-none focus:border-cyan-400/60" value="Enabled" /></label>
+      </div>
+    </article>
+
+    <article class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/30 backdrop-blur-xl">
+      <h2 class="text-xl font-semibold text-white">Notification preferences</h2>
+      <div class="mt-5 space-y-3 text-sm text-slate-200">
+        <label class="flex items-center justify-between rounded-2xl border border-white/10 bg-slate-950/85 px-4 py-3"><span>Billing reminders</span><input type="checkbox" checked class="h-4 w-4 rounded border-white/10 bg-slate-800 text-cyan-400" /></label>
+        <label class="flex items-center justify-between rounded-2xl border border-white/10 bg-slate-950/85 px-4 py-3"><span>Backup alerts</span><input type="checkbox" checked class="h-4 w-4 rounded border-white/10 bg-slate-800 text-cyan-400" /></label>
+        <label class="flex items-center justify-between rounded-2xl border border-white/10 bg-slate-950/85 px-4 py-3"><span>Security events</span><input type="checkbox" checked class="h-4 w-4 rounded border-white/10 bg-slate-800 text-cyan-400" /></label>
+      </div>
+    </article>
+  </section>
+</main>
+
+<%- include('partials/footer') %>

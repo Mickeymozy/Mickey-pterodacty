@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en" class="h-full bg-slate-950 text-slate-100">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title><%= title %> | Pterodactyl Client Area</title>
+    <meta name="description" content="A production-ready Pterodactyl client area, billing, and automated hosting dashboard." />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: { sans: ['Inter', 'Segoe UI', 'sans-serif'] },
+            boxShadow: { glow: '0 18px 45px rgba(56, 189, 248, 0.18)' }
+          }
+        }
+      };
+    </script>
+  </head>
+  <body class="min-h-full bg-[radial-gradient(circle_at_top,_#111827_0%,_#020617_45%,_#020617_100%)] text-slate-100 antialiased">
+    <div class="min-h-screen">
+      <header class="sticky top-0 z-30 border-b border-white/10 bg-slate-950/90 backdrop-blur-xl">
+        <nav class="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
+          <a href="/" class="flex items-center gap-3 text-white">
+            <span class="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 via-sky-500 to-indigo-500 text-lg font-black shadow-glow">P</span>
+            <span>
+              <span class="block text-xs uppercase tracking-[0.35em] text-cyan-200/80">Pterodactyl</span>
+              <span class="text-lg font-semibold">Client Area</span>
+            </span>
+          </a>
+          <div class="hidden items-center gap-6 text-sm text-slate-300 md:flex">
+            <a class="<%= page === 'dashboard' ? 'text-white' : 'hover:text-cyan-200' %>" href="/">Dashboard</a>
+            <a class="<%= page === 'servers' ? 'text-white' : 'hover:text-cyan-200' %>" href="/servers">Servers</a>
+            <a class="<%= page === 'billing' ? 'text-white' : 'hover:text-cyan-200' %>" href="/billing">Billing</a>
+            <a class="<%= page === 'support' ? 'text-white' : 'hover:text-cyan-200' %>" href="/support">Support</a>
+            <a class="<%= page === 'settings' ? 'text-white' : 'hover:text-cyan-200' %>" href="/settings">Settings</a>
+          </div>
+          <div class="flex items-center gap-3">
+            <button class="hidden rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-100 hover:border-cyan-400/60 hover:bg-cyan-400/10 md:block">Live alerts</button>
+            <a href="/settings" class="flex items-center gap-2 rounded-full border border-cyan-400/40 bg-cyan-400/10 px-4 py-2 text-sm font-medium text-cyan-100 shadow-glow hover:bg-cyan-400/20">Admin Panel</a>
+          </div>
+        </nav>
+      </header>

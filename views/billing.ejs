@@ -1,0 +1,62 @@
+<%- include('partials/header') %>
+
+<main class="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-10 sm:px-6 lg:px-8">
+  <section class="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+    <article class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/30 backdrop-blur-xl">
+      <p class="text-sm uppercase tracking-[0.35em] text-cyan-200/80">Billing overview</p>
+      <h1 class="mt-4 text-3xl font-black text-white sm:text-4xl">Invoices, renewals, and payment health</h1>
+      <p class="mt-4 text-slate-300">Track due dates, top-up credits, and recurring invoices with clear finance visibility for your hosting plan.</p>
+      <div class="mt-6 grid gap-4 sm:grid-cols-2">
+        <div class="rounded-2xl border border-white/10 bg-slate-950/90 p-4"><p class="text-xs uppercase tracking-[0.35em] text-slate-400">Balance</p><p class="mt-3 text-2xl font-semibold text-white">$2,450.80</p></div>
+        <div class="rounded-2xl border border-white/10 bg-slate-950/90 p-4"><p class="text-xs uppercase tracking-[0.35em] text-slate-400">Renewal date</p><p class="mt-3 text-2xl font-semibold text-white">Jul 03</p></div>
+      </div>
+    </article>
+
+    <article class="rounded-3xl border border-cyan-400/30 bg-gradient-to-br from-cyan-400/10 to-slate-900 p-6 shadow-2xl shadow-cyan-950/40 backdrop-blur-xl">
+      <p class="text-sm uppercase tracking-[0.35em] text-cyan-100/80">Autopay status</p>
+      <h2 class="mt-4 text-xl font-semibold text-white">Payment automation is active</h2>
+      <ul class="mt-6 space-y-3 text-sm text-slate-100">
+        <li>Visa ending in 2048 • Auto-renew enabled</li>
+        <li>Invoices are generated every first of the month</li>
+        <li>1 credit balance available for overages</li>
+      </ul>
+      <button class="mt-6 rounded-full bg-gradient-to-r from-cyan-400 to-sky-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:opacity-95">Manage payment method</button>
+    </article>
+  </section>
+
+  <section class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/30 backdrop-blur-xl">
+    <div class="flex items-center justify-between gap-4">
+      <div>
+        <p class="text-sm uppercase tracking-[0.35em] text-cyan-200/80">Invoice ledger</p>
+        <h2 class="mt-2 text-xl font-semibold text-white">Recent transactions</h2>
+      </div>
+      <button class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-100 hover:border-cyan-400/60 hover:bg-cyan-400/10">Export CSV</button>
+    </div>
+    <div class="mt-6 overflow-x-auto">
+      <table class="min-w-full divide-y divide-white/10 text-left text-sm text-slate-200">
+        <thead>
+          <tr class="text-slate-400">
+            <th class="pb-3">Invoice</th>
+            <th class="pb-3">Description</th>
+            <th class="pb-3">Due date</th>
+            <th class="pb-3">Amount</th>
+            <th class="pb-3">Status</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-white/10">
+          <% invoices.forEach((invoice) => { %>
+          <tr>
+            <td class="py-4 font-semibold text-white"><%= invoice.id %></td>
+            <td class="py-4"><%= invoice.type %></td>
+            <td class="py-4"><%= invoice.due %></td>
+            <td class="py-4 text-white"><%= invoice.amount %></td>
+            <td class="py-4"><span class="rounded-full px-3 py-1 text-xs font-semibold <%= invoice.status === 'Paid' ? 'bg-emerald-500/10 text-emerald-300' : invoice.status === 'Pending' ? 'bg-amber-500/10 text-amber-200' : 'bg-rose-500/10 text-rose-200' %>"><%= invoice.status %></span></td>
+          </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<%- include('partials/footer') %>
