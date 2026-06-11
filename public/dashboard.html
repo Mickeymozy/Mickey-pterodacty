@@ -7,19 +7,35 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
+        :root { color-scheme: dark; }
+        body { font-family: Arial, Helvetica, sans-serif; }
         .blinking-text { animation: blinker 1.2s linear infinite; }
         @keyframes blinker { 50% { opacity: 0; } }
+        .glass-card {
+            background: linear-gradient(145deg, rgba(15,23,42,0.95), rgba(8,12,24,0.92));
+            border: 1px solid rgba(148,163,184,0.18);
+            box-shadow: 0 10px 30px rgba(15,23,42,0.45);
+            backdrop-filter: blur(16px);
+        }
         .vps-card {
-            background: rgba(255, 255, 255, 0.02);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            transition: all 0.3s ease-in-out;
+            background: linear-gradient(145deg, rgba(17,24,39,0.98), rgba(2,6,23,0.96));
+            border: 1px solid rgba(148,163,184,0.18);
+            transition: all 0.25s ease;
+            box-shadow: 0 10px 30px rgba(15,23,42,0.35);
         }
         .vps-card:hover {
-            border-color: #00ffcc;
-            transform: translateY(-5px);
-            box-shadow: 0 15px 30px rgba(0, 255, 204, 0.1);
+            border-color: rgba(45,212,191,0.7);
+            transform: translateY(-6px);
+            box-shadow: 0 18px 40px rgba(45,212,191,0.12);
         }
+        .mini-chip {
+            display: inline-flex; align-items: center; gap: 6px;
+            border: 1px solid rgba(45,212,191,0.25); border-radius: 999px;
+            background: rgba(45,212,191,0.08); color: #99f6e4; font-size: 11px; padding: 4px 10px;
+        }
+        .status-pill { border-radius: 999px; padding: 4px 8px; font-size: 11px; }
+        .soft-note { color: #cbd5e1; font-size: 12px; line-height: 1.5; }
+        .btn-pay:disabled { opacity: 0.65; cursor: not-allowed; }
     </style>
 </head>
 <body class="bg-[#0b0f19] text-gray-100 min-h-screen relative overflow-x-hidden">
@@ -38,10 +54,32 @@
         </div>
     </nav>
 
-    <div class="max-w-7xl mx-auto px-4 py-8 space-y-12">
-        
-        <div>
-            <h2 class="text-xl font-bold mb-4 text-[#00ffcc]" id="servers-title">Mali Zako (Active Pterodactyl Servers)</h2>
+    <div class="max-w-7xl mx-auto px-4 py-8 space-y-10">
+        <section class="glass-card rounded-3xl p-6 md:p-8 border border-white/10">
+            <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+                <div>
+                    <p class="mini-chip">⚡ Panel ya huduma ya haraka</p>
+                    <h1 class="text-2xl md:text-3xl font-black text-[#00ffcc] mt-3">Mickey Host dashboard</h1>
+                    <p class="soft-note mt-2 max-w-2xl">Angalia seva zako, angalia miamala inayosubiri, na lipia kwa SonicPesa kwa kubonyeza kifurushi chako cha VPS.</p>
+                </div>
+                <div class="grid grid-cols-2 gap-3 text-sm">
+                    <div class="glass-card rounded-2xl p-3 min-w-[140px]">
+                        <div class="text-xs text-gray-400">Seva zinazopatikana</div>
+                        <div class="text-xl font-bold text-[#00ffcc]" id="summary-servers">0</div>
+                    </div>
+                    <div class="glass-card rounded-2xl p-3 min-w-[140px]">
+                        <div class="text-xs text-gray-400">Miamala inayosubiri</div>
+                        <div class="text-xl font-bold text-yellow-400" id="summary-pending">0</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="glass-card rounded-3xl p-6 md:p-7">
+            <div class="flex items-center justify-between gap-3 mb-4 flex-wrap">
+                <h2 class="text-xl font-bold text-[#00ffcc]" id="servers-title">Mali Zako (Active Pterodactyl Servers)</h2>
+                <span class="status-pill bg-emerald-500/10 text-emerald-200 border border-emerald-500/20">Live status</span>
+            </div>
             <div class="bg-white/5 border border-white/5 rounded-xl p-6 overflow-x-auto">
                 <table class="w-full text-left text-sm text-gray-300">
                     <thead class="border-b border-white/5 text-gray-400">
@@ -65,10 +103,19 @@
             <div id="pending-container" class="space-y-2"></div>
         </div>
 
-        <div id="vps-shop-section">
-            <h2 class="text-xl font-bold mb-2 text-center">Chagua Kifurushi Chako cha VPS</h2>
-            <p class="text-xs text-gray-400 text-center mb-8">Baada ya kubofya, utatumiwa USSD push kwenye namba utakayoingiza.</p>
+        <div id="vps-shop-section" class="glass-card rounded-3xl p-6 md:p-8">
+            <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
+                <div>
+                    <h2 class="text-xl font-bold text-[#00ffcc]">Chagua Kifurushi Chako cha VPS</h2>
+                    <p class="text-xs text-gray-400 mt-1">Baada ya kubofya, utatumiwa USSD push kwenye namba utakayoingiza. Hakikisha namba iko sahihi.</p>
+                </div>
+                <div class="mini-chip">💳 Malipo ya SonicPesa Push</div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             
+            <div class="mb-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/8 p-3 text-xs text-emerald-100" id="payment-status">Tumia namba ya simu ya Tanzania ili upokee USSD push ya SonicPesa.</div>
+
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div class="vps-card p-6 rounded-xl flex flex-col justify-between">
                     <div>
@@ -82,7 +129,7 @@
                     </div>
                     <div class="space-y-2">
                         <input type="text" id="phone-Starter" placeholder="Mfano: 0657779003" class="w-full p-2 bg-gray-900 border border-gray-800 rounded text-xs text-white focus:outline-none focus:border-[#00ffcc]">
-                        <button onclick="triggerPayment('Starter', 3500)" class="w-full bg-[#00ffcc] text-[#0b0f19] py-2 rounded font-bold text-xs hover:bg-[#00cc99] transition">Lipia na SonicPesa (Push)</button>
+                        <button onclick="triggerPayment(event, 'Starter', 3500, 'phone-Starter')" class="btn-pay w-full bg-[#00ffcc] text-[#0b0f19] py-2 rounded font-bold text-xs hover:bg-[#00cc99] transition">Lipia na SonicPesa (Push)</button>
                     </div>
                 </div>
                 <div class="vps-card p-6 rounded-xl flex flex-col justify-between border-[#00ffcc]/30">
@@ -97,7 +144,7 @@
                     </div>
                     <div class="space-y-2">
                         <input type="text" id="phone-Professional" placeholder="Mfano: 0657779003" class="w-full p-2 bg-gray-900 border border-gray-800 rounded text-xs text-white focus:outline-none focus:border-[#00ffcc]">
-                        <button onclick="triggerPayment('Professional', 7500)" class="w-full bg-[#00ffcc] text-[#0b0f19] py-2 rounded font-bold text-xs hover:bg-[#00cc99] transition">Lipia na SonicPesa (Push)</button>
+                        <button onclick="triggerPayment(event, 'Professional', 7500, 'phone-Professional')" class="btn-pay w-full bg-[#00ffcc] text-[#0b0f19] py-2 rounded font-bold text-xs hover:bg-[#00cc99] transition">Lipia na SonicPesa (Push)</button>
                     </div>
                 </div>
                 <div class="vps-card p-6 rounded-xl flex flex-col justify-between">
@@ -112,7 +159,7 @@
                     </div>
                     <div class="space-y-2">
                         <input type="text" id="phone-Enterprise" placeholder="Mfano: 0657779003" class="w-full p-2 bg-gray-900 border border-gray-800 rounded text-xs text-white focus:outline-none focus:border-[#00ffcc]">
-                        <button onclick="triggerPayment('Enterprise', 12000)" class="w-full bg-[#00ffcc] text-[#0b0f19] py-2 rounded font-bold text-xs hover:bg-[#00cc99] transition">Lipia na SonicPesa (Push)</button>
+                        <button onclick="triggerPayment(event, 'Enterprise', 12000, 'phone-Enterprise')" class="btn-pay w-full bg-[#00ffcc] text-[#0b0f19] py-2 rounded font-bold text-xs hover:bg-[#00cc99] transition">Lipia na SonicPesa (Push)</button>
                     </div>
                 </div>
             </div>
@@ -185,24 +232,46 @@
             }
         }
 
-        async function triggerPayment(planName, price) {
-            const phoneInput = document.getElementById(`phone-${planName}`).value;
+        function setStatus(message, tone = 'info') {
+            const el = document.getElementById('payment-status');
+            const toneClass = tone === 'error' ? 'bg-red-500/10 text-red-200 border-red-500/30' : 'bg-emerald-500/10 text-emerald-100 border-emerald-500/30';
+            el.className = `rounded-xl border px-4 py-3 text-xs ${toneClass}`;
+            el.textContent = message;
+        }
+
+        async function triggerPayment(event, planName, price, inputId) {
+            const button = event.currentTarget;
+            const phoneInput = document.getElementById(inputId).value.trim();
+
             if (!phoneInput || phoneInput.length < 9) {
-                alert('Tafadhali ingiza namba sahihi ya simu!');
+                setStatus('Tafadhali ingiza namba sahihi ya simu kabla ya kulipa.', 'error');
                 return;
             }
 
-            const res = await fetch('/api/vps/create-ussd-order', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ plan: 'VPS ' + planName, amount: price, phone: phoneInput })
-            });
-            const data = await res.json();
-            if (data.success) {
-                alert(data.message);
-                fetchDashboardData();
-            } else {
-                alert(data.message || 'Imeshindikana.');
+            button.disabled = true;
+            button.textContent = 'Inatumia SonicPesa...';
+            setStatus('Inatuma ombi la malipo kwa SonicPesa. Tafadhali subiri...', 'info');
+
+            try {
+                const res = await fetch('/api/vps/create-ussd-order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ plan: 'VPS ' + planName, amount: price, phone: phoneInput })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    setStatus(data.message || 'Oda yako imeundwa. Angalia simu yako kwa USSD push.', 'info');
+                    fetchDashboardData();
+                } else {
+                    setStatus(data.message || 'Kulipia kumekataa. Angalia namba yako na upate upya.', 'error');
+                }
+            } catch (err) {
+                console.error(err);
+                setStatus('Imeshindwa kuwasiliana na huduma ya malipo. Jaribu tena baadaye.', 'error');
+            } finally {
+                button.disabled = false;
+                button.textContent = 'Lipia na SonicPesa (Push)';
             }
         }
 

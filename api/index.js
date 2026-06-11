@@ -114,8 +114,6 @@ app.post('/api/auth/login', async (req, res) => {
 
 // 3. SONICPESA PUSH USSD INITIALIZATION
 app.post('/api/vps/create-ussd-order', verifyToken, async (req, res) => {
-    try { await connectDB(); } catch(e) { return res.status(500).json({success:false, message: e.message}); }
-
     const { plan, amount, phone } = req.body;
     const amountValue = Number(amount);
 
@@ -160,19 +158,25 @@ app.post('/api/vps/create-ussd-order', verifyToken, async (req, res) => {
 
         if (sonicResponse.data.status === 'success') {
             const sonicData = sonicResponse.data.data;
-            
-            const newOrder = new Order({
-                userId: req.user.id,
-                buyer_name: req.user.name,
-                sonicOrderId: sonicData.order_id,
-                amount: sonicData.amount,
-                plan: plan,
-                phone: formattedPhone,
-                status: 'PENDING'
-            });
-            await newOrder.save();
+            const orderId = sonicData.order_id || sonicData.id || `sp-${Date.now()}`;
 
-            res.json({ success: true, message: sonicResponse.data.message, order_id: sonicData.order_id });
+            try {
+                await connectDB();
+                const newOrder = new Order({
+                    userId: req.user.id,
+                    buyer_name: req.user.name,
+                    sonicOrderId: orderId,
+                    amount: Number(sonicData.amount || amountValue),
+                    plan: plan,
+                    phone: formattedPhone,
+                    status: 'PENDING'
+                });
+                await newOrder.save();
+            } catch (dbErr) {
+                console.error('Order save failed after SonicPesa success:', dbErr.message);
+            }
+
+            res.json({ success: true, message: sonicResponse.data.message, order_id: orderId });
         } else {
             res.status(400).json({ success: false, message: sonicResponse.data.message || 'SonicPesa imekataa kutengeneza oda.' });
         }
@@ -192,21 +196,28 @@ app.post('/api/vps/create-ussd-order', verifyToken, async (req, res) => {
 
                 if (fallbackResponse.data.status === 'success') {
                     const sonicData = fallbackResponse.data.data || fallbackResponse.data;
-                    const newOrder = new Order({
-                        userId: req.user.id,
-                        buyer_name: req.user.name,
-                        sonicOrderId: sonicData.order_id || sonicData.id || `sp-${Date.now()}`,
-                        amount: Number(sonicData.amount || amountValue),
-                        plan: plan,
-                        phone: formattedPhone,
-                        status: 'PENDING'
-                    });
-                    await newOrder.save();
+                    const orderId = sonicData.order_id || sonicData.id || `sp-${Date.now()}`;
+
+                    try {
+                        await connectDB();
+                        const newOrder = new Order({
+                            userId: req.user.id,
+                            buyer_name: req.user.name,
+                            sonicOrderId: orderId,
+                            amount: Number(sonicData.amount || amountValue),
+                            plan: plan,
+                            phone: formattedPhone,
+                            status: 'PENDING'
+                        });
+                        await newOrder.save();
+                    } catch (dbErr) {
+                        console.error('Order save failed after SonicPesa fallback success:', dbErr.message);
+                    }
 
                     return res.json({
                         success: true,
                         message: fallbackResponse.data.message || 'Oda imeundwa kwa SonicPesa.',
-                        order_id: sonicData.order_id || sonicData.id
+                        order_id: orderId
                     });
                 }
             }
