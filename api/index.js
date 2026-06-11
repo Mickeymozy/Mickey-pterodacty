@@ -17,18 +17,30 @@ app.use(express.json({
     }
 }));
 app.use(cors());
-app.use(express.static(path.join(__dirname, 'public')));
 
-// 1. MONGODB SCHEMAS (Pamoja na Role kwa ajili ya Admin)
-const UserSchema = new mongoose.Schema({
+// Unganisha MongoDB kila hitaji (request) linapoingia kwa ajili ya Vercel Serverless
+const connectDB = async () => {
+    if (mongoose.connection.readyState >= 1) return;
+    try {
+        await mongoose.connect(process.env.MONGO_URI, {
+            serverSelectionTimeoutMS: 8000 
+        });
+        console.log("⚡ MongoDB Connected Successfully");
+    } catch (err) {
+        console.error("❌ MongoDB Connection Failed:", err.message);
+        throw new Error("Database connection timeout au hitilafu ya URI");
+    }
+};
+
+// 1. MONGODB SCHEMAS
+const User = mongoose.models.User || mongoose.model('User', new mongoose.Schema({
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true, index: true },
     password: { type: String, required: true },
     role: { type: String, enum: ['user', 'admin'], default: 'user' }
-});
-const User = mongoose.model('User', UserSchema);
+}));
 
-const OrderSchema = new mongoose.Schema({
+const Order = mongoose.models.Order || mongoose.model('Order', new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     buyer_name: String,
     sonicOrderId: { type: String, unique: true, index: true },
@@ -36,10 +48,9 @@ const OrderSchema = new mongoose.Schema({
     status: { type: String, enum: ['PENDING', 'SUCCESS', 'CANCELLED', 'REJECTED'], default: 'PENDING' },
     plan: String,
     phone: String
-}, { timestamps: true });
-const Order = mongoose.model('Order', OrderSchema);
+}, { timestamps: true }));
 
-const ServerSchema = new mongoose.Schema({
+const Server = mongoose.models.Server || mongoose.model('Server', new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     owner_name: String,
     host: String,
@@ -47,15 +58,7 @@ const ServerSchema = new mongoose.Schema({
     pass: String,
     port: { type: String, default: '22' },
     plan: String
-});
-const Server = mongoose.model('Server', ServerSchema);
-
-// Connect to MongoDB na kuweka timeout fupi ili isihang
-mongoose.connect(process.env.MONGO_URI, {
-    serverSelectionTimeoutMS: 5000 
-})
-.then(() => console.log('⚡ Mickey Host MongoDB Connected'))
-.catch(err => console.error('❌ MongoDB Connection Error:', err.message));
+}));
 
 // Middleware ya Uthibitishaji
 const verifyToken = (req, res, next) => {
@@ -71,19 +74,12 @@ const verifyToken = (req, res, next) => {
 // 2. AUTHENTICATION ROUTES
 app.post('/api/auth/signup', async (req, res) => {
     try {
+        await connectDB();
         const { name, email, password } = req.body;
-
-        // Angalia kama database ipo hewani mwanzo kabisa
-        if (mongoose.connection.readyState !== 1) {
-            return res.status(500).json({ success: false, message: 'Database haijafanikiwa kuunganishwa kwenye server bado!' });
-        }
-
         const exists = await User.findOne({ email: email.toLowerCase() });
         if (exists) return res.status(400).json({ success: false, message: 'Barua pepe hii imeshajisajili!' });
 
         const hashedPassword = await bcrypt.hash(password, 10);
-
-        // Angalia kama email ni ya admin uliyoomba
         const assignRole = (email.toLowerCase() === 'mickidadyhamza@gmail.com') ? 'admin' : 'user';
 
         const newUser = new User({ 
@@ -95,18 +91,14 @@ app.post('/api/auth/signup', async (req, res) => {
         await newUser.save();
         res.status(201).json({ success: true, message: 'Usajili umekamilika kikamilifu!' });
     } catch (err) { 
-        res.status(500).json({ success: false, message: 'Error ya Usajili: ' + err.message }); 
+        res.status(500).json({ success: false, message: 'Server Error: ' + err.message }); 
     }
 });
 
 app.post('/api/auth/login', async (req, res) => {
     try {
+        await connectDB();
         const { email, password } = req.body;
-
-        if (mongoose.connection.readyState !== 1) {
-            return res.status(500).json({ success: false, message: 'Database haipatikani kwa sasa!' });
-        }
-
         const user = await User.findOne({ email: email.toLowerCase() });
         if (!user) return res.status(400).json({ success: false, message: 'Barua pepe au nenosiri si sahihi!' });
 
@@ -116,12 +108,14 @@ app.post('/api/auth/login', async (req, res) => {
         const token = jwt.sign({ id: user._id, name: user.name, email: user.email, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
         res.json({ success: true, token, user: { name: user.name, email: user.email, role: user.role } });
     } catch (err) { 
-        res.status(500).json({ success: false, message: 'Error ya Login: ' + err.message }); 
+        res.status(500).json({ success: false, message: 'Server Error: ' + err.message }); 
     }
 });
 
 // 3. SONICPESA PUSH USSD INITIALIZATION
 app.post('/api/vps/create-ussd-order', verifyToken, async (req, res) => {
+    try { await connectDB(); } catch(e) { return res.status(500).json({success:false, message: e.message}); }
+    
     const { plan, amount, phone } = req.body;
     let formattedPhone = phone.trim().replace('+', '');
     if (formattedPhone.startsWith('0')) {
@@ -144,7 +138,7 @@ app.post('/api/vps/create-ussd-order', verifyToken, async (req, res) => {
 
         if (sonicResponse.data.status === 'success') {
             const sonicData = sonicResponse.data.data;
-
+            
             const newOrder = new Order({
                 userId: req.user.id,
                 buyer_name: req.user.name,
@@ -167,6 +161,8 @@ app.post('/api/vps/create-ussd-order', verifyToken, async (req, res) => {
 
 // 4. SONICPESA SECURE WEBHOOK
 app.post('/api/vps/sonicpesa-webhook', async (req, res) => {
+    try { await connectDB(); } catch(e) { return res.status(500).send("DB Error"); }
+
     const receivedSignature = req.headers['x-sonicpesa-signature'];
     const expectedSignature = crypto
         .createHmac('sha256', process.env.SONICPESA_SECRET_KEY)
@@ -182,15 +178,14 @@ app.post('/api/vps/sonicpesa-webhook', async (req, res) => {
     try {
         if (event === 'payment.completed' && status === 'SUCCESS') {
             const order = await Order.findOne({ sonicOrderId: order_id });
-            if (!order) return res.status(404).send('Order not found');
-            if (order.status === 'SUCCESS') return res.status(200).send('Processed Already');
+            if (!order || order.status === 'SUCCESS') return res.status(200).send('Processed Already');
 
             order.status = 'SUCCESS';
             await order.save();
 
             const user = await User.findById(order.userId);
             const tempPassword = crypto.randomBytes(4).toString('hex') + 'Mk2026!';
-
+            
             const pteroPayload = {
                 name: `${user.name.toLowerCase().replace(/\s+/g, '-')}-vps`,
                 user: 1, egg: 1,
@@ -233,16 +228,15 @@ app.post('/api/vps/sonicpesa-webhook', async (req, res) => {
     }
 });
 
-// Njia ya kuokota data za mteja (Kama ni Admin anaona data za KILA MTU humo humo kwenye panel)
+// Njia ya kuokota data za mteja au Admin
 app.get('/api/vps/my-assets', verifyToken, async (req, res) => {
-    try {
+    try { 
+        await connectDB(); 
         let servers, pending;
         if (req.user.role === 'admin') {
-            // Kama ni email yako (Admin) leta kila kitu kilichopo kwenye database
             servers = await Server.find({});
             pending = await Order.find({ status: 'PENDING' });
         } else {
-            // Mteja wa kawaida anaona vyake tu
             servers = await Server.find({ userId: req.user.id });
             pending = await Order.find({ userId: req.user.id, status: 'PENDING' });
         }
@@ -252,9 +246,13 @@ app.get('/api/vps/my-assets', verifyToken, async (req, res) => {
     }
 });
 
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'login.html'));
+// === INATOKA KWENYE /api/ NA KWENDA KWENYE FOLDER LA /public/ KUSOMA HTML ===
+app.get('/dashboard.html', (req, res) => {
+    res.sendFile(path.join(__dirname, '../public', 'dashboard.html'));
 });
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 Mickey Host Active on Port ${PORT}`));
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../public', 'login.html'));
+});
+
+module.exports = app;
