@@ -113,6 +113,17 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 // 3. SONICPESA PUSH USSD INITIALIZATION
+const SONIC_CREATE_ORDER_URL = 'https://api.sonicpesa.com/api/v1/payment/create_order';
+const SONIC_ORDER_STATUS_URL = 'https://api.sonicpesa.com/api/v1/payment/order_status';
+
+const normalizePhone = (phone) => {
+    const cleaned = String(phone || '').trim().replace(/\D/g, '');
+    if (!cleaned) return '';
+    if (cleaned.startsWith('255')) return cleaned;
+    if (cleaned.startsWith('0')) return '255' + cleaned.slice(1);
+    return cleaned;
+};
+
 app.post('/api/vps/create-ussd-order', verifyToken, async (req, res) => {
     const { plan, amount, phone } = req.body;
     const amountValue = Number(amount);
@@ -132,9 +143,9 @@ app.post('/api/vps/create-ussd-order', verifyToken, async (req, res) => {
         return res.status(400).json({ success: false, message: 'Kiasi cha malipo si sahihi.' });
     }
 
-    let formattedPhone = String(phone).trim().replace(/\+/g, '');
-    if (formattedPhone.startsWith('0')) {
-        formattedPhone = '255' + formattedPhone.substring(1);
+    const formattedPhone = normalizePhone(phone);
+    if (formattedPhone.length < 12) {
+        return res.status(400).json({ success: false, message: 'Namba ya simu si sahihi. Tumia mfano wa 2556xxxxxxxx.' });
     }
 
     const sonicHeaders = {
@@ -150,10 +161,8 @@ app.post('/api/vps/create-ussd-order', verifyToken, async (req, res) => {
         currency: 'TZS'
     };
 
-    const createOrderUrl = 'https://api.sonicpesa.com/api/v1/payment/create_order';
-
     try {
-        const sonicResponse = await axios.post(createOrderUrl, sonicPayload, {
+        const sonicResponse = await axios.post(SONIC_CREATE_ORDER_URL, sonicPayload, {
             headers: sonicHeaders,
             timeout: 45000
         });
@@ -205,7 +214,7 @@ app.post('/api/vps/create-ussd-order', verifyToken, async (req, res) => {
             : primaryStatus === 403
                 ? 'Akaunti ya SonicPesa haijaruhusiwa kutumia endpoint hii.'
                 : primaryStatus >= 500
-                    ? 'SonicPesa inarudisha kosa la ndani (500). Hii mara nyingi ni API key isiyo sahihi, akaunti isiyowashwa, au huduma ya SonicPesa ina shida.'
+                    ? 'SonicPesa inarudisha kosa la ndani (500). Hii mara nyingi ni API key isiyo sahihi, akaunti isiyowashwa, au huduma ya SonicPesa ina shida. Angalia Vercel env vars na uwe na key ya production.'
                     : 'SonicPesa imekataa ombi hilo.';
 
         return res.status(primaryStatus || 500).json({
@@ -222,7 +231,7 @@ app.post('/api/vps/order-status', verifyToken, async (req, res) => {
             return res.status(400).json({ success: false, message: 'order_id inahitajika.' });
         }
 
-        const statusResponse = await axios.post('https://api.sonicpesa.com/api/v1/payment/order_status', { order_id }, {
+        const statusResponse = await axios.post(SONIC_ORDER_STATUS_URL, { order_id }, {
             headers: {
                 'X-API-KEY': process.env.SONICPESA_API_KEY,
                 'Content-Type': 'application/json'
