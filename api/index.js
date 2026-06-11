@@ -182,10 +182,19 @@ app.post('/api/vps/create-ussd-order', verifyToken, async (req, res) => {
         }
     } catch (err) {
         const primaryStatus = err.response?.status;
-        const primaryMessage = err.response?.data?.message
-            || err.response?.data?.error
-            || err.response?.data?.detail
+        const providerBody = err.response?.data;
+        const primaryMessage = providerBody?.message
+            || providerBody?.error
+            || providerBody?.detail
+            || providerBody?.status
             || err.message;
+        const providerHint = primaryStatus === 401
+            ? 'API key ya SonicPesa si sahihi au haipo (angalia Vercel env vars).'
+            : primaryStatus === 403
+                ? 'Akaunti ya SonicPesa haijaruhusiwa kutumia endpoint hii.'
+                : primaryStatus >= 500
+                    ? 'SonicPesa inarudisha kosa la ndani (500). Hii mara nyingi ni API key isiyo sahihi, akaunti isiyowashwa, au huduma ya SonicPesa ina shida.'
+                    : 'SonicPesa imekataa ombi hilo.';
 
         try {
             if (primaryStatus >= 500 || !primaryMessage) {
@@ -235,7 +244,7 @@ app.post('/api/vps/create-ussd-order', verifyToken, async (req, res) => {
 
         res.status(primaryStatus || 500).json({
             success: false,
-            message: 'Mawasiliano na SonicPesa yamefeli: ' + primaryMessage
+            message: 'Mawasiliano na SonicPesa yamefeli: ' + primaryMessage + ' ' + providerHint + ' Tazama Vercel -> Settings -> Environment Variables.'
         });
     }
 });
