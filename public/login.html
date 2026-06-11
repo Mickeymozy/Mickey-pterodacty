@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mickey Host pannel - Ingia / Jisajili</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body class="bg-[#0b0f19] text-gray-100 min-h-screen flex items-center justify-center relative overflow-hidden">
+
+    <div id="canvas-3d" class="fixed top-0 left-0 w-full h-full -z-10 opacity-30"></div>
+
+    <div class="w-full max-w-md p-8 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-xl shadow-2xl mx-4">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-extrabold text-[#00ffcc] tracking-tight">Mickey Host pannel⚡</h1>
+            <p class="text-xs text-gray-400 mt-2" id="form-subtitle">Ingia kusimamia au kununua seva yako ya VPS</p>
+        </div>
+
+        <form id="login-form" class="space-y-5">
+            <div>
+                <label class="block text-xs uppercase tracking-wider text-gray-400 mb-2">Barua Pepe (Email)</label>
+                <input type="email" id="login-email" required class="w-full p-3 bg-gray-900 border border-gray-800 rounded-lg focus:outline-none focus:border-[#00ffcc] text-sm text-white">
+            </div>
+            <div>
+                <label class="block text-xs uppercase tracking-wider text-gray-400 mb-2">Nenosiri (Password)</label>
+                <input type="password" id="login-password" required class="w-full p-3 bg-gray-900 border border-gray-800 rounded-lg focus:outline-none focus:border-[#00ffcc] text-sm text-white">
+            </div>
+            <button type="submit" class="w-full py-3 bg-[#00ffcc] text-[#0b0f19] font-bold rounded-lg hover:bg-[#00cc99] transition text-sm">INGIA KWENYE PANEL</button>
+            <p class="text-center text-xs text-gray-400">Huna akaunti bado? <a href="#" onclick="toggleAuth(false)" class="text-[#00ffcc] hover:underline">Jisajili hapa</a></p>
+        </form>
+
+        <form id="signup-form" class="space-y-5 hidden">
+            <div>
+                <label class="block text-xs uppercase tracking-wider text-gray-400 mb-2">Jina Kamili</label>
+                <input type="text" id="signup-name" required class="w-full p-3 bg-gray-900 border border-gray-800 rounded-lg focus:outline-none focus:border-[#00ffcc] text-sm text-white">
+            </div>
+            <div>
+                <label class="block text-xs uppercase tracking-wider text-gray-400 mb-2">Barua Pepe (Email)</label>
+                <input type="email" id="signup-email" required class="w-full p-3 bg-gray-900 border border-gray-800 rounded-lg focus:outline-none focus:border-[#00ffcc] text-sm text-white">
+            </div>
+            <div>
+                <label class="block text-xs uppercase tracking-wider text-gray-400 mb-2">Nenosiri (Password)</label>
+                <input type="password" id="signup-password" required class="w-full p-3 bg-gray-900 border border-gray-800 rounded-lg focus:outline-none focus:border-[#00ffcc] text-sm text-white">
+            </div>
+            <button type="submit" class="w-full py-3 bg-[#00ffcc] text-[#0b0f19] font-bold rounded-lg hover:bg-[#00cc99] transition text-sm">TENGENEZA AKAUNTI</button>
+            <p class="text-center text-xs text-gray-400">Tayari una akaunti? <a href="#" onclick="toggleAuth(true)" class="text-[#00ffcc] hover:underline">Ingia hapa</a></p>
+        </form>
+    </div>
+
+    <script>
+        function toggleAuth(isLogin) {
+            document.getElementById('login-form').classList.toggle('hidden', !isLogin);
+            document.getElementById('signup-form').classList.toggle('hidden', isLogin);
+            document.getElementById('form-subtitle').innerText = isLogin ? "Ingia kusimamia au kununua seva yako ya VPS" : "Tengeneza akaunti yako uanze kumiliki seva papo hapo";
+        }
+
+        document.getElementById('signup-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const response = await fetch('/api/auth/signup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: document.getElementById('signup-name').value,
+                    email: document.getElementById('signup-email').value,
+                    password: document.getElementById('signup-password').value
+                })
+            });
+            const data = await response.json();
+            alert(data.message || data.error);
+            if (response.ok) toggleAuth(true);
+        });
+
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const response = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: document.getElementById('login-email').value,
+                    password: document.getElementById('login-password').value
+                })
+            });
+            const data = await response.json();
+            if (response.ok) {
+                localStorage.setItem('mickey_token', data.token);
+                localStorage.setItem('mickey_user', JSON.stringify(data.user));
+                window.location.href = '/dashboard.html';
+            } else {
+                alert(data.message);
+            }
+        });
+
+        const init3D = () => {
+            const container = document.getElementById('canvas-3d');
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            container.appendChild(renderer.domElement);
+
+            const geometry = new THREE.TorusKnotGeometry(1.8, 0.4, 100, 16);
+            const material = new THREE.MeshBasicMaterial({ color: 0x00ffcc, wireframe: true });
+            const mesh = new THREE.Mesh(geometry, material);
+            scene.add(mesh);
+            camera.position.z = 5;
+
+            const animate = () => {
+                requestAnimationFrame(animate);
+                mesh.rotation.x += 0.003;
+                mesh.rotation.y += 0.005;
+                renderer.render(scene, camera);
+            };
+            animate();
+        };
+        init3D();
+    </script>
+</body>
+</html>
