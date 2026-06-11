@@ -139,19 +139,23 @@ app.post('/api/vps/create-ussd-order', verifyToken, async (req, res) => {
         formattedPhone = '255' + formattedPhone.substring(1);
     }
 
+    const sonicHeaders = {
+        'X-API-KEY': process.env.SONICPESA_API_KEY,
+        'Content-Type': 'application/json'
+    };
+
+    const sonicPayload = {
+        buyer_email: req.user.email,
+        buyer_name: req.user.name,
+        buyer_phone: formattedPhone,
+        amount: Math.round(amountValue),
+        currency: 'TZS'
+    };
+
     try {
-        const sonicResponse = await axios.post('https://api.sonicpesa.com/api/v1/payment/create_order', {
-            buyer_email: req.user.email,
-            buyer_name: req.user.name,
-            buyer_phone: formattedPhone,
-            amount: amountValue,
-            currency: 'TZS'
-        }, {
-            headers: {
-                'X-API-KEY': process.env.SONICPESA_API_KEY,
-                'Content-Type': 'application/json'
-            },
-            timeout: 30000
+        const sonicResponse = await axios.post('https://api.sonicpesa.com/api/v1/payment/create_order', sonicPayload, {
+            headers: sonicHeaders,
+            timeout: 45000
         });
 
         if (sonicResponse.data.status === 'success') {
@@ -173,14 +177,54 @@ app.post('/api/vps/create-ussd-order', verifyToken, async (req, res) => {
             res.status(400).json({ success: false, message: sonicResponse.data.message || 'SonicPesa imekataa kutengeneza oda.' });
         }
     } catch (err) {
-        const sonicMessage = err.response?.data?.message
+        const primaryStatus = err.response?.status;
+        const primaryMessage = err.response?.data?.message
             || err.response?.data?.error
             || err.response?.data?.detail
             || err.message;
 
-        res.status(err.response?.status || 500).json({
+        try {
+            if (primaryStatus >= 500 || !primaryMessage) {
+                const fallbackResponse = await axios.post('https://api.sonicpesa.com/api/v1/payment/create_order_simple', sonicPayload, {
+                    headers: sonicHeaders,
+                    timeout: 65000
+                });
+
+                if (fallbackResponse.data.status === 'success') {
+                    const sonicData = fallbackResponse.data.data || fallbackResponse.data;
+                    const newOrder = new Order({
+                        userId: req.user.id,
+                        buyer_name: req.user.name,
+                        sonicOrderId: sonicData.order_id || sonicData.id || `sp-${Date.now()}`,
+                        amount: Number(sonicData.amount || amountValue),
+                        plan: plan,
+                        phone: formattedPhone,
+                        status: 'PENDING'
+                    });
+                    await newOrder.save();
+
+                    return res.json({
+                        success: true,
+                        message: fallbackResponse.data.message || 'Oda imeundwa kwa SonicPesa.',
+                        order_id: sonicData.order_id || sonicData.id
+                    });
+                }
+            }
+        } catch (fallbackErr) {
+            const fallbackMessage = fallbackErr.response?.data?.message
+                || fallbackErr.response?.data?.error
+                || fallbackErr.response?.data?.detail
+                || fallbackErr.message;
+
+            return res.status(fallbackErr.response?.status || 500).json({
+                success: false,
+                message: 'Mawasiliano na SonicPesa yamefeli: ' + fallbackMessage
+            });
+        }
+
+        res.status(primaryStatus || 500).json({
             success: false,
-            message: 'Mawasiliano na SonicPesa yamefeli: ' + sonicMessage
+            message: 'Mawasiliano na SonicPesa yamefeli: ' + primaryMessage
         });
     }
 });
