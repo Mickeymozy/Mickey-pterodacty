@@ -55,42 +55,53 @@
             document.getElementById('form-subtitle').innerText = isLogin ? "Ingia kusimamia au kununua seva yako ya VPS" : "Tengeneza akaunti yako uanze kumiliki seva papo hapo";
         }
 
+        // Handle Signup
         document.getElementById('signup-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const response = await fetch('/api/auth/signup', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    name: document.getElementById('signup-name').value,
-                    email: document.getElementById('signup-email').value,
-                    password: document.getElementById('signup-password').value
-                })
-            });
-            const data = await response.json();
-            alert(data.message || data.error);
-            if (response.ok) toggleAuth(true);
-        });
-
-        document.getElementById('login-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const response = await fetch('/api/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    email: document.getElementById('login-email').value,
-                    password: document.getElementById('login-password').value
-                })
-            });
-            const data = await response.json();
-            if (response.ok) {
-                localStorage.setItem('mickey_token', data.token);
-                localStorage.setItem('mickey_user', JSON.stringify(data.user));
-                window.location.href = '/dashboard.html';
-            } else {
-                alert(data.message);
+            try {
+                const response = await fetch('/api/auth/signup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: document.getElementById('signup-name').value,
+                        email: document.getElementById('signup-email').value,
+                        password: document.getElementById('signup-password').value
+                    })
+                });
+                const data = await response.json();
+                alert(data.message || "Hitilafu imetokea");
+                if (data.success) toggleAuth(true);
+            } catch (err) {
+                alert("Server Error: Imeshindwa kuwasiliana na backend. Angalia kama database imeunganishwa!");
             }
         });
 
+        // Handle Login
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: document.getElementById('login-email').value,
+                        password: document.getElementById('login-password').value
+                    })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    localStorage.setItem('mickey_token', data.token);
+                    localStorage.setItem('mickey_user', JSON.stringify(data.user));
+                    window.location.href = '/dashboard.html';
+                } else {
+                    alert(data.message || "Mawasiliano yamefeli.");
+                }
+            } catch (err) {
+                alert("Server Error: Imeshindwa kuwasiliana na backend. Angalia kama database yako ipo salama!");
+            }
+        });
+
+        // 3D background loop
         const init3D = () => {
             const container = document.getElementById('canvas-3d');
             const scene = new THREE.Scene();
