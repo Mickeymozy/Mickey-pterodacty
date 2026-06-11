@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mickey Host pannel - Client Control Area</title>
+    <title>Mickey Host pannel - Control Area</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
@@ -27,11 +27,11 @@
     <div id="canvas-3d" class="fixed top-0 left-0 w-full h-full -z-10 opacity-20 pointer-events-none"></div>
 
     <div class="bg-red-500/10 border-b border-red-500/30 text-center py-2 text-xs tracking-wider">
-        <span class="blinking-text text-red-500 font-bold mr-1">TANZANIA TECH UPDATE:</span> Mifumo ya malipo sasa inatumia <span class="text-yellow-400 font-semibold">SonicPesa USSD Push</span>. Ingiza namba, utatumiwa ombi la namba ya siri papo hapo.
+        <span class="blinking-text text-red-500 font-bold mr-1">MFUMO WA DIGITAL:</span> Malipo yanatumia <span class="text-yellow-400 font-semibold">SonicPesa USSD Push</span>. Ingiza namba yako ya simu upokee ombi la siri papo hapo.
     </div>
 
     <nav class="flex justify-between items-center px-8 py-4 border-b border-white/5 backdrop-blur-md sticky top-0 z-50 bg-[#0b0f19]/90">
-        <div class="text-xl font-bold text-[#00ffcc]">Mickey Host.⚡</div>
+        <div class="text-xl font-bold text-[#00ffcc]">Mickey Host.⚡ <span id="admin-badge" class="hidden text-xs bg-red-600 text-white px-2 py-0.5 rounded ml-2 font-mono">ADMIN CONTROL ACTIVE</span></div>
         <div class="flex items-center space-x-6 text-sm">
             <span id="user-display" class="text-gray-400"></span>
             <button onclick="logout()" class="text-red-400 hover:underline">Ondoka (Logout)</button>
@@ -41,11 +41,12 @@
     <div class="max-w-7xl mx-auto px-4 py-8 space-y-12">
         
         <div>
-            <h2 class="text-xl font-bold mb-4 text-[#00ffcc]">Mali Zako (Active Pterodactyl Servers)</h2>
+            <h2 class="text-xl font-bold mb-4 text-[#00ffcc]" id="servers-title">Mali Zako (Active Pterodactyl Servers)</h2>
             <div class="bg-white/5 border border-white/5 rounded-xl p-6 overflow-x-auto">
                 <table class="w-full text-left text-sm text-gray-300">
                     <thead class="border-b border-white/5 text-gray-400">
                         <tr>
+                            <th class="pb-2" id="th-owner" class="hidden">Mteja</th>
                             <th class="pb-2">Kifurushi</th>
                             <th class="pb-2">Panel URL Host</th>
                             <th class="pb-2">Username</th>
@@ -55,16 +56,16 @@
                     </thead>
                     <tbody id="server-table-body"></tbody>
                 </table>
-                <p id="no-servers" class="text-xs text-gray-500 text-center py-4 hidden">Huna seva yoyote iliyowashwa kwa sasa kwenye database yetu.</p>
+                <p id="no-servers" class="text-xs text-gray-500 text-center py-4 hidden">Hakuna seva yoyote iliyopatikana kwenye mfumo kwa sasa.</p>
             </div>
         </div>
 
         <div id="pending-box" class="hidden">
-            <h3 class="text-md font-bold mb-3 text-yellow-500">Miamala Inayosubiri Malipo Yako ya USSD PIN</h3>
+            <h3 class="text-md font-bold mb-3 text-yellow-500" id="pending-title">Miamala Inayosubiri Malipo ya PIN</h3>
             <div id="pending-container" class="space-y-2"></div>
         </div>
 
-        <div>
+        <div id="vps-shop-section">
             <h2 class="text-xl font-bold mb-2 text-center">Chagua Kifurushi Chako cha VPS</h2>
             <p class="text-xs text-gray-400 text-center mb-8">Baada ya kubofya, utatumiwa USSD push kwenye namba utakayoingiza.</p>
             
@@ -123,7 +124,17 @@
         if (!token) window.location.href = '/login.html';
 
         const user = JSON.parse(localStorage.getItem('mickey_user'));
-        document.getElementById('user-display').innerText = `Mteja: ${user.name}`;
+        const isAdmin = user.role === 'admin';
+
+        document.getElementById('user-display').innerText = `${isAdmin ? 'Admin' : 'Mteja'}: ${user.name}`;
+        
+        if (isAdmin) {
+            document.getElementById('admin-badge').classList.remove('hidden');
+            document.getElementById('th-owner').classList.remove('hidden');
+            document.getElementById('servers-title').innerText = "Marekodi ya Servers Zote Duniani (Admin view)";
+            document.getElementById('pending-title').innerText = "Miamala ya Wateja Wote Inayosubiri (Admin monitoring)";
+            document.getElementById('vps-shop-section').classList.add('hidden'); // Ficha duka kwa ajili ya admin
+        }
 
         function logout() {
             localStorage.clear();
@@ -136,6 +147,7 @@
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const data = await res.json();
+                if(!data.success) return;
 
                 const tbody = document.getElementById('server-table-body');
                 tbody.innerHTML = '';
@@ -145,8 +157,9 @@
                     document.getElementById('no-servers').classList.add('hidden');
                     data.servers.forEach(srv => {
                         tbody.innerHTML += `<tr class="border-b border-white/5">
+                            ${isAdmin ? `<td class="py-3 text-xs text-yellow-400 font-bold">${srv.owner_name || 'N/A'}</td>` : ''}
                             <td class="py-3 font-semibold text-[#00ffcc]">${srv.plan || 'VPS'}</td>
-                            <td class="py-3 text-blue-400 underline cursor-pointer">${srv.host}</td>
+                            <td class="py-3 text-blue-400 underline">${srv.host}</td>
                             <td class="py-3 font-mono text-xs">${srv.user}</td>
                             <td class="py-3"><span class="bg-white/10 px-2 py-0.5 rounded font-mono text-xs">${srv.pass}</span></td>
                             <td class="py-3">${srv.port}</td>
@@ -160,20 +173,20 @@
                     document.getElementById('pending-box').classList.remove('hidden');
                     data.pending.forEach(req => {
                         pendingContainer.innerHTML += `<div class="flex justify-between items-center p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg text-xs">
-                            <div>Oda ID: <span class="font-bold text-gray-300">${req.sonicOrderId}</span> (${req.plan})</div>
-                            <div class="blinking-text text-yellow-500 font-semibold">Tafadhali weka namba yako ya siri ya mtandao kwenye simu yako...</div>
+                            <div>Oda ID: <span class="font-bold text-gray-300">${req.sonicOrderId}</span> (${req.plan}) ${isAdmin ? `| Mteja: ${req.buyer_name}` : ''}</div>
+                            <div class="blinking-text text-yellow-500 font-semibold">${isAdmin ? 'Mteja hajalipia bado...' : 'Tafadhali weka namba yako ya siri ya mtandao kwenye simu yako...'}</div>
                         </div>`;
                     });
                 } else {
                     document.getElementById('pending-box').classList.add('hidden');
                 }
-            } catch (err) { console.error("Error fetching live panel updates", err); }
+            } catch (err) { console.error(err); }
         }
 
         async function triggerPayment(planName, price) {
             const phoneInput = document.getElementById(`phone-${planName}`).value;
             if (!phoneInput || phoneInput.length < 9) {
-                alert('Tafadhali ingiza namba sahihi ya simu ya kulipia!');
+                alert('Tafadhali ingiza namba sahihi ya simu!');
                 return;
             }
 
@@ -187,12 +200,11 @@
                 alert(data.message);
                 fetchDashboardData();
             } else {
-                alert(data.message || "Imeshindikana kuwasha Push USSD ya SonicPesa.");
+                alert(data.message || "Imeshindikana.");
             }
         }
 
         fetchDashboardData();
-        // Polling kila baada ya sekunde 5 kusubiri webhook ya SonicPesa ikamilike na kuonyesha server
         setInterval(fetchDashboardData, 5000);
 
         const init3D = () => {
