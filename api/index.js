@@ -150,36 +150,48 @@ app.post('/api/vps/create-ussd-order', verifyToken, async (req, res) => {
         currency: 'TZS'
     };
 
+    const createOrderUrl = 'https://api.sonicpesa.com/api/v1/payment/create_order';
+
     try {
-        const sonicResponse = await axios.post('https://api.sonicpesa.com/api/v1/payment/create_order', sonicPayload, {
+        const sonicResponse = await axios.post(createOrderUrl, sonicPayload, {
             headers: sonicHeaders,
             timeout: 45000
         });
 
-        if (sonicResponse.data.status === 'success') {
-            const sonicData = sonicResponse.data.data;
-            const orderId = sonicData.order_id || sonicData.id || `sp-${Date.now()}`;
+        const responseData = sonicResponse.data || {};
+        const sonicData = responseData.data || {};
+        const orderId = sonicData.order_id || sonicData.id || null;
 
-            try {
-                await connectDB();
-                const newOrder = new Order({
-                    userId: req.user.id,
-                    buyer_name: req.user.name,
-                    sonicOrderId: orderId,
-                    amount: Number(sonicData.amount || amountValue),
-                    plan: plan,
-                    phone: formattedPhone,
-                    status: 'PENDING'
-                });
-                await newOrder.save();
-            } catch (dbErr) {
-                console.error('Order save failed after SonicPesa success:', dbErr.message);
+        if (responseData.status === 'success' || responseData.success === true) {
+            if (orderId) {
+                try {
+                    await connectDB();
+                    const newOrder = new Order({
+                        userId: req.user.id,
+                        buyer_name: req.user.name,
+                        sonicOrderId: orderId,
+                        amount: Number(sonicData.amount || amountValue),
+                        plan: plan,
+                        phone: formattedPhone,
+                        status: 'PENDING'
+                    });
+                    await newOrder.save();
+                } catch (dbErr) {
+                    console.error('Order save failed after SonicPesa success:', dbErr.message);
+                }
             }
 
-            res.json({ success: true, message: sonicResponse.data.message, order_id: orderId });
-        } else {
-            res.status(400).json({ success: false, message: sonicResponse.data.message || 'SonicPesa imekataa kutengeneza oda.' });
+            return res.json({
+                success: true,
+                message: responseData.message || 'Oda imeundwa kwa SonicPesa. Tafadhali thibitisha kwenye simu yako.',
+                order_id: orderId
+            });
         }
+
+        return res.status(400).json({
+            success: false,
+            message: responseData.message || 'SonicPesa imekataa kutengeneza oda.'
+        });
     } catch (err) {
         const primaryStatus = err.response?.status;
         const providerBody = err.response?.data;
@@ -196,55 +208,53 @@ app.post('/api/vps/create-ussd-order', verifyToken, async (req, res) => {
                     ? 'SonicPesa inarudisha kosa la ndani (500). Hii mara nyingi ni API key isiyo sahihi, akaunti isiyowashwa, au huduma ya SonicPesa ina shida.'
                     : 'SonicPesa imekataa ombi hilo.';
 
-        try {
-            if (primaryStatus >= 500 || !primaryMessage) {
-                const fallbackResponse = await axios.post('https://api.sonicpesa.com/api/v1/payment/create_order_simple', sonicPayload, {
-                    headers: sonicHeaders,
-                    timeout: 65000
-                });
-
-                if (fallbackResponse.data.status === 'success') {
-                    const sonicData = fallbackResponse.data.data || fallbackResponse.data;
-                    const orderId = sonicData.order_id || sonicData.id || `sp-${Date.now()}`;
-
-                    try {
-                        await connectDB();
-                        const newOrder = new Order({
-                            userId: req.user.id,
-                            buyer_name: req.user.name,
-                            sonicOrderId: orderId,
-                            amount: Number(sonicData.amount || amountValue),
-                            plan: plan,
-                            phone: formattedPhone,
-                            status: 'PENDING'
-                        });
-                        await newOrder.save();
-                    } catch (dbErr) {
-                        console.error('Order save failed after SonicPesa fallback success:', dbErr.message);
-                    }
-
-                    return res.json({
-                        success: true,
-                        message: fallbackResponse.data.message || 'Oda imeundwa kwa SonicPesa.',
-                        order_id: orderId
-                    });
-                }
-            }
-        } catch (fallbackErr) {
-            const fallbackMessage = fallbackErr.response?.data?.message
-                || fallbackErr.response?.data?.error
-                || fallbackErr.response?.data?.detail
-                || fallbackErr.message;
-
-            return res.status(fallbackErr.response?.status || 500).json({
-                success: false,
-                message: 'Mawasiliano na SonicPesa yamefeli: ' + fallbackMessage
-            });
-        }
-
-        res.status(primaryStatus || 500).json({
+        return res.status(primaryStatus || 500).json({
             success: false,
             message: 'Mawasiliano na SonicPesa yamefeli: ' + primaryMessage + ' ' + providerHint + ' Tazama Vercel -> Settings -> Environment Variables.'
+        });
+    }
+});
+
+app.post('/api/vps/order-status', verifyToken, async (req, res) => {
+    try {
+        const { order_id } = req.body;
+        if (!order_id) {
+            return res.status(400).json({ success: false, message: 'order_id inahitajika.' });
+        }
+
+        const statusResponse = await axios.post('https://api.sonicpesa.com/api/v1/payment/order_status', { order_id }, {
+            headers: {
+                'X-API-KEY': process.env.SONICPESA_API_KEY,
+                'Content-Type': 'application/json'
+            },
+            timeout: 45000
+        });
+
+        const statusData = statusResponse.data || {};
+        const transaction = statusData.transaction || {};
+        const paymentStatus = (transaction.status || statusData.data?.payment_status || 'PENDING').toUpperCase();
+
+        try {
+            await connectDB();
+            const order = await Order.findOne({ sonicOrderId: order_id });
+            if (order) {
+                order.status = paymentStatus === 'SUCCESS' ? 'SUCCESS' : (paymentStatus === 'CANCELLED' || paymentStatus === 'REJECTED' || paymentStatus === 'USERCANCELLED' ? paymentStatus : 'PENDING');
+                await order.save();
+            }
+        } catch (dbErr) {
+            console.error('Order status update failed:', dbErr.message);
+        }
+
+        return res.json({ success: true, data: statusData, payment_status: paymentStatus });
+    } catch (err) {
+        const statusMessage = err.response?.data?.message
+            || err.response?.data?.error
+            || err.response?.data?.detail
+            || err.message;
+
+        return res.status(err.response?.status || 500).json({
+            success: false,
+            message: 'Imeshindwa kupima hali ya malipo: ' + statusMessage
         });
     }
 });

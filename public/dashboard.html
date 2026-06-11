@@ -239,6 +239,29 @@
             el.textContent = message;
         }
 
+        async function checkOrderStatus(orderId) {
+            try {
+                const res = await fetch('/api/vps/order-status', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ order_id: orderId })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    const paymentStatus = (data.payment_status || 'PENDING').toUpperCase();
+                    if (paymentStatus === 'SUCCESS') {
+                        setStatus('Malipo yamefanikiwa. Tunaendelea na seva yako.', 'info');
+                    } else if (paymentStatus === 'PENDING') {
+                        setStatus('Malipo hayajathibitishwa bado. Tafadhali thibitisha kwenye simu yako.', 'info');
+                    } else {
+                        setStatus('Malipo yamekataliwa au yamefutwa.', 'error');
+                    }
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
         async function triggerPayment(event, planName, price, inputId) {
             const button = event.currentTarget;
             const phoneInput = document.getElementById(inputId).value.trim();
@@ -262,6 +285,9 @@
 
                 if (data.success) {
                     setStatus(data.message || 'Oda yako imeundwa. Angalia simu yako kwa USSD push.', 'info');
+                    if (data.order_id) {
+                        await checkOrderStatus(data.order_id);
+                    }
                     fetchDashboardData();
                 } else {
                     setStatus(data.message || 'Kulipia kumekataa. Angalia namba yako na upate upya.', 'error');
