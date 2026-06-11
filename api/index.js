@@ -247,7 +247,7 @@ app.get('/api/vps/my-assets', verifyToken, async (req, res) => {
 });
 
 // === INATOKA KWENYE /api/ NA KWENDA KWENYE FOLDER LA /public/ KUSOMA HTML ===
-app.get('/dashboard.html', (req, res) => {
+app.get(['/dashboard.html', '/dashboard.js', '/dashboard'], (req, res) => {
     res.sendFile(path.join(__dirname, '../public', 'dashboard.html'));
 });
 
