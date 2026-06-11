@@ -115,9 +115,26 @@ app.post('/api/auth/login', async (req, res) => {
 // 3. SONICPESA PUSH USSD INITIALIZATION
 app.post('/api/vps/create-ussd-order', verifyToken, async (req, res) => {
     try { await connectDB(); } catch(e) { return res.status(500).json({success:false, message: e.message}); }
-    
+
     const { plan, amount, phone } = req.body;
-    let formattedPhone = phone.trim().replace('+', '');
+    const amountValue = Number(amount);
+
+    if (!process.env.SONICPESA_API_KEY) {
+        return res.status(500).json({
+            success: false,
+            message: 'SonicPesa API key haipo. Tumia Vercel env vars ili kuwezesha malipo.'
+        });
+    }
+
+    if (!phone || !String(phone).trim()) {
+        return res.status(400).json({ success: false, message: 'Tafadhali ingiza namba ya simu.' });
+    }
+
+    if (!Number.isFinite(amountValue) || amountValue <= 0) {
+        return res.status(400).json({ success: false, message: 'Kiasi cha malipo si sahihi.' });
+    }
+
+    let formattedPhone = String(phone).trim().replace(/\+/g, '');
     if (formattedPhone.startsWith('0')) {
         formattedPhone = '255' + formattedPhone.substring(1);
     }
@@ -127,13 +144,14 @@ app.post('/api/vps/create-ussd-order', verifyToken, async (req, res) => {
             buyer_email: req.user.email,
             buyer_name: req.user.name,
             buyer_phone: formattedPhone,
-            amount: parseInt(amount),
-            currency: "TZS"
+            amount: amountValue,
+            currency: 'TZS'
         }, {
             headers: {
                 'X-API-KEY': process.env.SONICPESA_API_KEY,
                 'Content-Type': 'application/json'
-            }
+            },
+            timeout: 30000
         });
 
         if (sonicResponse.data.status === 'success') {
@@ -155,7 +173,15 @@ app.post('/api/vps/create-ussd-order', verifyToken, async (req, res) => {
             res.status(400).json({ success: false, message: sonicResponse.data.message || 'SonicPesa imekataa kutengeneza oda.' });
         }
     } catch (err) {
-        res.status(500).json({ success: false, message: "Mawasiliano na SonicPesa yamefeli: " + err.message });
+        const sonicMessage = err.response?.data?.message
+            || err.response?.data?.error
+            || err.response?.data?.detail
+            || err.message;
+
+        res.status(err.response?.status || 500).json({
+            success: false,
+            message: 'Mawasiliano na SonicPesa yamefeli: ' + sonicMessage
+        });
     }
 });
 

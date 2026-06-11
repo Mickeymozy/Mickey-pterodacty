@@ -73,46 +73,46 @@
                 <div class="vps-card p-6 rounded-xl flex flex-col justify-between">
                     <div>
                         <h3 class="font-bold text-lg">VPS Starter</h3>
-                        <div class="text-2xl font-extrabold text-[#00ffcc] my-2">25,000 TZS</div>
+                        <div class="text-2xl font-extrabold text-[#00ffcc] my-2">3,500 TZS</div>
                         <ul class="text-xs text-gray-400 space-y-1 mb-6">
-                            <li>⚡ 1 vCPU Core (Xeon)</li>
-                            <li>💾 2 GB RAM DDR4</li>
-                            <li>💽 30 GB NVMe SSD</li>
+                            <li>⚡ 1 GB RAM</li>
+                            <li>💾 350 GB SSD</li>
+                            <li>🧠 25% CPU</li>
                         </ul>
                     </div>
                     <div class="space-y-2">
                         <input type="text" id="phone-Starter" placeholder="Mfano: 0657779003" class="w-full p-2 bg-gray-900 border border-gray-800 rounded text-xs text-white focus:outline-none focus:border-[#00ffcc]">
-                        <button onclick="triggerPayment('Starter', 25000)" class="w-full bg-[#00ffcc] text-[#0b0f19] py-2 rounded font-bold text-xs hover:bg-[#00cc99] transition">Lipia na SonicPesa (Push)</button>
+                        <button onclick="triggerPayment('Starter', 3500)" class="w-full bg-[#00ffcc] text-[#0b0f19] py-2 rounded font-bold text-xs hover:bg-[#00cc99] transition">Lipia na SonicPesa (Push)</button>
                     </div>
                 </div>
                 <div class="vps-card p-6 rounded-xl flex flex-col justify-between border-[#00ffcc]/30">
                     <div>
                         <h3 class="font-bold text-lg">VPS Professional</h3>
-                        <div class="text-2xl font-extrabold text-[#00ffcc] my-2">50,000 TZS</div>
+                        <div class="text-2xl font-extrabold text-[#00ffcc] my-2">7,500 TZS</div>
                         <ul class="text-xs text-gray-400 space-y-1 mb-6">
-                            <li>⚡ 2 vCPU Cores (AMD)</li>
-                            <li>💾 4 GB RAM DDR4</li>
-                            <li>💽 60 GB NVMe SSD</li>
+                            <li>⚡ 2 GB RAM</li>
+                            <li>💾 700 GB SSD</li>
+                            <li>🧠 50% CPU</li>
                         </ul>
                     </div>
                     <div class="space-y-2">
                         <input type="text" id="phone-Professional" placeholder="Mfano: 0657779003" class="w-full p-2 bg-gray-900 border border-gray-800 rounded text-xs text-white focus:outline-none focus:border-[#00ffcc]">
-                        <button onclick="triggerPayment('Professional', 50000)" class="w-full bg-[#00ffcc] text-[#0b0f19] py-2 rounded font-bold text-xs hover:bg-[#00cc99] transition">Lipia na SonicPesa (Push)</button>
+                        <button onclick="triggerPayment('Professional', 7500)" class="w-full bg-[#00ffcc] text-[#0b0f19] py-2 rounded font-bold text-xs hover:bg-[#00cc99] transition">Lipia na SonicPesa (Push)</button>
                     </div>
                 </div>
                 <div class="vps-card p-6 rounded-xl flex flex-col justify-between">
                     <div>
                         <h3 class="font-bold text-lg">VPS Enterprise</h3>
-                        <div class="text-2xl font-extrabold text-[#00ffcc] my-2">95,000 TZS</div>
+                        <div class="text-2xl font-extrabold text-[#00ffcc] my-2">12,000 TZS</div>
                         <ul class="text-xs text-gray-400 space-y-1 mb-6">
-                            <li>⚡ 4 vCPU Cores (Ryzen)</li>
-                            <li>💾 8 GB RAM DDR4</li>
-                            <li>💽 120 GB NVMe SSD</li>
+                            <li>⚡ 4 GB RAM</li>
+                            <li>💾 1 TB SSD</li>
+                            <li>🧠 100% CPU</li>
                         </ul>
                     </div>
                     <div class="space-y-2">
                         <input type="text" id="phone-Enterprise" placeholder="Mfano: 0657779003" class="w-full p-2 bg-gray-900 border border-gray-800 rounded text-xs text-white focus:outline-none focus:border-[#00ffcc]">
-                        <button onclick="triggerPayment('Enterprise', 95000)" class="w-full bg-[#00ffcc] text-[#0b0f19] py-2 rounded font-bold text-xs hover:bg-[#00cc99] transition">Lipia na SonicPesa (Push)</button>
+                        <button onclick="triggerPayment('Enterprise', 12000)" class="w-full bg-[#00ffcc] text-[#0b0f19] py-2 rounded font-bold text-xs hover:bg-[#00cc99] transition">Lipia na SonicPesa (Push)</button>
                     </div>
                 </div>
             </div>
