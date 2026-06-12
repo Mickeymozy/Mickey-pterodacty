@@ -91,6 +91,13 @@ const verifyToken = (req, res, next) => {
 
 const SONICPESA_BASE_URL = (process.env.SONICPESA_BASE_URL || 'https://api.sonicpesa.com/api/v1').replace(/\/+$/, '');
 
+const normalizeAmount = (value) => {
+    const cleaned = String(value ?? '').replace(/,/g, '').trim();
+    if (!cleaned) return 0;
+    const parsed = Number(cleaned);
+    return Number.isFinite(parsed) ? parsed : 0;
+};
+
 const createSonicPesaOrder = async (payload) => {
     const apiKey = process.env.SONICPESA_API_KEY;
     if (!apiKey) {
@@ -205,7 +212,7 @@ app.post('/api/vps/create-ussd-order', verifyToken, async (req, res) => {
             return res.status(404).json({ success: false, message: 'User not found' });
         }
 
-        const amountValue = Number(amount || 0);
+        const amountValue = normalizeAmount(amount);
         if (!Number.isFinite(amountValue) || amountValue <= 0) {
             return res.status(400).json({ success: false, message: 'Kiasi cha malipo si sahihi.' });
         }
@@ -295,7 +302,7 @@ app.post('/api/vps/purchase-with-balance', verifyToken, async (req, res) => {
     try {
         await connectDB();
         const { plan, amount, phone } = req.body;
-        const amountValue = Number(amount);
+        const amountValue = normalizeAmount(amount);
         
         const user = await User.findById(req.user.id);
         if (!user) {
