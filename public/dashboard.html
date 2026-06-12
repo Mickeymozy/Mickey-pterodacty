@@ -3,545 +3,362 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mickey Host - Premium VPS Dashboard</title>
+    <title>Mickey Host Dashboard - Control Panel</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        :root { 
-            color-scheme: dark;
-            --neon-cyan: #00ffcc;
-            --neon-purple: #a855f7;
-            --dark-bg: #0a0c10;
+        :root { color-scheme: dark; }
+        body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+        
+        .blinking-text { animation: blinker 1.2s linear infinite; }
+        @keyframes blinker { 50% { opacity: 0.4; } }
+        
+        .glass-card {
+            background: linear-gradient(145deg, rgba(15,23,42,0.95), rgba(8,12,24,0.92));
+            border: 1px solid rgba(148,163,184,0.15);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            backdrop-filter: blur(12px);
         }
         
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
-        body {
-            font-family: 'Inter', system-ui, -apple-system, sans-serif;
-            background: linear-gradient(135deg, #0a0c10 0%, #0f1117 50%, #13151d 100%);
-            min-height: 100vh;
-            color: #e2e8f0;
+        .vps-card {
+            background: linear-gradient(145deg, rgba(17,24,39,0.98), rgba(2,6,23,0.96));
+            border: 1px solid rgba(148,163,184,0.15);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
         }
         
-        /* Modern Scrollbar */
+        .vps-card:hover {
+            border-color: rgba(45,212,191,0.5);
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(45,212,191,0.15);
+        }
+        
+        .mini-chip {
+            display: inline-flex; 
+            align-items: center; 
+            gap: 8px;
+            border: 1px solid rgba(45,212,191,0.3); 
+            border-radius: 999px;
+            background: rgba(45,212,191,0.1); 
+            color: #99f6e4; 
+            font-size: 11px; 
+            padding: 4px 12px;
+            font-weight: 500;
+        }
+        
+        .status-pill { 
+            border-radius: 999px; 
+            padding: 4px 12px; 
+            font-size: 11px; 
+            font-weight: 500;
+        }
+        
+        .soft-note { 
+            color: #94a3b8; 
+            font-size: 13px; 
+            line-height: 1.6; 
+        }
+        
+        .btn-pay:disabled { 
+            opacity: 0.6; 
+            cursor: not-allowed; 
+            transform: none !important;
+        }
+        
+        .input-modern {
+            background: rgba(15,23,42,0.8);
+            border: 1px solid rgba(148,163,184,0.2);
+            transition: all 0.2s ease;
+        }
+        
+        .input-modern:focus {
+            border-color: #00ffcc;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(0,255,204,0.1);
+        }
+        
+        /* Loading animation */
+        .loading-spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(0,255,204,0.3);
+            border-top-color: #00ffcc;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            display: inline-block;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Scrollbar styling */
         ::-webkit-scrollbar {
             width: 8px;
             height: 8px;
         }
+        
         ::-webkit-scrollbar-track {
-            background: rgba(15, 23, 42, 0.5);
-            border-radius: 10px;
+            background: rgba(15,23,42,0.5);
         }
+        
         ::-webkit-scrollbar-thumb {
-            background: linear-gradient(135deg, #00ffcc, #a855f7);
-            border-radius: 10px;
+            background: rgba(45,212,191,0.5);
+            border-radius: 4px;
         }
+        
         ::-webkit-scrollbar-thumb:hover {
-            background: linear-gradient(135deg, #00ffcc, #c084fc);
-        }
-        
-        /* Animations */
-        @keyframes blink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-        @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-10px); }
-        }
-        @keyframes glow {
-            0%, 100% { box-shadow: 0 0 5px rgba(0, 255, 204, 0.3); }
-            50% { box-shadow: 0 0 20px rgba(0, 255, 204, 0.6); }
-        }
-        @keyframes spin-slow {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-        
-        .blinking-text {
-            animation: blink 1.2s ease-in-out infinite;
-        }
-        
-        .float-animation {
-            animation: float 3s ease-in-out infinite;
-        }
-        
-        .glow-animation {
-            animation: glow 2s ease-in-out infinite;
-        }
-        
-        /* Modern Glassmorphism Cards */
-        .glass-card {
-            background: rgba(15, 23, 42, 0.75);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(0, 255, 204, 0.15);
-            border-radius: 24px;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        
-        .glass-card:hover {
-            border-color: rgba(0, 255, 204, 0.4);
-            transform: translateY(-2px);
-            background: rgba(15, 23, 42, 0.85);
-        }
-        
-        /* VPS Cards Premium */
-        .vps-card {
-            background: linear-gradient(135deg, rgba(17, 24, 39, 0.95), rgba(2, 6, 23, 0.95));
-            border: 1px solid rgba(0, 255, 204, 0.2);
-            border-radius: 20px;
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .vps-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(0, 255, 204, 0.1), transparent);
-            transition: left 0.5s ease;
-        }
-        
-        .vps-card:hover::before {
-            left: 100%;
-        }
-        
-        .vps-card:hover {
-            transform: translateY(-8px);
-            border-color: rgba(0, 255, 204, 0.6);
-            box-shadow: 0 20px 40px rgba(0, 255, 204, 0.15);
-        }
-        
-        /* Premium Badges */
-        .premium-badge {
-            background: linear-gradient(135deg, #00ffcc, #a855f7);
-            border: none;
-            color: #0a0c10;
-            font-weight: bold;
-            padding: 4px 12px;
-            border-radius: 999px;
-            font-size: 11px;
-        }
-        
-        /* Status Indicators */
-        .status-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 4px 12px;
-            border-radius: 999px;
-            font-size: 11px;
-            font-weight: 500;
-        }
-        
-        .status-active {
-            background: rgba(0, 255, 204, 0.15);
-            color: #00ffcc;
-            border: 1px solid rgba(0, 255, 204, 0.3);
-        }
-        
-        /* Buttons */
-        .btn-primary {
-            background: linear-gradient(135deg, #00ffcc, #00b894);
-            color: #0a0c10;
-            font-weight: bold;
-            padding: 10px 24px;
-            border-radius: 999px;
-            transition: all 0.3s ease;
-            border: none;
-            cursor: pointer;
-        }
-        
-        .btn-primary:hover {
-            transform: scale(1.05);
-            box-shadow: 0 10px 25px rgba(0, 255, 204, 0.3);
-        }
-        
-        .btn-primary:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
-        }
-        
-        /* Table Styles */
-        .data-table {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 0;
-        }
-        
-        .data-table th {
-            text-align: left;
-            padding: 12px 16px;
-            background: rgba(0, 255, 204, 0.05);
-            font-size: 12px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: #00ffcc;
-        }
-        
-        .data-table td {
-            padding: 12px 16px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            font-size: 13px;
-        }
-        
-        .data-table tr:hover td {
-            background: rgba(0, 255, 204, 0.03);
-        }
-        
-        /* Input Fields */
-        .modern-input {
-            background: rgba(0, 0, 0, 0.4);
-            border: 1px solid rgba(0, 255, 204, 0.3);
-            border-radius: 12px;
-            padding: 10px 14px;
-            color: white;
-            font-size: 13px;
-            transition: all 0.3s ease;
-            width: 100%;
-        }
-        
-        .modern-input:focus {
-            outline: none;
-            border-color: #00ffcc;
-            box-shadow: 0 0 10px rgba(0, 255, 204, 0.2);
-        }
-        
-        /* Loading Spinner */
-        .loading-spinner {
-            width: 40px;
-            height: 40px;
-            border: 3px solid rgba(0, 255, 204, 0.2);
-            border-top-color: #00ffcc;
-            border-radius: 50%;
-            animation: spin-slow 1s linear infinite;
-        }
-        
-        /* Notification Toast */
-        .toast-notification {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: rgba(15, 23, 42, 0.95);
-            backdrop-filter: blur(12px);
-            border-left: 4px solid #00ffcc;
-            border-radius: 12px;
-            padding: 12px 20px;
-            z-index: 1000;
-            animation: slideIn 0.3s ease;
-        }
-        
-        @keyframes slideIn {
-            from {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
+            background: rgba(45,212,191,0.8);
         }
     </style>
 </head>
-<body>
+<body class="bg-gradient-to-br from-[#0a0e1a] to-[#0b0f19] text-gray-100 min-h-screen relative overflow-x-hidden">
 
-    <!-- 3D Background -->
-    <div id="canvas-3d" class="fixed top-0 left-0 w-full h-full -z-10 opacity-15 pointer-events-none"></div>
+    <div id="canvas-3d" class="fixed top-0 left-0 w-full h-full -z-10 opacity-20 pointer-events-none"></div>
 
-    <!-- Announcement Banner -->
-    <div class="bg-gradient-to-r from-cyan-500/10 via-purple-500/10 to-cyan-500/10 border-b border-cyan-500/30 text-center py-2.5 text-xs tracking-wider backdrop-blur-sm">
-        <span class="blinking-text inline-flex items-center gap-2">
-            <i class="fas fa-bolt text-cyan-400 text-xs"></i>
-            <span class="text-cyan-400 font-bold">MFUMO WA MALIPO YA PAPO HAPO:</span>
-            <span>Malipo yanatumia <span class="text-purple-400 font-semibold">SonicPesa USSD Push</span> — Ingiza namba yako ya simu upokee ombi la siri</span>
-        </span>
+    <!-- Top Banner -->
+    <div class="bg-gradient-to-r from-red-600/20 via-red-500/10 to-red-600/20 border-b border-red-500/30 text-center py-3 text-xs tracking-wider backdrop-blur-sm">
+        <span class="blinking-text text-red-400 font-bold mr-2">⚡ MFUMO WA MALIPO DIGITAL:</span>
+        <span class="text-gray-300">Malipo yanatumia <span class="text-[#00ffcc] font-semibold">SonicPesa USSD Push</span>. Ingiza namba yako ya simu upokee ombi la siri papo hapo.</span>
     </div>
 
     <!-- Navigation -->
-    <nav class="sticky top-0 z-50 bg-black/40 backdrop-blur-xl border-b border-white/5">
-        <div class="max-w-7xl mx-auto px-6 py-4">
-            <div class="flex justify-between items-center">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 bg-gradient-to-br from-cyan-400 to-purple-600 rounded-xl flex items-center justify-center">
-                        <i class="fas fa-cloud-upload-alt text-white text-xl"></i>
-                    </div>
-                    <div>
-                        <div class="text-xl font-bold bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
-                            Mickey Host
-                        </div>
-                        <div class="text-[10px] text-gray-400">Premium VPS Solutions</div>
-                    </div>
-                    <span id="admin-badge" class="hidden ml-3 premium-badge text-[10px]">
-                        <i class="fas fa-shield-alt mr-1"></i>ADMIN MODE
-                    </span>
-                </div>
-                <div class="flex items-center gap-4">
-                    <div class="flex items-center gap-2 bg-white/5 rounded-full px-4 py-2">
-                        <i class="fas fa-user-circle text-cyan-400"></i>
-                        <span id="user-display" class="text-sm text-gray-300"></span>
-                    </div>
-                    <button onclick="logout()" class="text-red-400 hover:text-red-300 transition text-sm flex items-center gap-2">
-                        <i class="fas fa-sign-out-alt"></i>
-                        <span class="hidden md:inline">Ondoka</span>
-                    </button>
-                </div>
+    <nav class="flex justify-between items-center px-6 md:px-8 py-4 border-b border-white/5 backdrop-blur-md sticky top-0 z-50 bg-[#0a0e1a]/90">
+        <div class="flex items-center gap-3">
+            <div class="text-2xl font-bold bg-gradient-to-r from-[#00ffcc] to-[#00b894] bg-clip-text text-transparent">
+                Mickey Host ⚡
             </div>
+            <span id="admin-badge" class="hidden text-xs bg-gradient-to-r from-red-600 to-red-700 text-white px-3 py-1 rounded-full font-mono font-bold shadow-lg">
+                ADMIN MODE
+            </span>
+        </div>
+        <div class="flex items-center gap-6 text-sm">
+            <div class="flex items-center gap-2">
+                <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <span id="user-display" class="text-gray-300 font-medium"></span>
+            </div>
+            <button onclick="logout()" class="text-red-400 hover:text-red-300 transition-colors font-medium">
+                🚪 Ondoka
+            </button>
         </div>
     </nav>
 
-    <div class="max-w-7xl mx-auto px-6 py-8 space-y-8">
-        
+    <div class="max-w-7xl mx-auto px-4 py-8 space-y-8">
         <!-- Welcome Section -->
-        <div class="glass-card p-8">
-            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+        <section class="glass-card rounded-2xl p-6 md:p-8">
+            <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
                 <div>
-                    <div class="inline-flex items-center gap-2 premium-badge mb-3">
-                        <i class="fas fa-crown text-xs"></i>
-                        <span>Welcome Back</span>
-                    </div>
-                    <h1 class="text-3xl md:text-4xl font-bold bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
+                    <p class="mini-chip mb-3">
+                        <span>🔒</span> Secure Payment Gateway
+                    </p>
+                    <h1 class="text-3xl md:text-4xl font-black bg-gradient-to-r from-[#00ffcc] to-[#00b894] bg-clip-text text-transparent">
                         Mickey Host Dashboard
                     </h1>
-                    <p class="text-gray-400 mt-2 max-w-2xl text-sm">
-                        Manage your virtual servers, track payments, and deploy powerful VPS instances instantly.
+                    <p class="soft-note mt-3 max-w-2xl">
+                        Dhibiti seva zako, fuata miamala yako, na lipia kwa urahisi kwa kutumia SonicPesa.
+                        Kila malipo yanathibitishwa kwa USSD push kwenye simu yako.
                     </p>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
-                    <div class="glass-card p-4 text-center">
-                        <i class="fas fa-server text-2xl text-cyan-400 mb-2"></i>
-                        <div class="text-2xl font-bold text-cyan-400" id="summary-servers">0</div>
-                        <div class="text-xs text-gray-400">Active Servers</div>
+                    <div class="glass-card rounded-xl p-4 text-center">
+                        <div class="text-xs text-gray-400 mb-1">Seva Zinazotumika</div>
+                        <div class="text-2xl font-bold text-[#00ffcc]" id="summary-servers">0</div>
                     </div>
-                    <div class="glass-card p-4 text-center">
-                        <i class="fas fa-clock text-2xl text-yellow-400 mb-2"></i>
+                    <div class="glass-card rounded-xl p-4 text-center">
+                        <div class="text-xs text-gray-400 mb-1">Miamala Inayosubiri</div>
                         <div class="text-2xl font-bold text-yellow-400" id="summary-pending">0</div>
-                        <div class="text-xs text-gray-400">Pending Orders</div>
                     </div>
                 </div>
             </div>
-        </div>
+        </section>
 
         <!-- Servers Section -->
-        <div class="glass-card p-6">
-            <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
-                <div>
-                    <h2 class="text-xl font-bold text-cyan-400 flex items-center gap-2">
-                        <i class="fas fa-database"></i>
-                        <span id="servers-title">Your Active Servers</span>
-                    </h2>
-                    <p class="text-xs text-gray-500 mt-1">Pterodactyl powered VPS instances</p>
+        <div class="glass-card rounded-2xl p-6 md:p-7">
+            <div class="flex items-center justify-between gap-3 mb-5 flex-wrap">
+                <div class="flex items-center gap-3">
+                    <div class="w-1 h-6 bg-[#00ffcc] rounded-full"></div>
+                    <h2 class="text-xl font-bold text-white" id="servers-title">Seva Zako za VPS</h2>
                 </div>
-                <div class="status-pill status-active">
-                    <i class="fas fa-circle text-[8px]"></i>
-                    <span>Live Status</span>
-                </div>
+                <span class="status-pill bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+                    🟢 Live Status
+                </span>
             </div>
-            <div class="overflow-x-auto">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th class="hidden" id="th-owner">
-                                <i class="fas fa-user mr-1"></i>Client
-                            </th>
-                            <th><i class="fas fa-tag mr-1"></i>Plan</th>
-                            <th><i class="fas fa-link mr-1"></i>Host</th>
-                            <th><i class="fas fa-user mr-1"></i>Username</th>
-                            <th><i class="fas fa-lock mr-1"></i>Password</th>
-                            <th><i class="fas fa-plug mr-1"></i>Port</th>
+            <div class="bg-black/20 rounded-xl overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="border-b border-white/10 bg-white/5">
+                        <tr class="text-gray-400">
+                            <th class="px-4 py-3 hidden" id="th-owner">Mteja</th>
+                            <th class="px-4 py-3">Kifurushi</th>
+                            <th class="px-4 py-3">Host</th>
+                            <th class="px-4 py-3">Username</th>
+                            <th class="px-4 py-3">Password</th>
+                            <th class="px-4 py-3">Port</th>
                         </tr>
                     </thead>
                     <tbody id="server-table-body"></tbody>
                 </table>
-                <div id="no-servers" class="hidden text-center py-8">
-                    <i class="fas fa-server text-4xl text-gray-600 mb-3"></i>
-                    <p class="text-gray-500 text-sm">No active servers found</p>
-                    <p class="text-xs text-gray-600">Purchase a VPS plan to get started</p>
-                </div>
+                <p id="no-servers" class="text-gray-500 text-center py-8 hidden">
+                    📭 Hakuna seva yoyote iliyopatikana. Nunua kifurushi cha VPS kuanzia chini.
+                </p>
             </div>
         </div>
 
         <!-- Pending Orders -->
-        <div id="pending-box" class="hidden glass-card p-6 border-l-4 border-yellow-500">
-            <div class="flex items-center gap-3 mb-4">
-                <i class="fas fa-hourglass-half text-2xl text-yellow-500"></i>
-                <div>
-                    <h3 class="font-bold text-yellow-500" id="pending-title">Pending Transactions</h3>
-                    <p class="text-xs text-gray-500">Awaiting payment confirmation</p>
+        <div id="pending-box" class="hidden">
+            <div class="glass-card rounded-2xl p-6">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-1 h-6 bg-yellow-500 rounded-full"></div>
+                    <h3 class="text-lg font-bold text-yellow-400" id="pending-title">Miamala Inayosubiri</h3>
                 </div>
+                <div id="pending-container" class="space-y-3"></div>
             </div>
-            <div id="pending-container" class="space-y-3"></div>
         </div>
 
         <!-- VPS Shop Section -->
-        <div id="vps-shop-section" class="glass-card p-6">
-            <div class="mb-8">
-                <h2 class="text-2xl font-bold text-cyan-400 mb-2 flex items-center gap-2">
-                    <i class="fas fa-shopping-cart"></i>
-                    <span>Choose Your VPS Plan</span>
-                </h2>
-                <p class="text-gray-400 text-sm">Select a plan that fits your needs. Payment via SonicPesa USSD push.</p>
+        <div id="vps-shop-section" class="glass-card rounded-2xl p-6 md:p-8">
+            <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-8">
+                <div>
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="mini-chip">🛒 Nunua VPS Sasa</span>
+                    </div>
+                    <h2 class="text-2xl font-bold text-white">Chagua Kifurushi Chako</h2>
+                    <p class="soft-note mt-2">Baada ya kubofya, utapokea USSD push kwenye namba utakayoingiza.</p>
+                </div>
+                <div class="mini-chip">
+                    💳 Malipo ya SonicPesa Push
+                </div>
             </div>
 
-            <!-- Payment Status -->
-            <div id="payment-status" class="mb-6 p-4 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 text-sm flex items-center gap-2">
-                <i class="fas fa-info-circle"></i>
-                <span>Enter your phone number to receive the USSD payment request</span>
+            <!-- Payment Status Message -->
+            <div id="payment-status" class="mb-6 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-100">
+                💡 Jaza namba yako ya simu kwenye kifurushi unachotaka, kisha bonyeza "Lipia"
             </div>
 
-            <!-- Plans Grid -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- VPS Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <!-- Starter Plan -->
-                <div class="vps-card p-6">
-                    <div class="relative">
-                        <div class="absolute top-0 right-0">
-                            <span class="premium-badge text-[10px]">Popular</span>
+                <div class="vps-card rounded-xl overflow-hidden">
+                    <div class="p-6">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="text-xl font-bold text-white">VPS Starter</h3>
+                            <span class="text-xs bg-emerald-500/20 text-emerald-300 px-2 py-1 rounded">Popular</span>
                         </div>
-                        <div class="w-16 h-16 bg-gradient-to-br from-cyan-500/20 to-cyan-500/5 rounded-2xl flex items-center justify-center mb-4">
-                            <i class="fas fa-rocket text-3xl text-cyan-400"></i>
-                        </div>
-                        <h3 class="text-xl font-bold mb-1">VPS Starter</h3>
-                        <div class="text-3xl font-bold text-cyan-400 mb-3">
-                            3,500 <span class="text-sm text-gray-400">TZS</span>
-                        </div>
-                        <div class="space-y-2 mb-6">
-                            <div class="flex items-center gap-2 text-sm">
-                                <i class="fas fa-microchip text-cyan-400 w-5"></i>
-                                <span>1 GB RAM</span>
-                            </div>
-                            <div class="flex items-center gap-2 text-sm">
-                                <i class="fas fa-hdd text-cyan-400 w-5"></i>
-                                <span>350 GB SSD</span>
-                            </div>
-                            <div class="flex items-center gap-2 text-sm">
-                                <i class="fas fa-tachometer-alt text-cyan-400 w-5"></i>
-                                <span>25% CPU Core</span>
-                            </div>
-                        </div>
-                        <input type="text" id="phone-Starter" placeholder="Enter phone (e.g., 0657779003)" class="modern-input mb-3 text-sm">
-                        <button onclick="triggerPayment(event, 'Starter', 3500, 'phone-Starter')" class="btn-primary w-full text-sm">
-                            <i class="fas fa-money-bill-wave mr-2"></i>Pay with SonicPesa
+                        <div class="text-3xl font-extrabold text-[#00ffcc] mb-4">3,500 <span class="text-sm text-gray-400">TZS</span></div>
+                        <ul class="text-sm text-gray-400 space-y-2 mb-6">
+                            <li class="flex items-center gap-2">✓ 1 GB RAM</li>
+                            <li class="flex items-center gap-2">✓ 350 GB SSD</li>
+                            <li class="flex items-center gap-2">✓ 25% CPU</li>
+                            <li class="flex items-center gap-2">✓ 1 vCore</li>
+                        </ul>
+                        <input type="tel" id="phone-Starter" placeholder="0657779003" 
+                               class="input-modern w-full p-3 rounded-lg text-sm text-white mb-3">
+                        <button onclick="triggerPayment(event, 'Starter', 3500, 'phone-Starter')" 
+                                class="btn-pay w-full bg-gradient-to-r from-[#00ffcc] to-[#00b894] text-[#0a0e1a] py-3 rounded-lg font-bold text-sm hover:shadow-lg transition-all">
+                            Lipia na SonicPesa
                         </button>
                     </div>
                 </div>
 
                 <!-- Professional Plan -->
-                <div class="vps-card p-6 border-cyan-500/40 relative">
-                    <div class="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-                        <span class="bg-gradient-to-r from-cyan-500 to-purple-500 text-white text-xs font-bold px-4 py-1 rounded-full">
-                            <i class="fas fa-star mr-1"></i>BEST VALUE
-                        </span>
-                    </div>
-                    <div class="mt-4">
-                        <div class="w-16 h-16 bg-gradient-to-br from-purple-500/20 to-purple-500/5 rounded-2xl flex items-center justify-center mb-4">
-                            <i class="fas fa-gem text-3xl text-purple-400"></i>
+                <div class="vps-card rounded-xl overflow-hidden border-[#00ffcc]/30 transform scale-105 shadow-xl">
+                    <div class="p-6">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="text-xl font-bold text-white">VPS Professional</h3>
+                            <span class="text-xs bg-[#00ffcc]/20 text-[#00ffcc] px-2 py-1 rounded">⭐ Best Value</span>
                         </div>
-                        <h3 class="text-xl font-bold mb-1">VPS Professional</h3>
-                        <div class="text-3xl font-bold text-purple-400 mb-3">
-                            7,500 <span class="text-sm text-gray-400">TZS</span>
-                        </div>
-                        <div class="space-y-2 mb-6">
-                            <div class="flex items-center gap-2 text-sm">
-                                <i class="fas fa-microchip text-purple-400 w-5"></i>
-                                <span>2 GB RAM</span>
-                            </div>
-                            <div class="flex items-center gap-2 text-sm">
-                                <i class="fas fa-hdd text-purple-400 w-5"></i>
-                                <span>700 GB SSD</span>
-                            </div>
-                            <div class="flex items-center gap-2 text-sm">
-                                <i class="fas fa-tachometer-alt text-purple-400 w-5"></i>
-                                <span>50% CPU Core</span>
-                            </div>
-                        </div>
-                        <input type="text" id="phone-Professional" placeholder="Enter phone (e.g., 0657779003)" class="modern-input mb-3 text-sm">
-                        <button onclick="triggerPayment(event, 'Professional', 7500, 'phone-Professional')" class="btn-primary w-full text-sm">
-                            <i class="fas fa-money-bill-wave mr-2"></i>Pay with SonicPesa
+                        <div class="text-3xl font-extrabold text-[#00ffcc] mb-4">7,500 <span class="text-sm text-gray-400">TZS</span></div>
+                        <ul class="text-sm text-gray-400 space-y-2 mb-6">
+                            <li class="flex items-center gap-2">✓ 2 GB RAM</li>
+                            <li class="flex items-center gap-2">✓ 700 GB SSD</li>
+                            <li class="flex items-center gap-2">✓ 50% CPU</li>
+                            <li class="flex items-center gap-2">✓ 2 vCores</li>
+                        </ul>
+                        <input type="tel" id="phone-Professional" placeholder="0657779003" 
+                               class="input-modern w-full p-3 rounded-lg text-sm text-white mb-3">
+                        <button onclick="triggerPayment(event, 'Professional', 7500, 'phone-Professional')" 
+                                class="btn-pay w-full bg-gradient-to-r from-[#00ffcc] to-[#00b894] text-[#0a0e1a] py-3 rounded-lg font-bold text-sm hover:shadow-lg transition-all">
+                            Lipia na SonicPesa
                         </button>
                     </div>
                 </div>
 
                 <!-- Enterprise Plan -->
-                <div class="vps-card p-6">
-                    <div class="w-16 h-16 bg-gradient-to-br from-cyan-500/20 to-cyan-500/5 rounded-2xl flex items-center justify-center mb-4">
-                        <i class="fas fa-crown text-3xl text-cyan-400"></i>
-                    </div>
-                    <h3 class="text-xl font-bold mb-1">VPS Enterprise</h3>
-                    <div class="text-3xl font-bold text-cyan-400 mb-3">
-                        12,000 <span class="text-sm text-gray-400">TZS</span>
-                    </div>
-                    <div class="space-y-2 mb-6">
-                        <div class="flex items-center gap-2 text-sm">
-                            <i class="fas fa-microchip text-cyan-400 w-5"></i>
-                            <span>4 GB RAM</span>
+                <div class="vps-card rounded-xl overflow-hidden">
+                    <div class="p-6">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="text-xl font-bold text-white">VPS Enterprise</h3>
+                            <span class="text-xs bg-purple-500/20 text-purple-300 px-2 py-1 rounded">Ultimate</span>
                         </div>
-                        <div class="flex items-center gap-2 text-sm">
-                            <i class="fas fa-hdd text-cyan-400 w-5"></i>
-                            <span>1 TB SSD</span>
-                        </div>
-                        <div class="flex items-center gap-2 text-sm">
-                            <i class="fas fa-tachometer-alt text-cyan-400 w-5"></i>
-                            <span>100% CPU Core</span>
-                        </div>
+                        <div class="text-3xl font-extrabold text-[#00ffcc] mb-4">12,000 <span class="text-sm text-gray-400">TZS</span></div>
+                        <ul class="text-sm text-gray-400 space-y-2 mb-6">
+                            <li class="flex items-center gap-2">✓ 4 GB RAM</li>
+                            <li class="flex items-center gap-2">✓ 1 TB SSD</li>
+                            <li class="flex items-center gap-2">✓ 100% CPU</li>
+                            <li class="flex items-center gap-2">✓ 4 vCores</li>
+                        </ul>
+                        <input type="tel" id="phone-Enterprise" placeholder="0657779003" 
+                               class="input-modern w-full p-3 rounded-lg text-sm text-white mb-3">
+                        <button onclick="triggerPayment(event, 'Enterprise', 12000, 'phone-Enterprise')" 
+                                class="btn-pay w-full bg-gradient-to-r from-[#00ffcc] to-[#00b894] text-[#0a0e1a] py-3 rounded-lg font-bold text-sm hover:shadow-lg transition-all">
+                            Lipia na SonicPesa
+                        </button>
                     </div>
-                    <input type="text" id="phone-Enterprise" placeholder="Enter phone (e.g., 0657779003)" class="modern-input mb-3 text-sm">
-                    <button onclick="triggerPayment(event, 'Enterprise', 12000, 'phone-Enterprise')" class="btn-primary w-full text-sm">
-                        <i class="fas fa-money-bill-wave mr-2"></i>Pay with SonicPesa
-                    </button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Toast Notification Container -->
-    <div id="toast-container" class="fixed bottom-4 right-4 z-50"></div>
-
     <script>
+        // Global variables
         const token = localStorage.getItem('mickey_token');
-        if (!token) window.location.href = '/login.html';
+        if (!token) {
+            window.location.href = '/login.html';
+        }
 
         const user = JSON.parse(localStorage.getItem('mickey_user')) || {};
         const isAdmin = user.role === 'admin';
 
-        // Update UI based on user role
-        document.getElementById('user-display').innerHTML = `<i class="fas fa-${isAdmin ? 'shield-alt' : 'user'} mr-1"></i>${user.name || 'User'}`;
-        
+        // Update UI based on role
+        document.getElementById('user-display').innerText = `${isAdmin ? '👑 Admin' : '👤 Mteja'}: ${user.name || 'Mteja'}`;
+
         if (isAdmin) {
             document.getElementById('admin-badge').classList.remove('hidden');
             document.getElementById('th-owner').classList.remove('hidden');
-            document.getElementById('servers-title').innerHTML = '<i class="fas fa-globe mr-2"></i>All Servers (Admin View)';
-            document.getElementById('pending-title').innerHTML = '<i class="fas fa-users mr-2"></i>All Pending Orders';
+            document.getElementById('servers-title').innerText = '📊 Seva Zote (Admin View)';
+            document.getElementById('pending-title').innerText = '📋 Miamala Yote Inayosubiri';
             document.getElementById('vps-shop-section').classList.add('hidden');
         }
 
-        // Toast notification function
-        function showToast(message, type = 'info') {
-            const container = document.getElementById('toast-container');
-            const toast = document.createElement('div');
-            toast.className = 'toast-notification flex items-center gap-3';
-            const icon = type === 'error' ? 'fa-exclamation-circle' : (type === 'success' ? 'fa-check-circle' : 'fa-info-circle');
-            const color = type === 'error' ? 'border-red-500' : (type === 'success' ? 'border-green-500' : 'border-cyan-500');
-            toast.className += ` ${color}`;
-            toast.innerHTML = `
-                <i class="fas ${icon} text-${type === 'error' ? 'red' : (type === 'success' ? 'green' : 'cyan')}-400"></i>
-                <span class="text-sm">${message}</span>
-            `;
-            container.appendChild(toast);
-            setTimeout(() => toast.remove(), 5000);
-        }
-
+        // Logout function
         function logout() {
             localStorage.clear();
-            showToast('Logged out successfully', 'success');
-            setTimeout(() => window.location.href = '/login.html', 1000);
+            window.location.href = '/login.html';
         }
 
+        // Set status message
+        function setStatus(message, type = 'info') {
+            const el = document.getElementById('payment-status');
+            const types = {
+                success: 'bg-emerald-500/20 text-emerald-100 border-emerald-500/30',
+                error: 'bg-red-500/20 text-red-100 border-red-500/30',
+                warning: 'bg-yellow-500/20 text-yellow-100 border-yellow-500/30',
+                info: 'bg-blue-500/20 text-blue-100 border-blue-500/30'
+            };
+            el.className = `rounded-xl border p-4 text-sm ${types[type] || types.info}`;
+            el.innerHTML = message;
+            
+            // Auto clear after 8 seconds for success/info
+            if (type === 'success' || type === 'info') {
+                setTimeout(() => {
+                    if (el.innerHTML === message) {
+                        el.innerHTML = '💡 Jaza namba yako ya simu kwenye kifurushi unachotaka, kisha bonyeza "Lipia"';
+                        el.className = 'rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-100';
+                    }
+                }, 8000);
+            }
+        }
+
+        // Fetch dashboard data
         async function fetchDashboardData() {
             try {
                 const res = await fetch('/api/vps/my-assets', {
@@ -550,143 +367,189 @@
                 const data = await res.json();
                 if (!data.success) return;
 
+                // Update counters
+                document.getElementById('summary-servers').innerText = data.servers.length;
+                document.getElementById('summary-pending').innerText = data.pending.length;
+
+                // Render servers table
                 const tbody = document.getElementById('server-table-body');
                 tbody.innerHTML = '';
-                
                 if (data.servers.length === 0) {
                     document.getElementById('no-servers').classList.remove('hidden');
                 } else {
                     document.getElementById('no-servers').classList.add('hidden');
                     data.servers.forEach(srv => {
-                        tbody.innerHTML += `<tr>
-                            ${isAdmin ? `<td class="text-xs"><span class="text-cyan-400 font-semibold">${srv.owner_name || 'N/A'}</span></td>` : ''}
-                            <td class="font-semibold"><span class="premium-badge text-[10px]">${srv.plan || 'VPS'}</span></td>
-                            <td class="text-blue-400"><i class="fas fa-external-link-alt mr-1 text-[10px]"></i>${srv.host}</td>
-                            <td class="font-mono text-xs">${srv.user}</td>
-                            <td><code class="bg-black/30 px-2 py-1 rounded text-xs">${srv.pass}</code></td>
-                            <td>${srv.port}</td>
-                         </tr>`;
+                        tbody.innerHTML += `
+                            <tr class="border-b border-white/5 hover:bg-white/5 transition-colors">
+                                ${isAdmin ? `<td class="px-4 py-3 text-xs text-yellow-400 font-semibold">${srv.owner_name || 'N/A'}</td>` : ''}
+                                <td class="px-4 py-3 font-semibold text-[#00ffcc]">${srv.plan || 'VPS'}</td>
+                                <td class="px-4 py-3 text-blue-400">${srv.host}</td>
+                                <td class="px-4 py-3 font-mono text-xs">${srv.user}</td>
+                                <td class="px-4 py-3"><code class="bg-white/10 px-2 py-1 rounded text-xs">${srv.pass}</code></td>
+                                <td class="px-4 py-3">${srv.port}</td>
+                            </tr>
+                        `;
                     });
                 }
 
-                document.getElementById('summary-servers').innerText = data.servers.length;
-                document.getElementById('summary-pending').innerText = data.pending.length;
-
+                // Render pending orders
                 const pendingContainer = document.getElementById('pending-container');
                 pendingContainer.innerHTML = '';
                 if (data.pending.length > 0) {
                     document.getElementById('pending-box').classList.remove('hidden');
-                    data.pending.forEach(req => {
-                        pendingContainer.innerHTML += `<div class="flex justify-between items-center p-4 bg-yellow-500/5 border border-yellow-500/20 rounded-xl">
-                            <div class="flex items-center gap-3">
-                                <i class="fas fa-receipt text-yellow-500"></i>
-                                <div>
-                                    <div class="text-xs text-gray-400">Order ID</div>
-                                    <div class="font-mono text-sm">${req.sonicOrderId}</div>
-                                    <div class="text-xs text-cyan-400 mt-1">${req.plan}</div>
-                                    ${isAdmin ? `<div class="text-xs text-gray-400">Client: ${req.buyer_name}</div>` : ''}
+                    data.pending.forEach(order => {
+                        pendingContainer.innerHTML += `
+                            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 p-4 bg-yellow-500/5 border border-yellow-500/20 rounded-xl hover:bg-yellow-500/10 transition-colors">
+                                <div class="flex-1">
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <span class="text-xs font-bold text-yellow-400">ORDER ID:</span>
+                                        <code class="text-xs bg-black/30 px-2 py-1 rounded">${order.sonicOrderId}</code>
+                                    </div>
+                                    <div class="text-sm">
+                                        <span class="font-semibold">${order.plan}</span>
+                                        ${isAdmin ? `<span class="text-gray-400 ml-2">| Mteja: ${order.buyer_name}</span>` : ''}
+                                    </div>
+                                    <div class="text-xs text-gray-400 mt-1">Kiasi: ${order.amount} TZS</div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <div class="blinking-text w-2 h-2 bg-yellow-500 rounded-full"></div>
+                                    <span class="text-yellow-400 font-semibold text-sm">Inasubiri Malipo</span>
                                 </div>
                             </div>
-                            <div class="blinking-text text-yellow-500 text-sm font-semibold flex items-center gap-2">
-                                <i class="fas fa-spinner fa-pulse"></i>
-                                <span>Awaiting Payment</span>
-                            </div>
-                        </div>`;
+                        `;
                     });
                 } else {
                     document.getElementById('pending-box').classList.add('hidden');
                 }
             } catch (err) {
-                console.error(err);
-                showToast('Failed to fetch dashboard data', 'error');
+                console.error('Fetch error:', err);
             }
         }
 
-        function setStatus(message, isError = false) {
-            const el = document.getElementById('payment-status');
-            if (isError) {
-                el.className = 'mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-sm flex items-center gap-2';
-                el.innerHTML = `<i class="fas fa-exclamation-triangle"></i><span>${message}</span>`;
-            } else {
-                el.className = 'mb-6 p-4 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 text-sm flex items-center gap-2';
-                el.innerHTML = `<i class="fas fa-info-circle"></i><span>${message}</span>`;
-            }
-        }
-
-        async function checkOrderStatus(orderId) {
+        // Check order status
+        async function checkOrderStatus(orderId, retryCount = 0) {
             try {
                 const res = await fetch('/api/vps/order-status', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    headers: { 
+                        'Content-Type': 'application/json', 
+                        'Authorization': `Bearer ${token}` 
+                    },
                     body: JSON.stringify({ order_id: orderId })
                 });
                 const data = await res.json();
+                
                 if (data.success) {
                     const paymentStatus = (data.payment_status || 'PENDING').toUpperCase();
                     if (paymentStatus === 'SUCCESS') {
-                        setStatus('✅ Payment successful! Your VPS is being provisioned...');
-                        showToast('Payment completed successfully!', 'success');
+                        setStatus('✅ Malipo yamekamilika kikamilifu! Seva yako itaundwa kwa muda mfupi.', 'success');
                         fetchDashboardData();
+                        return true;
+                    } else if (paymentStatus === 'PENDING' && retryCount < 6) {
+                        // Retry after 10 seconds up to 6 times (60 seconds)
+                        setTimeout(() => checkOrderStatus(orderId, retryCount + 1), 10000);
+                        return false;
                     } else if (paymentStatus === 'PENDING') {
-                        setStatus('⏳ Payment pending. Please check your phone for the USSD prompt.');
-                    } else {
-                        setStatus('❌ Payment was cancelled or rejected. Please try again.', true);
+                        setStatus('⏳ Malipo bado hayajathibitishwa. Tafadhali thibitisha kwenye simu yako kwa kuingiza PIN.', 'warning');
+                        return false;
+                    } else if (paymentStatus === 'CANCELLED' || paymentStatus === 'REJECTED') {
+                        setStatus('❌ Malipo yameghairiwa. Jaribu tena kwa namba sahihi.', 'error');
+                        return false;
                     }
                 }
             } catch (err) {
-                console.error(err);
+                console.error('Status check error:', err);
+                if (retryCount < 3) {
+                    setTimeout(() => checkOrderStatus(orderId, retryCount + 1), 15000);
+                }
             }
+            return false;
         }
 
+        // Trigger payment
         async function triggerPayment(event, planName, price, inputId) {
             const button = event.currentTarget;
-            const phoneInput = document.getElementById(inputId).value.trim();
+            let phoneInput = document.getElementById(inputId).value.trim();
 
-            if (!phoneInput || phoneInput.length < 9) {
-                setStatus('Please enter a valid phone number', true);
-                showToast('Phone number is required', 'error');
+            // Debug
+            console.log('🔍 Payment Triggered:', { planName, price, phoneInput });
+
+            // Validation
+            if (!phoneInput) {
+                setStatus('⚠️ Tafadhali ingiza namba yako ya simu kwanza.', 'warning');
+                document.getElementById(inputId).focus();
                 return;
             }
 
+            // Remove spaces and validate digits
+            const digitsOnly = phoneInput.replace(/\D/g, '');
+            if (digitsOnly.length < 9) {
+                setStatus(`❌ Namba "${phoneInput}" si sahihi. Ingiza namba kama 0657779003 au 255657779003`, 'error');
+                document.getElementById(inputId).focus();
+                return;
+            }
+
+            // Disable button and show loading
+            const originalText = button.textContent;
             button.disabled = true;
-            button.innerHTML = '<i class="fas fa-spinner fa-pulse mr-2"></i>Processing...';
-            setStatus('Initiating SonicPesa payment request...');
+            button.innerHTML = '<div class="loading-spinner mr-2"></div> Inatuma...';
+            setStatus('📤 Inatuma ombi la malipo kwa SonicPesa. Subiri kidogo...', 'info');
 
             try {
+                const requestBody = { 
+                    plan: 'VPS ' + planName, 
+                    amount: price, 
+                    phone: phoneInput
+                };
+                
+                console.log('📤 Sending request:', requestBody);
+                
                 const res = await fetch('/api/vps/create-ussd-order', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ plan: 'VPS ' + planName, amount: price, phone: phoneInput })
+                    headers: { 
+                        'Content-Type': 'application/json', 
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(requestBody)
                 });
+                
                 const data = await res.json();
+                console.log('📥 Response:', data);
 
                 if (data.success) {
-                    setStatus(data.message || 'Payment request sent! Check your phone for USSD prompt.');
-                    showToast('Payment request initiated successfully', 'success');
+                    setStatus(`✅ ${data.message || 'Ombi limefumwa!'} Angalia simu yako, utapokea USSD push kutoka Tigo Pesa.`, 'success');
+                    
                     if (data.order_id) {
-                        setTimeout(() => checkOrderStatus(data.order_id), 3000);
-                        setTimeout(() => checkOrderStatus(data.order_id), 10000);
+                        // Check status after 5 seconds
+                        setTimeout(() => checkOrderStatus(data.order_id), 5000);
                     }
-                    fetchDashboardData();
+                    
+                    // Refresh dashboard
+                    setTimeout(() => fetchDashboardData(), 2000);
+                    
+                    // Clear phone input after successful submission
+                    document.getElementById(inputId).value = '';
                 } else {
-                    setStatus(data.message || 'Payment failed. Please try again.', true);
-                    showToast(data.message || 'Payment failed', 'error');
+                    let errorMsg = data.message || 'Kulipia kumekataa.';
+                    if (data.hint) errorMsg += ` ${data.hint}`;
+                    setStatus(`❌ ${errorMsg}`, 'error');
                 }
             } catch (err) {
-                console.error(err);
-                setStatus('Failed to connect to payment service. Please try again.', true);
-                showToast('Connection error. Please try again', 'error');
+                console.error('Payment error:', err);
+                setStatus('❌ Imeshindwa kuwasiliana na huduma ya malipo. Angalia connection yako na ujaribu tena.', 'error');
             } finally {
                 button.disabled = false;
-                button.innerHTML = '<i class="fas fa-money-bill-wave mr-2"></i>Pay with SonicPesa';
+                button.innerHTML = originalText;
             }
         }
 
-        // Initialize dashboard and 3D background
+        // Initial load
         fetchDashboardData();
-        setInterval(fetchDashboardData, 8000);
+        
+        // Auto refresh every 10 seconds
+        setInterval(fetchDashboardData, 10000);
 
-        // Enhanced 3D background
+        // 3D Background Animation
         const init3D = () => {
             const container = document.getElementById('canvas-3d');
             const scene = new THREE.Scene();
@@ -695,39 +558,34 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
             container.appendChild(renderer.domElement);
 
-            // Create multiple objects for better effect
-            const geometry1 = new THREE.TorusKnotGeometry(2.5, 0.4, 120, 16);
-            const material1 = new THREE.MeshBasicMaterial({ color: 0x00ffcc, wireframe: true });
-            const knot = new THREE.Mesh(geometry1, material1);
-            
-            const geometry2 = new THREE.SphereGeometry(1.5, 32, 32);
-            const material2 = new THREE.MeshBasicMaterial({ color: 0xa855f7, wireframe: true });
-            const sphere = new THREE.Mesh(geometry2, material2);
-            sphere.position.x = 3;
-            sphere.position.y = 2;
-            
-            scene.add(knot);
-            scene.add(sphere);
-            camera.position.z = 8;
+            const geometry = new THREE.TorusKnotGeometry(2.8, 0.5, 140, 18);
+            const material = new THREE.MeshBasicMaterial({ color: 0x00ffcc, wireframe: true });
+            const mesh = new THREE.Mesh(geometry, material);
+            scene.add(mesh);
+            camera.position.z = 7;
 
             const animate = () => {
                 requestAnimationFrame(animate);
-                knot.rotation.x += 0.003;
-                knot.rotation.y += 0.005;
-                sphere.rotation.x -= 0.002;
-                sphere.rotation.y -= 0.003;
+                mesh.rotation.x += 0.002;
+                mesh.rotation.y += 0.005;
+                mesh.rotation.z += 0.001;
                 renderer.render(scene, camera);
             };
             animate();
-
-            // Handle window resize
-            window.addEventListener('resize', () => {
-                camera.aspect = window.innerWidth / window.innerHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight);
-            });
         };
+        
         init3D();
+        
+        // Handle window resize for 3D
+        window.addEventListener('resize', () => {
+            const container = document.getElementById('canvas-3d');
+            const renderer = container.querySelector('canvas');
+            if (renderer) {
+                // Re-initialize on resize
+                container.innerHTML = '';
+                init3D();
+            }
+        });
     </script>
 </body>
 </html>
