@@ -11,18 +11,15 @@ require('dotenv').config();
 
 const app = express();
 
-// Middleware order - MUHIMU
-app.use(express.raw({ type: 'application/json', verify: (req, res, buf) => {
-    req.rawBody = buf.toString();
-} }));
+// ==================== MIDDLEWARE CONFIG ====================
+app.use(cors());
 
+// Toleo hili linachanganya express.json na ukamataji wa rawBody vizuri bila kuharibu req.body
 app.use(express.json({
     verify: (req, res, buf) => {
-        if (!req.rawBody) req.rawBody = buf.toString();
+        req.rawBody = buf.toString();
     }
 }));
-
-app.use(cors());
 
 const connectDB = async () => {
     if (mongoose.connection.readyState >= 1) return;
@@ -42,7 +39,7 @@ const User = mongoose.models.User || mongoose.model('User', new mongoose.Schema(
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     role: { type: String, enum: ['user', 'admin'], default: 'user' },
-    balance: { type: Number, default: 50000 } // SALIO LA MWANZO 50,000 TZS
+    balance: { type: Number, default: 50000 }
 }, { timestamps: true }));
 
 const Order = mongoose.models.Order || mongoose.model('Order', new mongoose.Schema({
@@ -76,7 +73,7 @@ const Transaction = mongoose.models.Transaction || mongoose.model('Transaction',
     balance_after: Number
 }, { timestamps: true }));
 
-// ==================== MIDDLEWARE ====================
+// ==================== MIDDLEWARES ====================
 const verifyToken = (req, res, next) => {
     const token = req.headers['authorization'];
     if (!token) return res.status(401).json({ success: false, message: 'Token missing' });
@@ -86,6 +83,15 @@ const verifyToken = (req, res, next) => {
         next();
     } catch (err) { 
         res.status(401).json({ success: false, message: 'Invalid token' }); 
+    }
+};
+
+// Middleware ya kuzuia wasio ma-admin
+const verifyAdmin = (req, res, next) => {
+    if (req.user && req.user.role === 'admin') {
+        next();
+    } else {
+        res.status(403).json({ success: false, message: 'Access denied. Admins only.' });
     }
 };
 
@@ -100,30 +106,20 @@ const normalizeAmount = (value) => {
 
 const createSonicPesaOrder = async (payload) => {
     const apiKey = process.env.SONICPESA_API_KEY;
-    if (!apiKey) {
-        throw new Error('SONICPESA_API_KEY is not configured');
-    }
+    if (!apiKey) throw new Error('SONICPESA_API_KEY is not configured');
 
     return axios.post(`${SONICPESA_BASE_URL}/payment/create_order`, payload, {
-        headers: {
-            'Content-Type': 'application/json',
-            'X-API-KEY': apiKey
-        },
+        headers: { 'Content-Type': 'application/json', 'X-API-KEY': apiKey },
         timeout: 60000
     });
 };
 
 const checkSonicPesaOrderStatus = async (orderId) => {
     const apiKey = process.env.SONICPESA_API_KEY;
-    if (!apiKey) {
-        throw new Error('SONICPESA_API_KEY is not configured');
-    }
+    if (!apiKey) throw new Error('SONICPESA_API_KEY is not configured');
 
     return axios.post(`${SONICPESA_BASE_URL}/payment/order_status`, { order_id: orderId }, {
-        headers: {
-            'Content-Type': 'application/json',
-            'X-API-KEY': apiKey
-        },
+        headers: { 'Content-Type': 'application/json', 'X-API-KEY': apiKey },
         timeout: 60000
     });
 };
@@ -146,7 +142,7 @@ app.post('/api/auth/signup', async (req, res) => {
             name, 
             email: email.toLowerCase(), 
             password: hashedPassword,
-            balance: 50000 // Salio la kuanzia
+            balance: 50000 
         });
         await newUser.save();
         
@@ -162,7 +158,7 @@ app.post('/api/auth/login', async (req, res) => {
         const { email, password } = req.body;
         
         if (!email || !password) {
-            return res.status(400).json({ success: false, message: 'Tafadhali ingiza barua pepe na nenosiri lako.' });
+            return res.status(400).json({ success: false, message: 'Tafadhali ingiza barua pepe na nenosiri.' });
         }
 
         const user = await User.findOne({ email: email.toLowerCase() });
@@ -179,7 +175,6 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 // ==================== BALANCE & PURCHASE ROUTES ====================
-// Kupata salio la mteja
 app.get('/api/user/balance', verifyToken, async (req, res) => {
     try {
         await connectDB();
@@ -190,7 +185,6 @@ app.get('/api/user/balance', verifyToken, async (req, res) => {
     }
 });
 
-// Historia ya transactions
 app.get('/api/user/transactions', verifyToken, async (req, res) => {
     try {
         await connectDB();
@@ -201,21 +195,16 @@ app.get('/api/user/transactions', verifyToken, async (req, res) => {
     }
 });
 
-// Unda oda ya malipo ya SonicPesa / USSD push
 app.post('/api/vps/create-ussd-order', verifyToken, async (req, res) => {
     try {
         await connectDB();
         const { plan, amount, phone } = req.body;
 
         const user = await User.findById(req.user.id);
-        if (!user) {
-            return res.status(404).json({ success: false, message: 'User not found' });
-        }
+        if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
         const amountValue = normalizeAmount(amount);
-        if (!Number.isFinite(amountValue) || amountValue <= 0) {
-            return res.status(400).json({ success: false, message: 'Kiasi cha malipo si sahihi.' });
-        }
+        if (amountValue <= 0) return res.status(400).json({ success: false, message: 'Kiasi cha malipo si sahihi.' });
 
         const sonicResponse = await createSonicPesaOrder({
             buyer_email: user.email,
@@ -227,8 +216,9 @@ app.post('/api/vps/create-ussd-order', verifyToken, async (req, res) => {
 
         const providerOrderId = sonicResponse?.data?.data?.order_id || sonicResponse?.data?.order_id || null;
         if (!providerOrderId) {
-            return res.status(502).json({ success: false, message: 'SonicPesa hakuweza kutoa nambari ya oda ya malipo.' });
+            return res.status(502).json({ success: false, message: 'SonicPesa hakuweza kutoa nambari ya oda.' });
         }
+
         const order = await Order.create({
             userId: user._id,
             buyer_name: user.name,
@@ -242,10 +232,9 @@ app.post('/api/vps/create-ussd-order', verifyToken, async (req, res) => {
 
         res.json({
             success: true,
-            message: 'Ombi la STK limeundwa. Tafadhali weka PIN yako kwenye simu ili kukamilisha kuongeza salio.',
+            message: 'Ombi la STK limeundwa. Weka PIN kwenye simu yako kukamilisha.',
             order,
-            sonicOrderId: providerOrderId,
-            provider: sonicResponse?.data || null
+            sonicOrderId: providerOrderId
         });
     } catch (err) {
         console.error('USSD order error:', err);
@@ -258,23 +247,27 @@ app.post('/api/vps/check-order-status', verifyToken, async (req, res) => {
         await connectDB();
         const { orderId } = req.body;
 
-        if (!orderId) {
-            return res.status(400).json({ success: false, message: 'orderId inahitajika.' });
+        if (!orderId) return res.status(400).json({ success: false, message: 'orderId inahitajika.' });
+
+        const order = await Order.findOne({ sonicOrderId: orderId, userId: req.user.id });
+        if (!order) return res.status(404).json({ success: false, message: 'Oda haikupatikana.' });
+
+        // Ulinzi: Kama oda ishakamilika (SUCCESS), usirudie kuongeza salio
+        if (order.status === 'SUCCESS') {
+            const user = await User.findById(req.user.id);
+            return res.json({ success: true, message: 'Oda tayari ilishalipwa.', status: 'SUCCESS', newBalance: user.balance });
         }
 
         const statusResponse = await checkSonicPesaOrderStatus(orderId);
         const paymentStatus = statusResponse?.data?.data?.payment_status || statusResponse?.data?.payment_status || 'PENDING';
-        const order = await Order.findOne({ sonicOrderId: orderId, userId: req.user.id });
 
-        if (order) {
-            order.status = paymentStatus === 'SUCCESS' ? 'SUCCESS' : (paymentStatus === 'PENDING' ? 'PENDING' : 'REJECTED');
+        if (paymentStatus === 'SUCCESS') {
+            order.status = 'SUCCESS';
             await order.save();
-        }
 
-        if (paymentStatus === 'SUCCESS' && order && order.plan === 'Kujaza Salio') {
             const user = await User.findById(req.user.id);
             const balanceBefore = user.balance;
-            user.balance = user.balance + Number(order.amount || 0);
+            user.balance += Number(order.amount || 0);
             await user.save();
 
             await new Transaction({
@@ -287,17 +280,19 @@ app.post('/api/vps/check-order-status', verifyToken, async (req, res) => {
                 balance_after: user.balance
             }).save();
 
-            return res.json({ success: true, message: 'Salio lako limeongezeka.', status: paymentStatus, newBalance: user.balance });
+            return res.json({ success: true, message: 'Salio lako limeongezeka.', status: 'SUCCESS', newBalance: user.balance });
+        } else if (paymentStatus === 'FAILED' || paymentStatus === 'CANCELLED' || paymentStatus === 'REJECTED') {
+            order.status = 'REJECTED';
+            await order.save();
         }
 
-        res.json({ success: true, status: paymentStatus, order });
+        res.json({ success: true, status: order.status, order });
     } catch (err) {
         console.error('Order status error:', err);
         res.status(500).json({ success: false, message: err.message });
     }
 });
 
-// Kununua VPS kwa kutumia salio
 app.post('/api/vps/purchase-with-balance', verifyToken, async (req, res) => {
     try {
         await connectDB();
@@ -305,28 +300,20 @@ app.post('/api/vps/purchase-with-balance', verifyToken, async (req, res) => {
         const amountValue = normalizeAmount(amount);
         
         const user = await User.findById(req.user.id);
-        if (!user) {
-            return res.status(404).json({ success: false, message: 'User not found' });
-        }
+        if (!user) return res.status(404).json({ success: false, message: 'User not found' });
         
-        // Angalia kama ana salio la kutosha
         if (user.balance < amountValue) {
             return res.status(400).json({ 
                 success: false, 
-                message: `Salio lako ni ${user.balance.toLocaleString()} TZS pekee. Unahitaji ${amountValue.toLocaleString()} TZS.`,
-                currentBalance: user.balance,
-                required: amountValue,
-                shortfall: amountValue - user.balance
+                message: `Salio lako ni ${user.balance.toLocaleString()} TZS pekee. Unahitaji ${amountValue.toLocaleString()} TZS.`
             });
         }
         
-        // Kata salio
         const balanceBefore = user.balance;
-        user.balance = user.balance - amountValue;
+        user.balance -= amountValue;
         await user.save();
         
-        // Rekodi transaction
-        const transaction = new Transaction({
+        await new Transaction({
             userId: user._id,
             type: 'purchase',
             amount: amountValue,
@@ -334,21 +321,17 @@ app.post('/api/vps/purchase-with-balance', verifyToken, async (req, res) => {
             reference: `VPS_${Date.now()}`,
             balance_before: balanceBefore,
             balance_after: user.balance
-        });
-        await transaction.save();
+        }).save();
         
-        // Rekodi order
-        const newOrder = new Order({
+        await new Order({
             userId: user._id,
             buyer_name: user.name,
             amount: amountValue,
             plan: plan,
             phone: phone || 'N/A',
             status: 'SUCCESS'
-        });
-        await newOrder.save();
+        }).save();
         
-        // Unda server (demo)
         const tempPassword = crypto.randomBytes(8).toString('hex');
         const newServer = new Server({
             userId: user._id,
@@ -360,7 +343,6 @@ app.post('/api/vps/purchase-with-balance', verifyToken, async (req, res) => {
         });
         await newServer.save();
         
-        // Tuma email (optional)
         if (process.env.SMTP_HOST && process.env.SMTP_USER) {
             try {
                 let transporter = nodemailer.createTransport({
@@ -373,26 +355,25 @@ app.post('/api/vps/purchase-with-balance', verifyToken, async (req, res) => {
                     from: `"Mickey Host" <${process.env.SMTP_USER}>`,
                     to: user.email,
                     subject: "VPS Purchase Confirmation",
-                    html: `<h2>Hongera ${user.name}!</h2><p>Umenunua ${plan} VPS kwa ${amountValue.toLocaleString()} TZS.</p><p>Salio lako sasa: ${user.balance.toLocaleString()} TZS</p>`
+                    html: `<h2>Hongera ${user.name}!</h2><p>Umenunua ${plan} VPS kwa ${amountValue.toLocaleString()} TZS.</p>`
                 });
             } catch(e) { console.error('Email error:', e); }
         }
         
         res.json({ 
             success: true, 
-            message: `Umefanikiwa kununua ${plan} VPS! Salio lako sasa: ${user.balance.toLocaleString()} TZS`,
+            message: `Umefanikiwa kununua ${plan} VPS!`,
             newBalance: user.balance,
             server: newServer
         });
-        
     } catch (err) {
         console.error('Purchase error:', err);
         res.status(500).json({ success: false, message: err.message });
     }
 });
 
-// Ongeza salio kwa mtumiaji (mteja anaweza kujaza salio wake mwenyewe)
-app.post('/api/user/add-balance', verifyToken, async (req, res) => {
+// USALAMA: Sasa ipo locked kwa ajili ya Admin tu (Manual adjustment)
+app.post('/api/user/add-balance', verifyToken, verifyAdmin, async (req, res) => {
     try {
         await connectDB();
         const { amount, description, userId } = req.body;
@@ -402,40 +383,35 @@ app.post('/api/user/add-balance', verifyToken, async (req, res) => {
             return res.status(400).json({ success: false, message: 'Kiasi cha salio si sahihi' });
         }
 
-        const targetUserId = req.user.role === 'admin' && userId ? userId : req.user.id;
-        const user = await User.findById(targetUserId);
+        if (!userId) return res.status(400).json({ success: false, message: 'userId inahitajika' });
 
-        if (!user) {
-            return res.status(404).json({ success: false, message: 'Mtumiaji hayupo' });
-        }
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ success: false, message: 'Mtumiaji hayupo' });
 
         const balanceBefore = user.balance;
-        user.balance = user.balance + amountValue;
+        user.balance += amountValue;
         await user.save();
 
-        const transaction = new Transaction({
+        await new Transaction({
             userId: user._id,
             type: 'credit',
             amount: amountValue,
-            description: description || 'Kujaza salio kupitia mfumo wa web',
+            description: description || 'Salio kuongezwa na Admin',
             balance_before: balanceBefore,
             balance_after: user.balance
-        });
-        await transaction.save();
+        }).save();
 
-        res.json({ success: true, newBalance: user.balance, message: `Salio lako limeongezeka kwa ${amountValue.toLocaleString()} TZS.` });
+        res.json({ success: true, newBalance: user.balance, message: `Salio la mtumiaji limeongezeka kwa ${amountValue.toLocaleString()} TZS.` });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
     }
 });
 
-// Get user assets (servers & pending)
 app.get('/api/vps/my-assets', verifyToken, async (req, res) => {
     try { 
         await connectDB(); 
-        let servers, pendingOrders, user;
-        
-        user = await User.findById(req.user.id);
+        let servers, pendingOrders;
+        const user = await User.findById(req.user.id);
         
         if (req.user.role === 'admin') {
             servers = await Server.find({}).sort({ createdAt: -1 });
@@ -457,7 +433,6 @@ app.get('/api/vps/my-assets', verifyToken, async (req, res) => {
     }
 });
 
-// Health check
 app.get('/api/health', (req, res) => {
     res.json({ 
         status: 'OK', 
@@ -466,7 +441,6 @@ app.get('/api/health', (req, res) => {
     });
 });
 
-// Serve static files
 const publicPath = path.join(__dirname, '../public');
 app.use(express.static(publicPath));
 

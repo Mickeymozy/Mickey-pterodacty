@@ -6,7 +6,7 @@
     <title>Mickey Host - Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght=400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         * { font-family: 'Inter', sans-serif; }
         body { background: linear-gradient(135deg, #0a0e1a 0%, #0b0f19 100%); }
@@ -78,6 +78,7 @@
         
         ::-webkit-scrollbar-thumb:hover {
             background: rgba(0, 255, 204, 0.8);
+            border-radius: 10px;
         }
         
         .toast {
@@ -112,10 +113,8 @@
 </head>
 <body class="min-h-screen">
 
-    <!-- 3D Background -->
     <div id="canvas-3d" class="fixed inset-0 -z-10 opacity-20 pointer-events-none"></div>
 
-    <!-- Toast Notification -->
     <div id="toast" class="fixed top-5 right-5 z-50 hidden toast">
         <div class="glass-card px-5 py-3 flex items-center gap-3 shadow-xl">
             <span id="toast-icon">✅</span>
@@ -123,7 +122,6 @@
         </div>
     </div>
 
-    <!-- Navigation -->
     <nav class="sticky top-0 z-40 glass-card mx-4 mt-4 px-6 py-3 flex justify-between items-center backdrop-blur-md">
         <div class="flex items-center gap-3">
             <span class="text-2xl">⚡</span>
@@ -147,7 +145,6 @@
             <button type="button" data-tab="servers" class="tab-btn rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-gray-200 hover:border-[#00ffcc]/40 hover:text-[#00ffcc]">Nunua Server</button>
         </div>
 
-        <!-- Balance Card - SALIO LINAONEKANA JUU -->
         <section id="tab-overview" class="tab-panel">
         <div class="balance-card p-6">
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -172,8 +169,7 @@
             </div>
         </div>
 
-        <!-- Your Servers Section -->
-        <div class="glass-card p-6">
+        <div class="glass-card p-6 mt-6">
             <div class="flex items-center gap-3 mb-5">
                 <div class="w-1 h-6 bg-[#00ffcc] rounded-full"></div>
                 <h2 class="text-xl font-bold text-white">🖥️ Seva Zako za VPS</h2>
@@ -195,22 +191,15 @@
                 <p id="no-servers" class="text-center text-gray-500 py-8 hidden">📭 Huna seva yoyote bado. Nunua kifurushi hapo chini!</p>
             </div>
         </div>
-
         </section>
 
-        <!-- Top-up / Balance Section -->
         <section id="tab-topup" class="tab-panel hidden">
         <section class="glass-card p-6 rounded-3xl border border-white/10 shadow-2xl">
             <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
                 <div class="max-w-2xl">
                     <div class="inline-flex items-center gap-2 rounded-full bg-[#00ffcc]/10 border border-[#00ffcc]/20 px-3 py-1 text-xs uppercase tracking-[0.35em] text-[#00ffcc] mb-3">Weka Salio</div>
                     <h2 class="text-2xl md:text-3xl font-black text-white">Jaza salio lako kwa njia ya STK na uanze kununua server kwa salio lako.</h2>
-                    <p class="text-sm text-gray-300 mt-3">Njia hii ni ya kuongeza salio tu. Baada ya kujaza, salio litumike kununua server pekee kwenye mfumo wa web. Hakuna malipo ya moja kwa moja ya server kupitia STK.</p>
-                    <div class="mt-4 flex flex-wrap gap-2 text-xs text-gray-300">
-                        <span class="rounded-full border border-white/10 bg-white/5 px-3 py-1">✅ STK kwa kuongeza salio</span>
-                        <span class="rounded-full border border-white/10 bg-white/5 px-3 py-1">✅ Server kununua kwa salio</span>
-                        <span class="rounded-full border border-white/10 bg-white/5 px-3 py-1">✅ Ujumbe wa PIN kwenye simu yako</span>
-                    </div>
+                    <p class="text-sm text-gray-300 mt-3">Njia hii ni ya kuongeza salio tu. Baada ya kujaza, salio litumike kununua server pekee kwenye mfumo wa web.</p>
                 </div>
 
                 <div class="w-full lg:max-w-xl rounded-3xl border border-[#00ffcc]/15 bg-gradient-to-br from-[#0b1220] to-[#111827] p-4 shadow-xl">
@@ -219,15 +208,11 @@
                     <label class="text-xs uppercase tracking-[0.35em] text-[#00ffcc]/80 mb-2 block">Kiasi cha salio</label>
                     <input id="topup-amount" type="number" min="1000" step="1000" placeholder="Mfano: 10000" class="w-full px-4 py-3 rounded-2xl bg-black/40 border border-white/10 text-white focus:outline-none focus:border-[#00ffcc] mb-4" />
                     <button onclick="topUpBalance()" class="w-full btn-primary py-3 rounded-2xl font-bold text-[#0a0e1a] transition">Tumia STK kuongeza Salio</button>
-                    <p class="text-xs text-gray-400 mt-3">Kumbuka: STK hutumika tu wakati wa kuweka salio; server zitatumika kwa salio lako lililopo.</p>
                 </div>
             </div>
         </section>
-
-        </section>
         </section>
 
-        <!-- VPS Shop Section - KUNUNUA KWA SALIO -->
         <section id="tab-servers" class="tab-panel hidden">
         <div id="vps-shop-section" class="glass-card p-6">
             <div class="text-center mb-6">
@@ -236,11 +221,9 @@
                     <span class="text-[#00ffcc] text-sm font-semibold">Nunua Server kwa Salio</span>
                 </div>
                 <h2 class="text-2xl font-bold text-white">Chagua Kifurushi cha VPS</h2>
-                <p class="text-gray-400 text-sm mt-1">Tumia salio lako kununua server pekee. Kwa mfumo wa web, utapokea ujumbe wa “imetuma, weka PIN” kwenye ukurasa huu.</p>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <!-- Starter Plan -->
                 <div class="vps-card p-6 text-center rounded-3xl border border-white/10 shadow-xl">
                     <div class="mb-4">
                         <span class="text-4xl">🚀</span>
@@ -248,17 +231,13 @@
                         <div class="text-3xl font-black text-[#00ffcc] my-3">3,500 <span class="text-sm text-gray-400">TZS</span></div>
                     </div>
                     <ul class="text-left text-sm text-gray-400 space-y-2 mb-6">
-                        <li class="flex items-center gap-2">✓ 1 GB RAM</li>
-                        <li class="flex items-center gap-2">✓ 350 GB SSD</li>
-                        <li class="flex items-center gap-2">✓ 25% CPU</li>
-                        <li class="flex items-center gap-2">✓ 1 vCore</li>
+                        <li>✓ 1 GB RAM</li>
+                        <li>✓ 350 GB SSD</li>
+                        <li>✓ 25% CPU</li>
                     </ul>
-                    <div class="space-y-2 mt-3">
-                        <button onclick="purchaseWithBalance('Starter', 3500, event)" class="w-full py-3 rounded-xl font-bold text-[#0a0e1a] bg-emerald-400/90 hover:bg-emerald-300 transition">Nunua Server kwa Salio</button>
-                    </div>
+                    <button onclick="purchaseWithBalance('Starter', 3500, event)" class="w-full py-3 rounded-xl font-bold text-[#0a0e1a] bg-emerald-400/90 hover:bg-emerald-300 transition">Nunua kwa Salio</button>
                 </div>
 
-                <!-- Professional Plan -->
                 <div class="vps-card p-6 text-center border-[#00ffcc]/30 relative overflow-hidden rounded-3xl shadow-2xl">
                     <div class="absolute top-0 right-0 bg-[#00ffcc]/20 px-3 py-1 rounded-bl-xl text-xs font-bold text-[#00ffcc]">BEST VALUE</div>
                     <div class="mb-4">
@@ -267,38 +246,30 @@
                         <div class="text-3xl font-black text-[#00ffcc] my-3">7,500 <span class="text-sm text-gray-400">TZS</span></div>
                     </div>
                     <ul class="text-left text-sm text-gray-400 space-y-2 mb-6">
-                        <li class="flex items-center gap-2">✓ 2 GB RAM</li>
-                        <li class="flex items-center gap-2">✓ 700 GB SSD</li>
-                        <li class="flex items-center gap-2">✓ 50% CPU</li>
-                        <li class="flex items-center gap-2">✓ 2 vCores</li>
+                        <li>✓ 2 GB RAM</li>
+                        <li>✓ 700 GB SSD</li>
+                        <li>✓ 50% CPU</li>
                     </ul>
-                    <div class="space-y-2 mt-3">
-                        <button onclick="purchaseWithBalance('Professional', 7500, event)" class="w-full py-3 rounded-xl font-bold text-[#0a0e1a] bg-emerald-400/90 hover:bg-emerald-300 transition">Nunua Server kwa Salio</button>
-                    </div>
+                    <button onclick="purchaseWithBalance('Professional', 7500, event)" class="w-full py-3 rounded-xl font-bold text-[#0a0e1a] bg-emerald-400/90 hover:bg-emerald-300 transition">Nunua kwa Salio</button>
                 </div>
 
-                <!-- Enterprise Plan -->
-                <div class="vps-card p-6 text-center">
+                <div class="vps-card p-6 text-center rounded-3xl border border-white/10 shadow-xl">
                     <div class="mb-4">
                         <span class="text-4xl">🏆</span>
                         <h3 class="text-xl font-bold text-white mt-2">VPS Enterprise</h3>
                         <div class="text-3xl font-black text-[#00ffcc] my-3">12,000 <span class="text-sm text-gray-400">TZS</span></div>
                     </div>
                     <ul class="text-left text-sm text-gray-400 space-y-2 mb-6">
-                        <li class="flex items-center gap-2">✓ 4 GB RAM</li>
-                        <li class="flex items-center gap-2">✓ 1 TB SSD</li>
-                        <li class="flex items-center gap-2">✓ 100% CPU</li>
-                        <li class="flex items-center gap-2">✓ 4 vCores</li>
+                        <li>✓ 4 GB RAM</li>
+                        <li>✓ 1 TB SSD</li>
+                        <li>✓ 100% CPU</li>
                     </ul>
-                    <div class="space-y-2 mt-3">
-                        <button onclick="purchaseWithBalance('Enterprise', 12000, event)" class="w-full py-3 rounded-xl font-bold text-[#0a0e1a] bg-emerald-400/90 hover:bg-emerald-300 transition">Nunua Server kwa Salio</button>
-                    </div>
+                    <button onclick="purchaseWithBalance('Enterprise', 12000, event)" class="w-full py-3 rounded-xl font-bold text-[#0a0e1a] bg-emerald-400/90 hover:bg-emerald-300 transition">Nunua kwa Salio</button>
                 </div>
             </div>
         </div>
         </section>
 
-        <!-- Recent Transactions -->
         <div class="glass-card p-6">
             <div class="flex items-center justify-between mb-5">
                 <div class="flex items-center gap-3">
@@ -348,19 +319,16 @@
                 currentBalance = data.balance || 0;
                 currentUser = data.user;
                 
-                // Update balance display
                 document.getElementById('user-balance').innerText = currentBalance.toLocaleString();
                 document.getElementById('user-name').innerText = currentUser?.name || 'User';
                 document.getElementById('servers-count').innerText = data.servers.length;
                 document.getElementById('pending-count').innerText = data.pending.length;
                 
-                // Check if admin
                 if (currentUser?.role === 'admin') {
                     document.getElementById('admin-badge').classList.remove('hidden');
                     document.getElementById('th-owner').classList.remove('hidden');
                 }
                 
-                // Render servers table
                 const tbody = document.getElementById('server-table-body');
                 tbody.innerHTML = '';
                 if (data.servers.length === 0) {
@@ -381,7 +349,6 @@
                     });
                 }
                 
-                // Render transactions
                 await loadTransactions();
                 
             } catch (err) {
@@ -446,15 +413,16 @@
                         'Authorization': `Bearer ${token}`
                     },
                     body: JSON.stringify({
+                        name: currentUser?.name || 'Mteja', // Imerekebishwa: Tuma 'name' kwenda backend
                         plan: 'Kujaza Salio',
-                        amount,
-                        phone
+                        amount: amount,
+                        phone: phone
                     })
                 });
                 const data = await res.json();
 
                 if (data.success) {
-                    showToast('Ombi la STK limepelekwa. Tafadhali weka PIN kwenye simu yako ili kuongeza salio.');
+                    showToast('Ombi la STK limepelekwa. Weka PIN kwenye simu yako.');
                     document.getElementById('topup-phone').value = '';
                     document.getElementById('topup-amount').value = '';
                     await refreshDashboard();
@@ -470,13 +438,11 @@
         async function purchaseWithBalance(planName, price, event) {
             if (currentBalance < price) {
                 const shortfall = price - currentBalance;
-                showToast(`Salio la kutosha! Unahitaji ${price.toLocaleString()} TZS, salio lako ni ${currentBalance.toLocaleString()} TZS. Unakosa ${shortfall.toLocaleString()} TZS`, true);
+                showToast(`Salio halitoshi! Unahitaji ${price.toLocaleString()} TZS.`, true);
                 return;
             }
             
-            const confirmMsg = `Unakaribia kununua ${planName} VPS kwa ${price.toLocaleString()} TZS.\n\nSalio lako: ${currentBalance.toLocaleString()} TZS\nBaada ya kununua: ${(currentBalance - price).toLocaleString()} TZS\n\nEndelea?`;
-            
-            if (!confirm(confirmMsg)) return;
+            if (!confirm(`Unakaribia kununua ${planName} VPS kwa ${price.toLocaleString()} TZS. Endelea?`)) return;
             
             const button = event?.target || null;
             const originalText = button ? button.textContent : 'Nunua kwa Salio';
@@ -492,13 +458,18 @@
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${token}`
                     },
-                    body: JSON.stringify({ plan: planName, amount: price, phone: 'N/A' })
+                    body: JSON.stringify({ 
+                        name: currentUser?.name || 'Mteja', // Imerekebishwa: Tuma 'name' kuzuia Error ya Server
+                        plan: planName, 
+                        amount: price, 
+                        phone: currentUser?.phone || 'N/A' 
+                    })
                 });
                 
                 const data = await res.json();
                 
                 if (data.success) {
-                    showToast(data.message);
+                    showToast(data.message || 'Server imenunuliwa kikamilifu!');
                     refreshDashboard();
                 } else {
                     showToast(data.message, true);
@@ -511,36 +482,6 @@
                     button.disabled = false;
                     button.innerHTML = originalText;
                 }
-            }
-        }
-
-        async function triggerPayment(planName, price) {
-            const phoneInput = document.getElementById(`phone-${planName}`).value;
-            if (!phoneInput || phoneInput.length < 9) {
-                showToast('Tafadhali ingiza namba sahihi ya simu!', true);
-                return;
-            }
-
-            try {
-                const res = await fetch('/api/vps/create-ussd-order', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ plan: 'VPS ' + planName, amount: price, phone: phoneInput })
-                });
-                const data = await res.json();
-
-                if (data.success) {
-                    showToast(data.message || 'Oda ya malipo imeundwa.');
-                    await refreshDashboard();
-                } else {
-                    showToast(data.message || 'Imeshindikana kuunda oda ya malipo.', true);
-                }
-            } catch (err) {
-                console.error('Trigger payment error:', err);
-                showToast('Imeshindikana kuunda oda ya malipo.', true);
             }
         }
         
@@ -579,7 +520,6 @@
             const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             const renderer = new THREE.WebGLRenderer({ alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setClearColor(0x000000, 0);
             container.appendChild(renderer.domElement);
             
             const geometry = new THREE.TorusKnotGeometry(2.5, 0.4, 120, 16);
@@ -596,19 +536,10 @@
                 renderer.render(scene, camera);
             }
             animate();
-            
-            window.addEventListener('resize', () => {
-                camera.aspect = window.innerWidth / window.innerHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight);
-            });
         }
         
-        // Initialize
         refreshDashboard();
         init3D();
-        
-        // Auto refresh every 15 seconds
         setInterval(refreshDashboard, 15000);
     </script>
 </body>
