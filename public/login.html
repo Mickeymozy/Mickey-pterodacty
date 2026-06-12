@@ -41,10 +41,11 @@
         </form>
         
         <p class="text-center text-xs text-gray-500 mt-4">
-            Demo: Acha tupu kwa akaunti ya demo | Au jisajili kwanza
+            Jaza barua pepe na nenosiri lako. Ukiwa na akaunti ya demo, unaweza kutumia kitufe cha chini.
         </p>
         
-        <div class="text-center mt-4">
+        <div class="flex flex-col gap-2 mt-4 text-center">
+            <button type="button" onclick="useDemoAccount()" class="text-[#00ffcc] text-sm hover:underline">🧪 Tumia Demo Account</button>
             <a href="#" onclick="showSignup()" class="text-[#00ffcc] text-sm hover:underline">🔐 Tengeneza Akaunti Mpya</a>
         </div>
     </div>
@@ -69,22 +70,23 @@
     </div>
 
     <script>
-        // Auto-login - Ikiwa hakuna token, jaribu kuingia moja kwa moja na demo user
-        async function autoLogin() {
+        async function useDemoAccount() {
             try {
                 const res = await fetch('/api/auth/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email: '', password: '' })
+                    body: JSON.stringify({ email: 'demo@mickeyhost.com', password: 'demo123' })
                 });
                 const data = await res.json();
                 if (data.success) {
                     localStorage.setItem('mickey_token', data.token);
                     localStorage.setItem('mickey_user', JSON.stringify(data.user));
                     window.location.href = '/dashboard.html';
+                } else {
+                    alert(data.message || 'Demo login failed');
                 }
             } catch (err) {
-                console.error('Auto-login failed:', err);
+                alert('Server error');
             }
         }
         
@@ -148,9 +150,6 @@
         const token = localStorage.getItem('mickey_token');
         if (token) {
             window.location.href = '/dashboard.html';
-        } else {
-            // Auto-login with demo account after 1 second
-            setTimeout(autoLogin, 500);
         }
     </script>
 </body>
