@@ -3,128 +3,337 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mickey Host pannel - Ingia / Jisajili</title>
+    <title>Mickey Host - Ingia / Jisajili</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        .error-toast {
+            animation: slideDown 0.3s ease-out;
+        }
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .input-focus:focus {
+            box-shadow: 0 0 0 3px rgba(0, 255, 204, 0.1);
+        }
+    </style>
 </head>
-<body class="bg-[#0b0f19] text-gray-100 min-h-screen flex items-center justify-center relative overflow-hidden">
+<body class="bg-gradient-to-br from-[#0a0e1a] to-[#0b0f19] text-gray-100 min-h-screen flex items-center justify-center relative overflow-hidden">
 
-    <div id="canvas-3d" class="fixed top-0 left-0 w-full h-full -z-10 opacity-30"></div>
+    <div id="canvas-3d" class="fixed top-0 left-0 w-full h-full -z-10 opacity-20"></div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed top-5 right-5 z-50 hidden transition-all duration-300">
+        <div class="bg-red-500/90 backdrop-blur-md text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-3">
+            <span id="toast-icon">⚠️</span>
+            <span id="toast-message"></span>
+        </div>
+    </div>
 
     <div class="w-full max-w-md p-8 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-xl shadow-2xl mx-4">
         <div class="text-center mb-8">
-            <h1 class="text-3xl font-extrabold text-[#00ffcc] tracking-tight">Mickey Host pannel⚡</h1>
+            <div class="text-5xl mb-3">⚡</div>
+            <h1 class="text-3xl font-extrabold bg-gradient-to-r from-[#00ffcc] to-[#00b894] bg-clip-text text-transparent">
+                Mickey Host
+            </h1>
             <p class="text-xs text-gray-400 mt-2" id="form-subtitle">Ingia kusimamia au kununua seva yako ya VPS</p>
         </div>
 
+        <!-- Login Form -->
         <form id="login-form" class="space-y-5">
             <div>
                 <label class="block text-xs uppercase tracking-wider text-gray-400 mb-2">Barua Pepe (Email)</label>
-                <input type="email" id="login-email" required class="w-full p-3 bg-gray-900 border border-gray-800 rounded-lg focus:outline-none focus:border-[#00ffcc] text-sm text-white">
+                <input type="email" id="login-email" required 
+                       class="input-focus w-full p-3 bg-gray-900/50 border border-gray-700 rounded-lg focus:outline-none focus:border-[#00ffcc] text-sm text-white transition">
             </div>
             <div>
                 <label class="block text-xs uppercase tracking-wider text-gray-400 mb-2">Nenosiri (Password)</label>
-                <input type="password" id="login-password" required class="w-full p-3 bg-gray-900 border border-gray-800 rounded-lg focus:outline-none focus:border-[#00ffcc] text-sm text-white">
+                <input type="password" id="login-password" required 
+                       class="input-focus w-full p-3 bg-gray-900/50 border border-gray-700 rounded-lg focus:outline-none focus:border-[#00ffcc] text-sm text-white transition">
             </div>
-            <button type="submit" class="w-full py-3 bg-[#00ffcc] text-[#0b0f19] font-bold rounded-lg hover:bg-[#00cc99] transition text-sm">INGIA KWENYE PANEL</button>
-            <p class="text-center text-xs text-gray-400">Huna akaunti bado? <a href="#" onclick="toggleAuth(false)" class="text-[#00ffcc] hover:underline">Jisajili hapa</a></p>
+            <button type="submit" id="login-btn" 
+                    class="w-full py-3 bg-gradient-to-r from-[#00ffcc] to-[#00b894] text-[#0a0e1a] font-bold rounded-lg hover:shadow-lg transition-all transform hover:scale-[1.02] text-sm">
+                INGIA KWENYE PANEL
+            </button>
+            <p class="text-center text-xs text-gray-400">
+                Huna akaunti bado? 
+                <a href="#" onclick="toggleAuth(false)" class="text-[#00ffcc] hover:underline">Jisajili hapa</a>
+            </p>
         </form>
 
+        <!-- Signup Form -->
         <form id="signup-form" class="space-y-5 hidden">
             <div>
                 <label class="block text-xs uppercase tracking-wider text-gray-400 mb-2">Jina Kamili</label>
-                <input type="text" id="signup-name" required class="w-full p-3 bg-gray-900 border border-gray-800 rounded-lg focus:outline-none focus:border-[#00ffcc] text-sm text-white">
+                <input type="text" id="signup-name" required 
+                       class="input-focus w-full p-3 bg-gray-900/50 border border-gray-700 rounded-lg focus:outline-none focus:border-[#00ffcc] text-sm text-white transition">
             </div>
             <div>
                 <label class="block text-xs uppercase tracking-wider text-gray-400 mb-2">Barua Pepe (Email)</label>
-                <input type="email" id="signup-email" required class="w-full p-3 bg-gray-900 border border-gray-800 rounded-lg focus:outline-none focus:border-[#00ffcc] text-sm text-white">
+                <input type="email" id="signup-email" required 
+                       class="input-focus w-full p-3 bg-gray-900/50 border border-gray-700 rounded-lg focus:outline-none focus:border-[#00ffcc] text-sm text-white transition">
             </div>
             <div>
                 <label class="block text-xs uppercase tracking-wider text-gray-400 mb-2">Nenosiri (Password)</label>
-                <input type="password" id="signup-password" required class="w-full p-3 bg-gray-900 border border-gray-800 rounded-lg focus:outline-none focus:border-[#00ffcc] text-sm text-white">
+                <input type="password" id="signup-password" required 
+                       class="input-focus w-full p-3 bg-gray-900/50 border border-gray-700 rounded-lg focus:outline-none focus:border-[#00ffcc] text-sm text-white transition">
+                <p class="text-xs text-gray-500 mt-1">Nenosiri lazima iwe angalau herufi 6</p>
             </div>
-            <button type="submit" class="w-full py-3 bg-[#00ffcc] text-[#0b0f19] font-bold rounded-lg hover:bg-[#00cc99] transition text-sm">TENGENEZA AKAUNTI</button>
-            <p class="text-center text-xs text-gray-400">Tayari una akaunti? <a href="#" onclick="toggleAuth(true)" class="text-[#00ffcc] hover:underline">Ingia hapa</a></p>
+            <button type="submit" id="signup-btn" 
+                    class="w-full py-3 bg-gradient-to-r from-[#00ffcc] to-[#00b894] text-[#0a0e1a] font-bold rounded-lg hover:shadow-lg transition-all transform hover:scale-[1.02] text-sm">
+                TENGENEZA AKAUNTI
+            </button>
+            <p class="text-center text-xs text-gray-400">
+                Tayari una akaunti? 
+                <a href="#" onclick="toggleAuth(true)" class="text-[#00ffcc] hover:underline">Ingia hapa</a>
+            </p>
         </form>
+
+        <!-- Loading Overlay -->
+        <div id="loading-overlay" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
+            <div class="bg-gray-900 rounded-xl p-6 flex flex-col items-center gap-3">
+                <div class="loading-spinner"></div>
+                <p class="text-sm text-gray-300">Inachakata...</p>
+            </div>
+        </div>
     </div>
 
+    <style>
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(0, 255, 204, 0.2);
+            border-top-color: #00ffcc;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+
     <script>
+        let isLoading = false;
+
+        function showToast(message, isError = true) {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toast-message');
+            const toastIcon = document.getElementById('toast-icon');
+            
+            toastIcon.textContent = isError ? '❌' : '✅';
+            toastMessage.textContent = message;
+            toast.classList.remove('hidden');
+            
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 5000);
+        }
+
+        function showLoading(show) {
+            const overlay = document.getElementById('loading-overlay');
+            if (show) {
+                overlay.classList.remove('hidden');
+            } else {
+                overlay.classList.add('hidden');
+            }
+            isLoading = show;
+        }
+
         function toggleAuth(isLogin) {
             document.getElementById('login-form').classList.toggle('hidden', !isLogin);
             document.getElementById('signup-form').classList.toggle('hidden', isLogin);
-            document.getElementById('form-subtitle').innerText = isLogin ? "Ingia kusimamia au kununua seva yako ya VPS" : "Tengeneza akaunti yako uanze kumiliki seva papo hapo";
+            document.getElementById('form-subtitle').innerText = isLogin 
+                ? "Ingia kusimamia au kununua seva yako ya VPS" 
+                : "Tengeneza akaunti yako uanze kumiliki seva papo hapo";
+            
+            // Clear forms when switching
+            if (isLogin) {
+                document.getElementById('login-email').value = '';
+                document.getElementById('login-password').value = '';
+            } else {
+                document.getElementById('signup-name').value = '';
+                document.getElementById('signup-email').value = '';
+                document.getElementById('signup-password').value = '';
+            }
         }
 
         // Handle Signup
         document.getElementById('signup-form').addEventListener('submit', async (e) => {
             e.preventDefault();
+            if (isLoading) return;
+            
+            const name = document.getElementById('signup-name').value.trim();
+            const email = document.getElementById('signup-email').value.trim().toLowerCase();
+            const password = document.getElementById('signup-password').value;
+            
+            // Validation
+            if (!name) {
+                showToast('Tafadhali ingiza jina lako kamili');
+                return;
+            }
+            if (!email) {
+                showToast('Tafadhali ingiza barua pepe yako');
+                return;
+            }
+            if (!password || password.length < 6) {
+                showToast('Nenosiri lazima iwe angalau herufi 6');
+                return;
+            }
+            
+            showLoading(true);
+            
             try {
                 const response = await fetch('/api/auth/signup', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        name: document.getElementById('signup-name').value,
-                        email: document.getElementById('signup-email').value,
-                        password: document.getElementById('signup-password').value
-                    })
+                    body: JSON.stringify({ name, email, password })
                 });
+                
                 const data = await response.json();
-                alert(data.message || "Hitilafu imetokea");
-                if (data.success) toggleAuth(true);
+                console.log('Signup response:', data);
+                
+                if (data.success) {
+                    showToast('Usajili umekamilika! Tafadhali ingia sasa.', false);
+                    toggleAuth(true);
+                    // Clear signup form
+                    document.getElementById('signup-name').value = '';
+                    document.getElementById('signup-email').value = '';
+                    document.getElementById('signup-password').value = '';
+                } else {
+                    showToast(data.message || 'Usajili umeshindikana. Jaribu tena.');
+                }
             } catch (err) {
-                alert("Server Error: Imeshindwa kuwasiliana na backend. Angalia kama database imeunganishwa!");
+                console.error('Signup error:', err);
+                showToast('Server Error: Haiwezi kuwasiliana na server. Hakikisha server inafanya kazi.');
+            } finally {
+                showLoading(false);
             }
         });
 
         // Handle Login
         document.getElementById('login-form').addEventListener('submit', async (e) => {
             e.preventDefault();
+            if (isLoading) return;
+            
+            const email = document.getElementById('login-email').value.trim().toLowerCase();
+            const password = document.getElementById('login-password').value;
+            
+            // Validation
+            if (!email) {
+                showToast('Tafadhali ingiza barua pepe yako');
+                return;
+            }
+            if (!password) {
+                showToast('Tafadhali ingiza nenosiri lako');
+                return;
+            }
+            
+            showLoading(true);
+            
             try {
                 const response = await fetch('/api/auth/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        email: document.getElementById('login-email').value,
-                        password: document.getElementById('login-password').value
-                    })
+                    body: JSON.stringify({ email, password })
                 });
+                
                 const data = await response.json();
+                console.log('Login response:', data);
+                
                 if (data.success) {
                     localStorage.setItem('mickey_token', data.token);
                     localStorage.setItem('mickey_user', JSON.stringify(data.user));
-                    window.location.href = '/dashboard.html';
+                    showToast('Kuingia kumefanikiwa! Unaelekezwa kwenye dashboard...', false);
+                    setTimeout(() => {
+                        window.location.href = '/dashboard.html';
+                    }, 1000);
                 } else {
-                    alert(data.message || "Mawasiliano yamefeli.");
+                    showToast(data.message || 'Barua pepe au nenosiri si sahihi.');
                 }
             } catch (err) {
-                alert("Server Error: Imeshindwa kuwasiliana na backend. Angalia kama database yako ipo salama!");
+                console.error('Login error:', err);
+                showToast('Server Error: Haiwezi kuwasiliana na server. Hakikisha server inafanya kazi.');
+            } finally {
+                showLoading(false);
             }
         });
 
-        // 3D background loop
+        // 3D Background Animation
         const init3D = () => {
             const container = document.getElementById('canvas-3d');
+            if (!container) return;
+            
             const scene = new THREE.Scene();
             const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setClearColor(0x000000, 0);
             container.appendChild(renderer.domElement);
 
-            const geometry = new THREE.TorusKnotGeometry(1.8, 0.4, 100, 16);
+            const geometry = new THREE.TorusKnotGeometry(2.2, 0.4, 120, 16);
             const material = new THREE.MeshBasicMaterial({ color: 0x00ffcc, wireframe: true });
             const mesh = new THREE.Mesh(geometry, material);
             scene.add(mesh);
-            camera.position.z = 5;
+            
+            // Add some stars
+            const starsGeometry = new THREE.BufferGeometry();
+            const starsCount = 1000;
+            const starsPositions = new Float32Array(starsCount * 3);
+            for (let i = 0; i < starsCount; i++) {
+                starsPositions[i * 3] = (Math.random() - 0.5) * 2000;
+                starsPositions[i * 3 + 1] = (Math.random() - 0.5) * 2000;
+                starsPositions[i * 3 + 2] = (Math.random() - 0.5) * 1000 - 500;
+            }
+            starsGeometry.setAttribute('position', new THREE.BufferAttribute(starsPositions, 3));
+            const starsMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.5 });
+            const stars = new THREE.Points(starsGeometry, starsMaterial);
+            scene.add(stars);
+            
+            camera.position.z = 6;
 
             const animate = () => {
                 requestAnimationFrame(animate);
-                mesh.rotation.x += 0.003;
-                mesh.rotation.y += 0.005;
+                mesh.rotation.x += 0.002;
+                mesh.rotation.y += 0.003;
+                stars.rotation.y += 0.0005;
                 renderer.render(scene, camera);
             };
             animate();
+            
+            // Handle resize
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
         };
-        init3D();
+        
+        // Start 3D after page load
+        window.addEventListener('load', init3D);
+        
+        // Check if already logged in
+        const token = localStorage.getItem('mickey_token');
+        if (token) {
+            // Verify token is still valid
+            fetch('/api/vps/my-assets', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            }).then(res => {
+                if (res.status === 401) {
+                    localStorage.clear();
+                } else {
+                    window.location.href = '/dashboard.html';
+                }
+            }).catch(() => {
+                localStorage.clear();
+            });
+        }
     </script>
 </body>
 </html>
