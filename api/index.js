@@ -307,32 +307,39 @@ app.post('/api/vps/purchase-with-balance', verifyToken, async (req, res) => {
     }
 });
 
-// Ongeza salio (kwa admin au top-up)
+// Ongeza salio kwa mtumiaji (mteja anaweza kujaza salio wake mwenyewe)
 app.post('/api/user/add-balance', verifyToken, async (req, res) => {
     try {
         await connectDB();
-        const { amount, description } = req.body;
-        
-        if (req.user.role !== 'admin') {
-            return res.status(403).json({ success: false, message: 'Admin only' });
+        const { amount, description, userId } = req.body;
+        const amountValue = Number(amount);
+
+        if (!Number.isFinite(amountValue) || amountValue <= 0) {
+            return res.status(400).json({ success: false, message: 'Kiasi cha salio si sahihi' });
         }
-        
-        const user = await User.findById(req.user.id);
+
+        const targetUserId = req.user.role === 'admin' && userId ? userId : req.user.id;
+        const user = await User.findById(targetUserId);
+
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'Mtumiaji hayupo' });
+        }
+
         const balanceBefore = user.balance;
-        user.balance = user.balance + Number(amount);
+        user.balance = user.balance + amountValue;
         await user.save();
-        
+
         const transaction = new Transaction({
             userId: user._id,
             type: 'credit',
-            amount: Number(amount),
-            description: description || 'Balance top-up',
+            amount: amountValue,
+            description: description || 'Kujaza salio kupitia mfumo wa web',
             balance_before: balanceBefore,
             balance_after: user.balance
         });
         await transaction.save();
-        
-        res.json({ success: true, newBalance: user.balance });
+
+        res.json({ success: true, newBalance: user.balance, message: `Salio lako limeongezeka kwa ${amountValue.toLocaleString()} TZS.` });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
     }

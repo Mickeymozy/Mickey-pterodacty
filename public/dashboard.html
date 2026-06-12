@@ -189,15 +189,31 @@
             </div>
         </div>
 
+        <!-- Top-up / Balance Section -->
+        <div class="glass-card p-6">
+            <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+                <div>
+                    <p class="text-[#00ffcc]/70 text-xs uppercase tracking-wider mb-2">Weka Salio kwa STK</p>
+                    <h2 class="text-xl font-bold text-white">Jaza salio lako kupitia STK</h2>
+                    <p class="text-sm text-gray-400 mt-1">Njia hii ni ya kuongeza salio tu. Ununuzi wa server unatumia salio lako pekee bila STK.</p>
+                </div>
+                <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                    <input id="topup-phone" type="text" placeholder="Mfano: 0657779003" class="w-full md:w-44 px-4 py-3 rounded-xl bg-black/30 border border-white/10 text-white focus:outline-none focus:border-[#00ffcc]" />
+                    <input id="topup-amount" type="number" min="1000" step="1000" placeholder="Mfano: 10000" class="w-full md:w-44 px-4 py-3 rounded-xl bg-black/30 border border-white/10 text-white focus:outline-none focus:border-[#00ffcc]" />
+                    <button onclick="topUpBalance()" class="btn-primary px-5 py-3 rounded-xl font-bold text-[#0a0e1a] transition">Tumia STK kuongeza Salio</button>
+                </div>
+            </div>
+        </div>
+
         <!-- VPS Shop Section - KUNUNUA KWA SALIO -->
         <div id="vps-shop-section" class="glass-card p-6">
             <div class="text-center mb-6">
                 <div class="inline-flex items-center gap-2 bg-[#00ffcc]/10 px-4 py-2 rounded-full mb-3">
                     <span class="text-[#00ffcc]">💰</span>
-                    <span class="text-[#00ffcc] text-sm font-semibold">Nunua kwa Salio Lako</span>
+                    <span class="text-[#00ffcc] text-sm font-semibold">Nunua Server kwa Salio</span>
                 </div>
                 <h2 class="text-2xl font-bold text-white">Chagua Kifurushi cha VPS</h2>
-                <p class="text-gray-400 text-sm mt-1">Malipo yatakatwa moja kwa moja kwenye salio lako la juu</p>
+                <p class="text-gray-400 text-sm mt-1">Tumia salio lako kununua server pekee. Kwa mfumo wa web, utapokea ujumbe wa “imetuma, weka PIN” kwenye ukurasa huu.</p>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -214,10 +230,8 @@
                         <li class="flex items-center gap-2">✓ 25% CPU</li>
                         <li class="flex items-center gap-2">✓ 1 vCore</li>
                     </ul>
-                    <input type="text" id="phone-Starter" placeholder="Mfano: 0657779003" class="w-full px-3 py-2 mt-2 rounded-xl bg-black/30 border border-white/10 text-sm text-white focus:outline-none focus:border-[#00ffcc]">
                     <div class="space-y-2 mt-3">
-                        <button onclick="triggerPayment('Starter', 3500)" class="w-full py-3 rounded-xl font-bold text-[#0a0e1a] bg-[#00ffcc] hover:bg-[#00e6b8] transition">Lipia na SonicPesa (Push)</button>
-                        <button onclick="purchaseWithBalance('Starter', 3500, event)" class="w-full py-3 rounded-xl font-bold text-[#0a0e1a] bg-emerald-400/90 hover:bg-emerald-300 transition">Nunua kwa Salio</button>
+                        <button onclick="purchaseWithBalance('Starter', 3500, event)" class="w-full py-3 rounded-xl font-bold text-[#0a0e1a] bg-emerald-400/90 hover:bg-emerald-300 transition">Nunua Server kwa Salio</button>
                     </div>
                 </div>
 
@@ -235,10 +249,8 @@
                         <li class="flex items-center gap-2">✓ 50% CPU</li>
                         <li class="flex items-center gap-2">✓ 2 vCores</li>
                     </ul>
-                    <input type="text" id="phone-Professional" placeholder="Mfano: 0657779003" class="w-full px-3 py-2 mt-2 rounded-xl bg-black/30 border border-white/10 text-sm text-white focus:outline-none focus:border-[#00ffcc]">
                     <div class="space-y-2 mt-3">
-                        <button onclick="triggerPayment('Professional', 7500)" class="w-full py-3 rounded-xl font-bold text-[#0a0e1a] bg-[#00ffcc] hover:bg-[#00e6b8] transition">Lipia na SonicPesa (Push)</button>
-                        <button onclick="purchaseWithBalance('Professional', 7500, event)" class="w-full py-3 rounded-xl font-bold text-[#0a0e1a] bg-emerald-400/90 hover:bg-emerald-300 transition">Nunua kwa Salio</button>
+                        <button onclick="purchaseWithBalance('Professional', 7500, event)" class="w-full py-3 rounded-xl font-bold text-[#0a0e1a] bg-emerald-400/90 hover:bg-emerald-300 transition">Nunua Server kwa Salio</button>
                     </div>
                 </div>
 
@@ -255,10 +267,8 @@
                         <li class="flex items-center gap-2">✓ 100% CPU</li>
                         <li class="flex items-center gap-2">✓ 4 vCores</li>
                     </ul>
-                    <input type="text" id="phone-Enterprise" placeholder="Mfano: 0657779003" class="w-full px-3 py-2 mt-2 rounded-xl bg-black/30 border border-white/10 text-sm text-white focus:outline-none focus:border-[#00ffcc]">
                     <div class="space-y-2 mt-3">
-                        <button onclick="triggerPayment('Enterprise', 12000)" class="w-full py-3 rounded-xl font-bold text-[#0a0e1a] bg-[#00ffcc] hover:bg-[#00e6b8] transition">Lipia na SonicPesa (Push)</button>
-                        <button onclick="purchaseWithBalance('Enterprise', 12000, event)" class="w-full py-3 rounded-xl font-bold text-[#0a0e1a] bg-emerald-400/90 hover:bg-emerald-300 transition">Nunua kwa Salio</button>
+                        <button onclick="purchaseWithBalance('Enterprise', 12000, event)" class="w-full py-3 rounded-xl font-bold text-[#0a0e1a] bg-emerald-400/90 hover:bg-emerald-300 transition">Nunua Server kwa Salio</button>
                     </div>
                 </div>
             </div>
@@ -390,6 +400,49 @@
             }
         }
         
+        async function topUpBalance() {
+            const phone = document.getElementById('topup-phone').value.trim();
+            const amount = Number(document.getElementById('topup-amount').value);
+
+            if (!phone || phone.length < 9) {
+                showToast('Ingiza namba sahihi ya simu kwa STK.', true);
+                return;
+            }
+
+            if (!Number.isFinite(amount) || amount <= 0) {
+                showToast('Ingiza kiasi cha salio sahihi.', true);
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/vps/create-ussd-order', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        plan: 'Kujaza Salio',
+                        amount,
+                        phone
+                    })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    showToast('Ombi la STK limepelekwa. Tafadhali weka PIN kwenye simu yako ili kuongeza salio.');
+                    document.getElementById('topup-phone').value = '';
+                    document.getElementById('topup-amount').value = '';
+                    await refreshDashboard();
+                } else {
+                    showToast(data.message || 'Imeshindikana kutuma ombi la STK.', true);
+                }
+            } catch (err) {
+                console.error('Top-up STK error:', err);
+                showToast('Imeshindikana kutuma ombi la STK.', true);
+            }
+        }
+
         async function purchaseWithBalance(planName, price, event) {
             if (currentBalance < price) {
                 const shortfall = price - currentBalance;

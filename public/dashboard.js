@@ -99,9 +99,7 @@
                         </ul>
                     </div>
                     <div class="space-y-2">
-                        <input type="text" id="phone-Starter" placeholder="Mfano: 0657779003" class="w-full p-2 bg-gray-900 border border-gray-800 rounded text-xs text-white focus:outline-none focus:border-[#00ffcc]">
-                        <button onclick="triggerPayment('Starter', 3500)" class="w-full bg-[#00ffcc] text-[#0b0f19] py-2 rounded font-bold text-xs hover:bg-[#00cc99] transition">Lipia na SonicPesa (Push)</button>
-                        <button onclick="purchaseWithBalance('Starter', 3500)" class="w-full bg-emerald-500/10 border border-emerald-400/30 text-emerald-200 py-2 rounded font-bold text-xs hover:bg-emerald-500/20 transition">Nunua kwa Salio</button>
+                        <button onclick="purchaseWithBalance('Starter', 3500)" class="w-full bg-emerald-500/10 border border-emerald-400/30 text-emerald-200 py-2 rounded font-bold text-xs hover:bg-emerald-500/20 transition">Nunua Server kwa Salio</button>
                     </div>
                 </div>
                 <div class="vps-card p-6 rounded-xl flex flex-col justify-between border-[#00ffcc]/30">
@@ -115,9 +113,7 @@
                         </ul>
                     </div>
                     <div class="space-y-2">
-                        <input type="text" id="phone-Professional" placeholder="Mfano: 0657779003" class="w-full p-2 bg-gray-900 border border-gray-800 rounded text-xs text-white focus:outline-none focus:border-[#00ffcc]">
-                        <button onclick="triggerPayment('Professional', 7500)" class="w-full bg-[#00ffcc] text-[#0b0f19] py-2 rounded font-bold text-xs hover:bg-[#00cc99] transition">Lipia na SonicPesa (Push)</button>
-                        <button onclick="purchaseWithBalance('Professional', 7500)" class="w-full bg-emerald-500/10 border border-emerald-400/30 text-emerald-200 py-2 rounded font-bold text-xs hover:bg-emerald-500/20 transition">Nunua kwa Salio</button>
+                        <button onclick="purchaseWithBalance('Professional', 7500)" class="w-full bg-emerald-500/10 border border-emerald-400/30 text-emerald-200 py-2 rounded font-bold text-xs hover:bg-emerald-500/20 transition">Nunua Server kwa Salio</button>
                     </div>
                 </div>
                 <div class="vps-card p-6 rounded-xl flex flex-col justify-between">
@@ -131,9 +127,7 @@
                         </ul>
                     </div>
                     <div class="space-y-2">
-                        <input type="text" id="phone-Enterprise" placeholder="Mfano: 0657779003" class="w-full p-2 bg-gray-900 border border-gray-800 rounded text-xs text-white focus:outline-none focus:border-[#00ffcc]">
-                        <button onclick="triggerPayment('Enterprise', 12000)" class="w-full bg-[#00ffcc] text-[#0b0f19] py-2 rounded font-bold text-xs hover:bg-[#00cc99] transition">Lipia na SonicPesa (Push)</button>
-                        <button onclick="purchaseWithBalance('Enterprise', 12000)" class="w-full bg-emerald-500/10 border border-emerald-400/30 text-emerald-200 py-2 rounded font-bold text-xs hover:bg-emerald-500/20 transition">Nunua kwa Salio</button>
+                        <button onclick="purchaseWithBalance('Enterprise', 12000)" class="w-full bg-emerald-500/10 border border-emerald-400/30 text-emerald-200 py-2 rounded font-bold text-xs hover:bg-emerald-500/20 transition">Nunua Server kwa Salio</button>
                     </div>
                 </div>
             </div>
