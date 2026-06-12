@@ -41,11 +41,10 @@
         </form>
         
         <p class="text-center text-xs text-gray-500 mt-4">
-            Jaza barua pepe na nenosiri lako. Ukiwa na akaunti ya demo, unaweza kutumia kitufe cha chini.
+            Jaza barua pepe na nenosiri lako ili kuingia kwenye dashboard yako.
         </p>
-        
-        <div class="flex flex-col gap-2 mt-4 text-center">
-            <button type="button" onclick="useDemoAccount()" class="text-[#00ffcc] text-sm hover:underline">🧪 Tumia Demo Account</button>
+
+        <div class="text-center mt-4">
             <a href="#" onclick="showSignup()" class="text-[#00ffcc] text-sm hover:underline">🔐 Tengeneza Akaunti Mpya</a>
         </div>
     </div>
@@ -70,25 +69,7 @@
     </div>
 
     <script>
-        async function useDemoAccount() {
-            try {
-                const res = await fetch('/api/auth/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email: 'demo@mickeyhost.com', password: 'demo123' })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    localStorage.setItem('mickey_token', data.token);
-                    localStorage.setItem('mickey_user', JSON.stringify(data.user));
-                    window.location.href = '/dashboard.html';
-                } else {
-                    alert(data.message || 'Demo login failed');
-                }
-            } catch (err) {
-                alert('Server error');
-            }
-        }
+
         
         document.getElementById('login-form').addEventListener('submit', async (e) => {
             e.preventDefault();

@@ -141,7 +141,14 @@
 
     <div class="max-w-7xl mx-auto px-4 py-6 space-y-6">
         
+        <div class="flex flex-wrap items-center gap-3 mb-6">
+            <button type="button" data-tab="overview" class="tab-btn rounded-full border border-[#00ffcc]/30 bg-[#00ffcc]/10 px-4 py-2 text-sm font-semibold text-[#00ffcc]">Overview</button>
+            <button type="button" data-tab="topup" class="tab-btn rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-gray-200 hover:border-[#00ffcc]/40 hover:text-[#00ffcc]">Weka Salio</button>
+            <button type="button" data-tab="servers" class="tab-btn rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-gray-200 hover:border-[#00ffcc]/40 hover:text-[#00ffcc]">Nunua Server</button>
+        </div>
+
         <!-- Balance Card - SALIO LINAONEKANA JUU -->
+        <section id="tab-overview" class="tab-panel">
         <div class="balance-card p-6">
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
@@ -189,7 +196,10 @@
             </div>
         </div>
 
+        </section>
+
         <!-- Top-up / Balance Section -->
+        <section id="tab-topup" class="tab-panel hidden">
         <section class="glass-card p-6 rounded-3xl border border-white/10 shadow-2xl">
             <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
                 <div class="max-w-2xl">
@@ -214,7 +224,11 @@
             </div>
         </section>
 
+        </section>
+        </section>
+
         <!-- VPS Shop Section - KUNUNUA KWA SALIO -->
+        <section id="tab-servers" class="tab-panel hidden">
         <div id="vps-shop-section" class="glass-card p-6">
             <div class="text-center mb-6">
                 <div class="inline-flex items-center gap-2 bg-[#00ffcc]/10 px-4 py-2 rounded-full mb-3">
@@ -282,6 +296,7 @@
                 </div>
             </div>
         </div>
+        </section>
 
         <!-- Recent Transactions -->
         <div class="glass-card p-6">
@@ -533,6 +548,27 @@
             localStorage.clear();
             window.location.href = '/login.html';
         }
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                const active = btn.dataset.tab === tabName;
+                btn.classList.toggle('bg-[#00ffcc]/10', active);
+                btn.classList.toggle('border-[#00ffcc]/30', active);
+                btn.classList.toggle('text-[#00ffcc]', active);
+                btn.classList.toggle('bg-white/5', !active);
+                btn.classList.toggle('border-white/10', !active);
+                btn.classList.toggle('text-gray-200', !active);
+            });
+            const target = document.getElementById(`tab-${tabName}`);
+            if (target) target.classList.remove('hidden');
+        }
+
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+        });
+
+        switchTab('overview');
         
         // 3D Background
         function init3D() {

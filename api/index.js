@@ -89,6 +89,38 @@ const verifyToken = (req, res, next) => {
     }
 };
 
+const SONICPESA_BASE_URL = (process.env.SONICPESA_BASE_URL || 'https://api.sonicpesa.com/api/v1').replace(/\/+$/, '');
+
+const createSonicPesaOrder = async (payload) => {
+    const apiKey = process.env.SONICPESA_API_KEY;
+    if (!apiKey) {
+        throw new Error('SONICPESA_API_KEY is not configured');
+    }
+
+    return axios.post(`${SONICPESA_BASE_URL}/payment/create_order`, payload, {
+        headers: {
+            'Content-Type': 'application/json',
+            'X-API-KEY': apiKey
+        },
+        timeout: 60000
+    });
+};
+
+const checkSonicPesaOrderStatus = async (orderId) => {
+    const apiKey = process.env.SONICPESA_API_KEY;
+    if (!apiKey) {
+        throw new Error('SONICPESA_API_KEY is not configured');
+    }
+
+    return axios.post(`${SONICPESA_BASE_URL}/payment/order_status`, { order_id: orderId }, {
+        headers: {
+            'Content-Type': 'application/json',
+            'X-API-KEY': apiKey
+        },
+        timeout: 60000
+    });
+};
+
 // ==================== AUTH ROUTES ====================
 app.post('/api/auth/signup', async (req, res) => {
     try {
@@ -122,24 +154,10 @@ app.post('/api/auth/login', async (req, res) => {
         await connectDB();
         const { email, password } = req.body;
         
-        // AUTO LOGIN KWA MAJARIBIO - Ikiwa hakuna email/password, tumia demo user
         if (!email || !password) {
-            // Tafuta au unda demo user
-            let demoUser = await User.findOne({ email: 'demo@mickeyhost.com' });
-            if (!demoUser) {
-                demoUser = new User({
-                    name: 'Demo User',
-                    email: 'demo@mickeyhost.com',
-                    password: await bcrypt.hash('demo123', 10),
-                    balance: 50000
-                });
-                await demoUser.save();
-            }
-            
-            const token = jwt.sign({ id: demoUser._id, name: demoUser.name, email: demoUser.email, role: demoUser.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
-            return res.json({ success: true, token, user: { name: demoUser.name, email: demoUser.email, role: demoUser.role, balance: demoUser.balance } });
+            return res.status(400).json({ success: false, message: 'Tafadhali ingiza barua pepe na nenosiri lako.' });
         }
-        
+
         const user = await User.findOne({ email: email.toLowerCase() });
         if (!user) return res.status(400).json({ success: false, message: 'Invalid credentials' });
 
@@ -188,27 +206,86 @@ app.post('/api/vps/create-ussd-order', verifyToken, async (req, res) => {
         }
 
         const amountValue = Number(amount || 0);
-        const sonicOrderId = `SONIC-${Date.now()}-${Math.floor(Math.random() * 900 + 100)}`;
+        if (!Number.isFinite(amountValue) || amountValue <= 0) {
+            return res.status(400).json({ success: false, message: 'Kiasi cha malipo si sahihi.' });
+        }
 
+        const sonicResponse = await createSonicPesaOrder({
+            buyer_email: user.email,
+            buyer_name: user.name,
+            buyer_phone: phone,
+            amount: amountValue,
+            currency: 'TZS'
+        });
+
+        const providerOrderId = sonicResponse?.data?.data?.order_id || sonicResponse?.data?.order_id || null;
+        if (!providerOrderId) {
+            return res.status(502).json({ success: false, message: 'SonicPesa hakuweza kutoa nambari ya oda ya malipo.' });
+        }
         const order = await Order.create({
             userId: user._id,
             buyer_name: user.name,
             amount: amountValue,
-            plan: plan || 'VPS',
+            plan: plan || 'Kujaza Salio',
             phone: phone || 'N/A',
             status: 'PENDING',
-            sonicOrderId,
+            sonicOrderId: providerOrderId,
             paymentMethod: 'SonicPesa'
         });
 
         res.json({
             success: true,
-            message: 'Oda ya malipo imeundwa. Tuma PIN yako ya USSD ili kukamilisha malipo yako.',
+            message: 'Ombi la STK limeundwa. Tafadhali weka PIN yako kwenye simu ili kukamilisha kuongeza salio.',
             order,
-            sonicOrderId
+            sonicOrderId: providerOrderId,
+            provider: sonicResponse?.data || null
         });
     } catch (err) {
         console.error('USSD order error:', err);
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+app.post('/api/vps/check-order-status', verifyToken, async (req, res) => {
+    try {
+        await connectDB();
+        const { orderId } = req.body;
+
+        if (!orderId) {
+            return res.status(400).json({ success: false, message: 'orderId inahitajika.' });
+        }
+
+        const statusResponse = await checkSonicPesaOrderStatus(orderId);
+        const paymentStatus = statusResponse?.data?.data?.payment_status || statusResponse?.data?.payment_status || 'PENDING';
+        const order = await Order.findOne({ sonicOrderId: orderId, userId: req.user.id });
+
+        if (order) {
+            order.status = paymentStatus === 'SUCCESS' ? 'SUCCESS' : (paymentStatus === 'PENDING' ? 'PENDING' : 'REJECTED');
+            await order.save();
+        }
+
+        if (paymentStatus === 'SUCCESS' && order && order.plan === 'Kujaza Salio') {
+            const user = await User.findById(req.user.id);
+            const balanceBefore = user.balance;
+            user.balance = user.balance + Number(order.amount || 0);
+            await user.save();
+
+            await new Transaction({
+                userId: user._id,
+                type: 'credit',
+                amount: Number(order.amount || 0),
+                description: 'Kujaza salio kupitia SonicPesa',
+                reference: orderId,
+                balance_before: balanceBefore,
+                balance_after: user.balance
+            }).save();
+
+            return res.json({ success: true, message: 'Salio lako limeongezeka.', status: paymentStatus, newBalance: user.balance });
+        }
+
+        res.json({ success: true, status: paymentStatus, order });
+    } catch (err) {
+        console.error('Order status error:', err);
         res.status(500).json({ success: false, message: err.message });
     }
 });
