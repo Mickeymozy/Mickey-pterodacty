@@ -11,7 +11,7 @@ require('dotenv').config();
 
 const app = express();
 
-// IMPORTANT: Weka hii KABLA ya express.json()
+// IMPORTANT: Weka hii KABLA ya express.json() kwa webhook
 app.use(express.raw({ type: 'application/json', verify: (req, res, buf) => {
     req.rawBody = buf.toString();
 } }));
@@ -25,6 +25,7 @@ app.use(express.json({
 
 app.use(cors());
 
+// Connect MongoDB
 const connectDB = async () => {
     if (mongoose.connection.readyState >= 1) return;
     try {
@@ -66,6 +67,7 @@ const Server = mongoose.models.Server || mongoose.model('Server', new mongoose.S
     plan: String
 }));
 
+// Middleware ya Uthibitishaji
 const verifyToken = (req, res, next) => {
     const token = req.headers['authorization'];
     if (!token) return res.status(401).json({ success: false, message: 'Umekataliwa kuingia. Log in tena.' });
@@ -123,67 +125,135 @@ app.post('/api/auth/login', async (req, res) => {
 const SONIC_CREATE_ORDER_URL = 'https://api.sonicpesa.com/api/v1/payment/create_order';
 const SONIC_ORDER_STATUS_URL = 'https://api.sonicpesa.com/api/v1/payment/order_status';
 
-// ANGALIA IKIWA API KEY IPO
 const checkSonicConfig = () => {
     if (!process.env.SONICPESA_API_KEY) {
         throw new Error('SONICPESA_API_KEY haipo kwenye environment variables');
     }
     if (!process.env.SONICPESA_SECRET_KEY) {
-        throw new Error('SONICPESA_SECRET_KEY haipo kwenye environment variables - Hii ni muhimu kwa webhook!');
+        throw new Error('SONICPESA_SECRET_KEY haipo kwenye environment variables');
     }
 };
 
-const normalizePhone = (phone) => {
-    const cleaned = String(phone || '').trim().replace(/\D/g, '');
-    if (!cleaned) return '';
-    if (cleaned.startsWith('255')) return cleaned;
-    if (cleaned.startsWith('0')) return '255' + cleaned.slice(1);
+// Function kuboresha namba ya simu
+const formatPhoneNumber = (phone) => {
+    if (!phone) return '';
+    
+    // Toa spaces, dashes, na non-digits zote
+    let cleaned = String(phone).trim().replace(/\D/g, '');
+    
+    console.log('[FORMAT] Original:', phone, 'Cleaned:', cleaned);
+    
+    if (cleaned.length === 0) return '';
+    
+    // Kama inaanza na 0 (0657779003)
+    if (cleaned.startsWith('0') && cleaned.length === 10) {
+        return '255' + cleaned.substring(1);
+    }
+    // Kama ni namba fupi (657779003)
+    else if (cleaned.length === 9) {
+        return '255' + cleaned;
+    }
+    // Kama tayari iko format sahihi (255657779003)
+    else if (cleaned.startsWith('255') && (cleaned.length === 12 || cleaned.length === 13)) {
+        return cleaned;
+    }
+    // Kama ni namba ndefu zaidi, jaribu kurekebisha
+    else if (cleaned.length > 10 && !cleaned.startsWith('255')) {
+        return '255' + cleaned.slice(-9);
+    }
+    
     return cleaned;
 };
 
-// CREATE ORDER - ILIYOREKEBISHWA
+// DEBUG ENDPOINT - Kuangalia format ya namba
+app.post('/api/debug/phone', verifyToken, async (req, res) => {
+    const { phone } = req.body;
+    const raw = phone;
+    const cleaned = String(phone || '').trim().replace(/\D/g, '');
+    const formatted = formatPhoneNumber(phone);
+    
+    res.json({
+        success: true,
+        raw: raw,
+        cleaned: cleaned,
+        formatted: formatted,
+        isValid: formatted && formatted.length >= 12 && formatted.length <= 13,
+        length: formatted ? formatted.length : 0
+    });
+});
+
+// CREATE ORDER - ILIYOREKEBISHWA KABISA
 app.post('/api/vps/create-ussd-order', verifyToken, async (req, res) => {
     try {
-        // Angalia configuration kabla ya kuendelea
+        // Angalia configuration
         try {
             checkSonicConfig();
         } catch (configErr) {
             return res.status(500).json({
                 success: false,
-                message: configErr.message + '. Weka SONICPESA_API_KEY na SONICPESA_SECRET_KEY kwenye Vercel Environment Variables.'
+                message: configErr.message + '. Weka environment variables zote kwenye Vercel.'
             });
         }
 
         const { plan, amount, phone } = req.body;
         const amountValue = Number(amount);
+        
+        // DEBUG logging
+        console.log('[ORDER] Request body:', JSON.stringify(req.body));
+        console.log('[ORDER] Phone received:', phone, 'Type:', typeof phone);
+        console.log('[ORDER] Plan:', plan, 'Amount:', amountValue);
+        console.log('[ORDER] User:', req.user.email);
 
-        if (!phone || !String(phone).trim()) {
-            return res.status(400).json({ success: false, message: 'Tafadhali ingiza namba ya simu.' });
+        // Validation za namba
+        if (!phone) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Tafadhali ingiza namba yako ya simu.' 
+            });
+        }
+
+        const phoneString = String(phone).trim();
+        if (phoneString.length === 0) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Namba ya simu haiwezi kuwa tupu.' 
+            });
+        }
+
+        // Format namba
+        const formattedPhone = formatPhoneNumber(phoneString);
+        console.log('[ORDER] Formatted phone:', formattedPhone);
+
+        if (!formattedPhone || formattedPhone.length < 12) {
+            return res.status(400).json({ 
+                success: false, 
+                message: `Namba "${phoneString}" si sahihi. Tumia mfano: 0657779003 au 255657779003`,
+                hint: 'Hakikisha namba ina tarakimu 9 au 10 kwa Tanzania'
+            });
         }
 
         if (!Number.isFinite(amountValue) || amountValue <= 0) {
-            return res.status(400).json({ success: false, message: 'Kiasi cha malipo si sahihi.' });
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Kiasi cha malipo si sahihi.' 
+            });
         }
 
-        const formattedPhone = normalizePhone(phone);
-        if (formattedPhone.length < 12) {
-            return res.status(400).json({ success: false, message: 'Namba ya simu si sahihi. Tumia mfano wa 2556xxxxxxxx.' });
-        }
-
-        console.log(`[ORDER] Creating order for ${req.user.email}, amount: ${amountValue}, phone: ${formattedPhone}`);
-
-        const sonicHeaders = {
-            'X-API-KEY': process.env.SONICPESA_API_KEY,
-            'Content-Type': 'application/json'
-        };
-
+        // SonicPesa Payload
         const sonicPayload = {
             buyer_email: req.user.email,
             buyer_name: req.user.name,
             buyer_phone: formattedPhone,
             amount: Math.round(amountValue),
             currency: 'TZS',
-            callback_url: process.env.WEBHOOK_URL || 'https://your-vercel-url.vercel.app/api/vps/sonicpesa-webhook'
+            callback_url: process.env.WEBHOOK_URL || `${req.protocol}://${req.get('host')}/api/vps/sonicpesa-webhook`
+        };
+
+        console.log('[ORDER] SonicPayload:', JSON.stringify(sonicPayload));
+
+        const sonicHeaders = {
+            'X-API-KEY': process.env.SONICPESA_API_KEY,
+            'Content-Type': 'application/json'
         };
 
         const sonicResponse = await axios.post(SONIC_CREATE_ORDER_URL, sonicPayload, {
@@ -191,13 +261,13 @@ app.post('/api/vps/create-ussd-order', verifyToken, async (req, res) => {
             timeout: 45000
         });
 
-        console.log('[ORDER] SonicPesa response:', JSON.stringify(sonicResponse.data, null, 2));
+        console.log('[ORDER] SonicPesa Response:', JSON.stringify(sonicResponse.data));
 
         const responseData = sonicResponse.data || {};
         const sonicData = responseData.data || {};
-        const orderId = sonicData.order_id || sonicData.id || null;
+        const orderId = sonicData.order_id || sonicData.id || responseData.order_id || null;
 
-        if (responseData.status === 'success' || responseData.success === true) {
+        if (responseData.status === 'success' || responseData.success === true || orderId) {
             if (orderId) {
                 await connectDB();
                 const newOrder = new Order({
@@ -210,59 +280,56 @@ app.post('/api/vps/create-ussd-order', verifyToken, async (req, res) => {
                     status: 'PENDING'
                 });
                 await newOrder.save();
-                console.log(`[ORDER] Order saved successfully: ${orderId}`);
+                console.log(`[ORDER] Order saved: ${orderId}`);
             }
 
             return res.json({
                 success: true,
-                message: responseData.message || 'Oda imeundwa. Tafadhali thibitisha kwenye simu yako kwa kuingiza *150*00# au fungua app ya Tigo Pesa.',
-                order_id: orderId
+                message: 'Ombi la malipo limefumwa! Angalia simu yako, utapokea USSD push kutoka Tigo Pesa kwa namba ' + formattedPhone,
+                order_id: orderId,
+                phone_sent: formattedPhone
             });
         }
 
-        // Ikiwa SonicPesa imekataa
+        // SonicPesa imekataa
         console.error('[ORDER] SonicPesa rejection:', responseData);
         return res.status(400).json({
             success: false,
-            message: responseData.message || responseData.error || 'SonicPesa imekataa kutengeneza oda. Hakikisha namba yako ya simu ni sahihi na una akaunti ya Tigo Pesa.'
+            message: responseData.message || responseData.error || 'SonicPesa imekataa kutengeneza oda. Hakikisha namba yako ni sahihi.'
         });
 
     } catch (err) {
-        console.error('[ORDER] Error details:', {
+        console.error('[ORDER] Error:', {
             message: err.message,
             status: err.response?.status,
-            data: err.response?.data,
-            config: err.config?.data
+            data: err.response?.data
         });
 
-        const primaryStatus = err.response?.status;
-        const providerBody = err.response?.data;
-        
-        let errorMessage = '';
+        let errorMessage = 'Malipo yamefeli: ';
         let hint = '';
 
-        if (primaryStatus === 401) {
-            errorMessage = 'API key ya SonicPesa si sahihi.';
-            hint = 'Angalia Vercel Environment Variables - SONICPESA_API_KEY lazima iwe sahihi.';
-        } else if (primaryStatus === 403) {
-            errorMessage = 'Akaunti ya SonicPesa haijaruhusiwa.';
+        if (err.response?.status === 401) {
+            errorMessage += 'API key ya SonicPesa si sahihi.';
+            hint = 'Angalia SONICPESA_API_KEY kwenye Vercel Environment Variables.';
+        } else if (err.response?.status === 403) {
+            errorMessage += 'Akaunti ya SonicPesa haijaruhusiwa.';
             hint = 'Wasiliana na SonicPesa kuwezesha akaunti yako.';
-        } else if (primaryStatus === 400) {
-            errorMessage = providerBody?.message || 'Namba ya simu au kiasi si sahihi.';
+        } else if (err.response?.status === 400) {
+            errorMessage += err.response?.data?.message || 'Namba ya simu au kiasi si sahihi.';
             hint = 'Hakikisha namba ya simu ni sahihi na ina Tigo Pesa akaunti.';
-        } else if (primaryStatus >= 500) {
-            errorMessage = 'SonicPesa ina matatizo ya kiufundi.';
-            hint = 'Jaribu tena baada ya dakika chache au wasiliana na SonicPesa.';
+        } else if (err.code === 'ECONNABORTED') {
+            errorMessage += 'Timeout - SonicPesa haijibu.';
+            hint = 'Jaribu tena baada ya dakika chache.';
         } else {
-            errorMessage = providerBody?.message || providerBody?.error || err.message;
-            hint = 'Angalia connection yako na uhakikishe SonicPesa API inafanya kazi.';
+            errorMessage += err.response?.data?.message || err.message;
+            hint = 'Angalia connection yako na ujaribu tena.';
         }
 
-        return res.status(primaryStatus || 500).json({
+        return res.status(err.response?.status || 500).json({
             success: false,
-            message: `Malipo yamefeli: ${errorMessage}`,
+            message: errorMessage,
             hint: hint,
-            details: process.env.NODE_ENV === 'development' ? providerBody : undefined
+            phone_provided: phone
         });
     }
 });
@@ -280,7 +347,7 @@ app.post('/api/vps/order-status', verifyToken, async (req, res) => {
                 'X-API-KEY': process.env.SONICPESA_API_KEY,
                 'Content-Type': 'application/json'
             },
-            timeout: 45000
+            timeout: 30000
         });
 
         const statusData = statusResponse.data || {};
@@ -295,10 +362,19 @@ app.post('/api/vps/order-status', verifyToken, async (req, res) => {
             console.log(`[STATUS] Order ${order_id} updated to ${order.status}`);
         }
 
+        let message = '';
+        if (paymentStatus === 'SUCCESS') {
+            message = 'Malipo yamekamilika kikamilifu! Seva yako itaundwa.';
+        } else if (paymentStatus === 'PENDING') {
+            message = 'Malipo bado hayajathibitishwa. Tafadhali thibitisha kwenye simu yako kwa kuingiza PIN yako.';
+        } else if (paymentStatus === 'CANCELLED' || paymentStatus === 'REJECTED') {
+            message = 'Malipo yameghairiwa au kukataliwa. Jaribu tena.';
+        }
+
         return res.json({ 
             success: true, 
             payment_status: paymentStatus,
-            message: paymentStatus === 'SUCCESS' ? 'Malipo yamekamilika!' : 'Malipo bado hayajathibitishwa.'
+            message: message
         });
     } catch (err) {
         console.error('[STATUS] Error:', err.message);
@@ -309,33 +385,31 @@ app.post('/api/vps/order-status', verifyToken, async (req, res) => {
     }
 });
 
-// WEBHOOK - ILIYOREKEBISHWA KABISA
+// WEBHOOK - KUSHUGHULIKIA MALIPO YANAYOKUBALIWA
 app.post('/api/vps/sonicpesa-webhook', async (req, res) => {
-    console.log('[WEBHOOK] Received webhook request');
+    console.log('[WEBHOOK] Received at:', new Date().toISOString());
     console.log('[WEBHOOK] Headers:', JSON.stringify(req.headers, null, 2));
-    console.log('[WEBHOOK] Raw body:', req.rawBody);
     
     try {
         await connectDB();
     } catch(e) {
-        console.error('[WEBHOOK] DB connection error:', e);
+        console.error('[WEBHOOK] DB error:', e);
         return res.status(500).send("Database Error");
     }
 
-    // Angalia iwapo secret key ipo
     if (!process.env.SONICPESA_SECRET_KEY) {
-        console.error('[WEBHOOK] SONICPESA_SECRET_KEY haipo!');
+        console.error('[WEBHOOK] SONICPESA_SECRET_KEY missing!');
         return res.status(500).send("Webhook secret not configured");
     }
 
+    // Verify signature
     const receivedSignature = req.headers['x-sonicpesa-signature'] || req.headers['x-signature'];
     const expectedSignature = crypto
         .createHmac('sha256', process.env.SONICPESA_SECRET_KEY)
         .update(req.rawBody || JSON.stringify(req.body))
         .digest('hex');
 
-    console.log('[WEBHOOK] Signature received:', receivedSignature);
-    console.log('[WEBHOOK] Signature expected:', expectedSignature);
+    console.log('[WEBHOOK] Signature match:', receivedSignature === expectedSignature);
 
     if (receivedSignature !== expectedSignature) {
         console.error('[WEBHOOK] Invalid signature!');
@@ -373,15 +447,15 @@ app.post('/api/vps/sonicpesa-webhook', async (req, res) => {
             const newServer = new Server({
                 userId: user._id,
                 owner_name: user.name,
-                host: process.env.PTERODACTYL_HOST || 'vps.example.com',
-                user: `user_${order_id.slice(-6)}`,
+                host: process.env.PTERODACTYL_HOST || 'vps.mickeyhost.com',
+                user: `vps_${order_id.slice(-6)}`,
                 pass: tempPassword,
                 plan: order.plan
             });
             await newServer.save();
-            console.log(`[WEBHOOK] Server created for user ${user.email}`);
+            console.log(`[WEBHOOK] Server created for ${user.email}`);
 
-            // Send email
+            // Send email notification
             if (process.env.SMTP_HOST && process.env.SMTP_USER) {
                 try {
                     let transporter = nodemailer.createTransport({
@@ -394,16 +468,22 @@ app.post('/api/vps/sonicpesa-webhook', async (req, res) => {
                         from: `"Mickey Host" <${process.env.SMTP_USER}>`,
                         to: user.email,
                         subject: "VPS Seva Yako Ipo Tayari! 🚀",
-                        html: `<h2>Hongera ${user.name}!</h2>
-                               <p>Malipo yako ya <b>${order.plan}</b> yamekamilika.</p>
-                               <p><strong>Maelezo ya VPS:</strong></p>
-                               <ul>
-                                   <li>Host: ${newServer.host}</li>
-                                   <li>Username: ${newServer.user}</li>
-                                   <li>Password: ${tempPassword}</li>
-                                   <li>Plan: ${order.plan}</li>
-                               </ul>
-                               <p><em>Tafadhali badilisha password yako mara baada ya kuingia kwa mara ya kwanza.</em></p>`
+                        html: `
+                            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                                <h2 style="color: #00ffcc;">Hongera ${user.name}!</h2>
+                                <p>Malipo yako ya <strong>${order.plan}</strong> yamekamilika kikamilifu.</p>
+                                <div style="background: #1a1a2e; padding: 20px; border-radius: 10px; margin: 20px 0;">
+                                    <h3 style="color: #00ffcc;">Maelezo ya VPS Yako:</h3>
+                                    <p><strong>Host:</strong> ${newServer.host}</p>
+                                    <p><strong>Username:</strong> ${newServer.user}</p>
+                                    <p><strong>Password:</strong> <code style="background: #000; padding: 5px;">${tempPassword}</code></p>
+                                    <p><strong>Plan:</strong> ${order.plan}</p>
+                                    <p><strong>Port:</strong> ${newServer.port}</p>
+                                </div>
+                                <p><em>Tafadhali badilisha password yako mara baada ya kuingia kwa mara ya kwanza.</em></p>
+                                <p>Asante kwa kuchagua Mickey Host!</p>
+                            </div>
+                        `
                     });
                     console.log(`[WEBHOOK] Email sent to ${user.email}`);
                 } catch(emailErr) {
@@ -419,17 +499,17 @@ app.post('/api/vps/sonicpesa-webhook', async (req, res) => {
     res.status(200).send('OK');
 });
 
-// GET ASSETS
+// GET ASSETS - Servers na Pending Orders
 app.get('/api/vps/my-assets', verifyToken, async (req, res) => {
     try { 
         await connectDB(); 
         let servers, pendingOrders;
         if (req.user.role === 'admin') {
-            servers = await Server.find({});
-            pendingOrders = await Order.find({ status: 'PENDING' });
+            servers = await Server.find({}).sort({ createdAt: -1 });
+            pendingOrders = await Order.find({ status: 'PENDING' }).sort({ createdAt: -1 });
         } else {
-            servers = await Server.find({ userId: req.user.id });
-            pendingOrders = await Order.find({ userId: req.user.id, status: 'PENDING' });
+            servers = await Server.find({ userId: req.user.id }).sort({ createdAt: -1 });
+            pendingOrders = await Order.find({ userId: req.user.id, status: 'PENDING' }).sort({ createdAt: -1 });
         }
         res.json({ success: true, servers, pending: pendingOrders });
     } catch (err) {
@@ -437,13 +517,15 @@ app.get('/api/vps/my-assets', verifyToken, async (req, res) => {
     }
 });
 
-// TEST ENDPOINT - Kuangalia kama API inafanya kazi
+// HEALTH CHECK ENDPOINT
 app.get('/api/health', (req, res) => {
     res.json({ 
         status: 'OK', 
         hasSonicKey: !!process.env.SONICPESA_API_KEY,
         hasSonicSecret: !!process.env.SONICPESA_SECRET_KEY,
-        hasMongoUri: !!process.env.MONGO_URI
+        hasMongoUri: !!process.env.MONGO_URI,
+        hasJwtSecret: !!process.env.JWT_SECRET,
+        environment: process.env.NODE_ENV || 'development'
     });
 });
 
