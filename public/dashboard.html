@@ -3,374 +3,326 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mickey Host Dashboard - Control Panel</title>
+    <title>Mickey Host - Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        :root { color-scheme: dark; }
-        body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
-        
-        .blinking-text { animation: blinker 1.2s linear infinite; }
-        @keyframes blinker { 50% { opacity: 0.4; } }
+        * { font-family: 'Inter', sans-serif; }
+        body { background: linear-gradient(135deg, #0a0e1a 0%, #0b0f19 100%); }
         
         .glass-card {
-            background: linear-gradient(145deg, rgba(15,23,42,0.95), rgba(8,12,24,0.92));
-            border: 1px solid rgba(148,163,184,0.15);
-            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            background: rgba(15, 23, 42, 0.8);
             backdrop-filter: blur(12px);
+            border: 1px solid rgba(148, 163, 184, 0.15);
+            border-radius: 24px;
+        }
+        
+        .balance-card {
+            background: linear-gradient(135deg, rgba(0, 255, 204, 0.15), rgba(0, 184, 148, 0.1));
+            border: 1px solid rgba(0, 255, 204, 0.3);
+            border-radius: 28px;
         }
         
         .vps-card {
-            background: linear-gradient(145deg, rgba(17,24,39,0.98), rgba(2,6,23,0.96));
-            border: 1px solid rgba(148,163,184,0.15);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            background: rgba(17, 24, 39, 0.95);
+            border: 1px solid rgba(148, 163, 184, 0.15);
+            transition: all 0.3s ease;
+            border-radius: 20px;
         }
         
         .vps-card:hover {
-            border-color: rgba(45,212,191,0.5);
-            transform: translateY(-8px);
-            box-shadow: 0 20px 40px rgba(45,212,191,0.15);
+            transform: translateY(-6px);
+            border-color: rgba(0, 255, 204, 0.5);
+            box-shadow: 0 20px 40px rgba(0, 255, 204, 0.1);
         }
         
-        .mini-chip {
-            display: inline-flex; 
-            align-items: center; 
-            gap: 8px;
-            border: 1px solid rgba(45,212,191,0.3); 
-            border-radius: 999px;
-            background: rgba(45,212,191,0.1); 
-            color: #99f6e4; 
-            font-size: 11px; 
-            padding: 4px 12px;
-            font-weight: 500;
-        }
-        
-        .status-pill { 
-            border-radius: 999px; 
-            padding: 4px 12px; 
-            font-size: 11px; 
-            font-weight: 500;
-        }
-        
-        .soft-note { 
-            color: #94a3b8; 
-            font-size: 13px; 
-            line-height: 1.6; 
-        }
-        
-        .btn-pay:disabled { 
-            opacity: 0.6; 
-            cursor: not-allowed; 
-            transform: none !important;
-        }
-        
-        .input-modern {
-            background: rgba(15,23,42,0.8);
-            border: 1px solid rgba(148,163,184,0.2);
+        .btn-primary {
+            background: linear-gradient(135deg, #00ffcc, #00b894);
             transition: all 0.2s ease;
         }
         
-        .input-modern:focus {
-            border-color: #00ffcc;
-            outline: none;
-            box-shadow: 0 0 0 2px rgba(0,255,204,0.1);
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0, 255, 204, 0.3);
         }
         
-        /* Loading animation */
-        .loading-spinner {
-            width: 20px;
-            height: 20px;
-            border: 2px solid rgba(0,255,204,0.3);
-            border-top-color: #00ffcc;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            display: inline-block;
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
         
-        @keyframes spin {
-            to { transform: rotate(360deg); }
+        .blink {
+            animation: blink 1s infinite;
         }
         
-        /* Scrollbar styling */
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
         ::-webkit-scrollbar {
             width: 8px;
             height: 8px;
         }
         
         ::-webkit-scrollbar-track {
-            background: rgba(15,23,42,0.5);
+            background: rgba(15, 23, 42, 0.5);
+            border-radius: 10px;
         }
         
         ::-webkit-scrollbar-thumb {
-            background: rgba(45,212,191,0.5);
-            border-radius: 4px;
+            background: rgba(0, 255, 204, 0.5);
+            border-radius: 10px;
         }
         
         ::-webkit-scrollbar-thumb:hover {
-            background: rgba(45,212,191,0.8);
+            background: rgba(0, 255, 204, 0.8);
+        }
+        
+        .toast {
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(100px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(0, 255, 204, 0.3);
+            border-top-color: #00ffcc;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            display: inline-block;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
     </style>
 </head>
-<body class="bg-gradient-to-br from-[#0a0e1a] to-[#0b0f19] text-gray-100 min-h-screen relative overflow-x-hidden">
+<body class="min-h-screen">
 
-    <div id="canvas-3d" class="fixed top-0 left-0 w-full h-full -z-10 opacity-20 pointer-events-none"></div>
+    <!-- 3D Background -->
+    <div id="canvas-3d" class="fixed inset-0 -z-10 opacity-20 pointer-events-none"></div>
 
-    <!-- Top Banner -->
-    <div class="bg-gradient-to-r from-red-600/20 via-red-500/10 to-red-600/20 border-b border-red-500/30 text-center py-3 text-xs tracking-wider backdrop-blur-sm">
-        <span class="blinking-text text-red-400 font-bold mr-2">⚡ MFUMO WA MALIPO DIGITAL:</span>
-        <span class="text-gray-300">Malipo yanatumia <span class="text-[#00ffcc] font-semibold">SonicPesa USSD Push</span>. Ingiza namba yako ya simu upokee ombi la siri papo hapo.</span>
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed top-5 right-5 z-50 hidden toast">
+        <div class="glass-card px-5 py-3 flex items-center gap-3 shadow-xl">
+            <span id="toast-icon">✅</span>
+            <span id="toast-message" class="text-sm"></span>
+        </div>
     </div>
 
     <!-- Navigation -->
-    <nav class="flex justify-between items-center px-6 md:px-8 py-4 border-b border-white/5 backdrop-blur-md sticky top-0 z-50 bg-[#0a0e1a]/90">
+    <nav class="sticky top-0 z-40 glass-card mx-4 mt-4 px-6 py-3 flex justify-between items-center backdrop-blur-md">
         <div class="flex items-center gap-3">
-            <div class="text-2xl font-bold bg-gradient-to-r from-[#00ffcc] to-[#00b894] bg-clip-text text-transparent">
-                Mickey Host ⚡
-            </div>
-            <span id="admin-badge" class="hidden text-xs bg-gradient-to-r from-red-600 to-red-700 text-white px-3 py-1 rounded-full font-mono font-bold shadow-lg">
-                ADMIN MODE
-            </span>
+            <span class="text-2xl">⚡</span>
+            <span class="font-bold text-xl bg-gradient-to-r from-[#00ffcc] to-[#00b894] bg-clip-text text-transparent">Mickey Host</span>
+            <span id="admin-badge" class="hidden text-xs bg-red-500/20 text-red-400 px-2 py-1 rounded-full">ADMIN</span>
         </div>
-        <div class="flex items-center gap-6 text-sm">
+        <div class="flex items-center gap-6">
             <div class="flex items-center gap-2">
                 <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                <span id="user-display" class="text-gray-300 font-medium"></span>
+                <span id="user-name" class="text-sm text-gray-300">Loading...</span>
             </div>
-            <button onclick="logout()" class="text-red-400 hover:text-red-300 transition-colors font-medium">
-                🚪 Ondoka
-            </button>
+            <button onclick="logout()" class="text-red-400 hover:text-red-300 text-sm transition">🚪 Ondoka</button>
         </div>
     </nav>
 
-    <div class="max-w-7xl mx-auto px-4 py-8 space-y-8">
-        <!-- Welcome Section -->
-        <section class="glass-card rounded-2xl p-6 md:p-8">
-            <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+    <div class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+        
+        <!-- Balance Card - SALIO LINAONEKANA JUU -->
+        <div class="balance-card p-6">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <p class="mini-chip mb-3">
-                        <span>🔒</span> Secure Payment Gateway
-                    </p>
-                    <h1 class="text-3xl md:text-4xl font-black bg-gradient-to-r from-[#00ffcc] to-[#00b894] bg-clip-text text-transparent">
-                        Mickey Host Dashboard
-                    </h1>
-                    <p class="soft-note mt-3 max-w-2xl">
-                        Dhibiti seva zako, fuata miamala yako, na lipia kwa urahisi kwa kutumia SonicPesa.
-                        Kila malipo yanathibitishwa kwa USSD push kwenye simu yako.
-                    </p>
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="glass-card rounded-xl p-4 text-center">
-                        <div class="text-xs text-gray-400 mb-1">Seva Zinazotumika</div>
-                        <div class="text-2xl font-bold text-[#00ffcc]" id="summary-servers">0</div>
+                    <p class="text-[#00ffcc]/70 text-xs uppercase tracking-wider mb-1">Salio Lako</p>
+                    <div class="flex items-baseline gap-2">
+                        <span class="text-4xl md:text-5xl font-black text-[#00ffcc]" id="user-balance">0</span>
+                        <span class="text-gray-400 font-semibold">TZS</span>
                     </div>
-                    <div class="glass-card rounded-xl p-4 text-center">
-                        <div class="text-xs text-gray-400 mb-1">Miamala Inayosubiri</div>
-                        <div class="text-2xl font-bold text-yellow-400" id="summary-pending">0</div>
+                    <p class="text-xs text-gray-500 mt-1">Salio la kuanzia: 50,000 TZS</p>
+                </div>
+                <div class="flex gap-3">
+                    <div class="glass-card px-4 py-2 rounded-xl text-center">
+                        <p class="text-xs text-gray-400">Seva Zako</p>
+                        <p class="text-xl font-bold text-white" id="servers-count">0</p>
+                    </div>
+                    <div class="glass-card px-4 py-2 rounded-xl text-center">
+                        <p class="text-xs text-gray-400">Miamala</p>
+                        <p class="text-xl font-bold text-yellow-400" id="pending-count">0</p>
                     </div>
                 </div>
             </div>
-        </section>
+        </div>
 
-        <!-- Servers Section -->
-        <div class="glass-card rounded-2xl p-6 md:p-7">
-            <div class="flex items-center justify-between gap-3 mb-5 flex-wrap">
-                <div class="flex items-center gap-3">
-                    <div class="w-1 h-6 bg-[#00ffcc] rounded-full"></div>
-                    <h2 class="text-xl font-bold text-white" id="servers-title">Seva Zako za VPS</h2>
-                </div>
-                <span class="status-pill bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
-                    🟢 Live Status
-                </span>
+        <!-- Your Servers Section -->
+        <div class="glass-card p-6">
+            <div class="flex items-center gap-3 mb-5">
+                <div class="w-1 h-6 bg-[#00ffcc] rounded-full"></div>
+                <h2 class="text-xl font-bold text-white">🖥️ Seva Zako za VPS</h2>
             </div>
-            <div class="bg-black/20 rounded-xl overflow-x-auto">
-                <table class="w-full text-left text-sm">
-                    <thead class="border-b border-white/10 bg-white/5">
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="border-b border-white/10">
                         <tr class="text-gray-400">
-                            <th class="px-4 py-3 hidden" id="th-owner">Mteja</th>
-                            <th class="px-4 py-3">Kifurushi</th>
-                            <th class="px-4 py-3">Host</th>
-                            <th class="px-4 py-3">Username</th>
-                            <th class="px-4 py-3">Password</th>
-                            <th class="px-4 py-3">Port</th>
+                            <th class="text-left py-3 px-2 hidden" id="th-owner">Mteja</th>
+                            <th class="text-left py-3 px-2">Kifurushi</th>
+                            <th class="text-left py-3 px-2">Host</th>
+                            <th class="text-left py-3 px-2">Username</th>
+                            <th class="text-left py-3 px-2">Password</th>
+                            <th class="text-left py-3 px-2">Port</th>
                         </tr>
                     </thead>
                     <tbody id="server-table-body"></tbody>
                 </table>
-                <p id="no-servers" class="text-gray-500 text-center py-8 hidden">
-                    📭 Hakuna seva yoyote iliyopatikana. Nunua kifurushi cha VPS kuanzia chini.
-                </p>
+                <p id="no-servers" class="text-center text-gray-500 py-8 hidden">📭 Huna seva yoyote bado. Nunua kifurushi hapo chini!</p>
             </div>
         </div>
 
-        <!-- Pending Orders -->
-        <div id="pending-box" class="hidden">
-            <div class="glass-card rounded-2xl p-6">
-                <div class="flex items-center gap-3 mb-4">
-                    <div class="w-1 h-6 bg-yellow-500 rounded-full"></div>
-                    <h3 class="text-lg font-bold text-yellow-400" id="pending-title">Miamala Inayosubiri</h3>
+        <!-- VPS Shop Section - KUNUNUA KWA SALIO -->
+        <div id="vps-shop-section" class="glass-card p-6">
+            <div class="text-center mb-6">
+                <div class="inline-flex items-center gap-2 bg-[#00ffcc]/10 px-4 py-2 rounded-full mb-3">
+                    <span class="text-[#00ffcc]">💰</span>
+                    <span class="text-[#00ffcc] text-sm font-semibold">Nunua kwa Salio Lako</span>
                 </div>
-                <div id="pending-container" class="space-y-3"></div>
-            </div>
-        </div>
-
-        <!-- VPS Shop Section -->
-        <div id="vps-shop-section" class="glass-card rounded-2xl p-6 md:p-8">
-            <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-8">
-                <div>
-                    <div class="flex items-center gap-2 mb-2">
-                        <span class="mini-chip">🛒 Nunua VPS Sasa</span>
-                    </div>
-                    <h2 class="text-2xl font-bold text-white">Chagua Kifurushi Chako</h2>
-                    <p class="soft-note mt-2">Baada ya kubofya, utapokea USSD push kwenye namba utakayoingiza.</p>
-                </div>
-                <div class="mini-chip">
-                    💳 Malipo ya SonicPesa Push
-                </div>
+                <h2 class="text-2xl font-bold text-white">Chagua Kifurushi cha VPS</h2>
+                <p class="text-gray-400 text-sm mt-1">Malipo yatakatwa moja kwa moja kwenye salio lako la juu</p>
             </div>
 
-            <!-- Payment Status Message -->
-            <div id="payment-status" class="mb-6 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-100">
-                💡 Jaza namba yako ya simu kwenye kifurushi unachotaka, kisha bonyeza "Lipia"
-            </div>
-
-            <!-- VPS Cards -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <!-- Starter Plan -->
-                <div class="vps-card rounded-xl overflow-hidden">
-                    <div class="p-6">
-                        <div class="flex justify-between items-start mb-4">
-                            <h3 class="text-xl font-bold text-white">VPS Starter</h3>
-                            <span class="text-xs bg-emerald-500/20 text-emerald-300 px-2 py-1 rounded">Popular</span>
-                        </div>
-                        <div class="text-3xl font-extrabold text-[#00ffcc] mb-4">3,500 <span class="text-sm text-gray-400">TZS</span></div>
-                        <ul class="text-sm text-gray-400 space-y-2 mb-6">
-                            <li class="flex items-center gap-2">✓ 1 GB RAM</li>
-                            <li class="flex items-center gap-2">✓ 350 GB SSD</li>
-                            <li class="flex items-center gap-2">✓ 25% CPU</li>
-                            <li class="flex items-center gap-2">✓ 1 vCore</li>
-                        </ul>
-                        <input type="tel" id="phone-Starter" placeholder="0657779003" 
-                               class="input-modern w-full p-3 rounded-lg text-sm text-white mb-3">
-                        <button onclick="triggerPayment(event, 'Starter', 3500, 'phone-Starter')" 
-                                class="btn-pay w-full bg-gradient-to-r from-[#00ffcc] to-[#00b894] text-[#0a0e1a] py-3 rounded-lg font-bold text-sm hover:shadow-lg transition-all">
-                            Lipia na SonicPesa
-                        </button>
+                <div class="vps-card p-6 text-center">
+                    <div class="mb-4">
+                        <span class="text-4xl">🚀</span>
+                        <h3 class="text-xl font-bold text-white mt-2">VPS Starter</h3>
+                        <div class="text-3xl font-black text-[#00ffcc] my-3">3,500 <span class="text-sm text-gray-400">TZS</span></div>
                     </div>
+                    <ul class="text-left text-sm text-gray-400 space-y-2 mb-6">
+                        <li class="flex items-center gap-2">✓ 1 GB RAM</li>
+                        <li class="flex items-center gap-2">✓ 350 GB SSD</li>
+                        <li class="flex items-center gap-2">✓ 25% CPU</li>
+                        <li class="flex items-center gap-2">✓ 1 vCore</li>
+                    </ul>
+                    <button onclick="purchaseWithBalance('Starter', 3500)" 
+                            class="btn-primary w-full py-3 rounded-xl font-bold text-[#0a0e1a] transition">
+                        Nunua kwa Salio
+                    </button>
                 </div>
 
                 <!-- Professional Plan -->
-                <div class="vps-card rounded-xl overflow-hidden border-[#00ffcc]/30 transform scale-105 shadow-xl">
-                    <div class="p-6">
-                        <div class="flex justify-between items-start mb-4">
-                            <h3 class="text-xl font-bold text-white">VPS Professional</h3>
-                            <span class="text-xs bg-[#00ffcc]/20 text-[#00ffcc] px-2 py-1 rounded">⭐ Best Value</span>
-                        </div>
-                        <div class="text-3xl font-extrabold text-[#00ffcc] mb-4">7,500 <span class="text-sm text-gray-400">TZS</span></div>
-                        <ul class="text-sm text-gray-400 space-y-2 mb-6">
-                            <li class="flex items-center gap-2">✓ 2 GB RAM</li>
-                            <li class="flex items-center gap-2">✓ 700 GB SSD</li>
-                            <li class="flex items-center gap-2">✓ 50% CPU</li>
-                            <li class="flex items-center gap-2">✓ 2 vCores</li>
-                        </ul>
-                        <input type="tel" id="phone-Professional" placeholder="0657779003" 
-                               class="input-modern w-full p-3 rounded-lg text-sm text-white mb-3">
-                        <button onclick="triggerPayment(event, 'Professional', 7500, 'phone-Professional')" 
-                                class="btn-pay w-full bg-gradient-to-r from-[#00ffcc] to-[#00b894] text-[#0a0e1a] py-3 rounded-lg font-bold text-sm hover:shadow-lg transition-all">
-                            Lipia na SonicPesa
-                        </button>
+                <div class="vps-card p-6 text-center border-[#00ffcc]/30 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 bg-[#00ffcc]/20 px-3 py-1 rounded-bl-xl text-xs font-bold text-[#00ffcc]">BEST VALUE</div>
+                    <div class="mb-4">
+                        <span class="text-4xl">💎</span>
+                        <h3 class="text-xl font-bold text-white mt-2">VPS Professional</h3>
+                        <div class="text-3xl font-black text-[#00ffcc] my-3">7,500 <span class="text-sm text-gray-400">TZS</span></div>
                     </div>
+                    <ul class="text-left text-sm text-gray-400 space-y-2 mb-6">
+                        <li class="flex items-center gap-2">✓ 2 GB RAM</li>
+                        <li class="flex items-center gap-2">✓ 700 GB SSD</li>
+                        <li class="flex items-center gap-2">✓ 50% CPU</li>
+                        <li class="flex items-center gap-2">✓ 2 vCores</li>
+                    </ul>
+                    <button onclick="purchaseWithBalance('Professional', 7500)" 
+                            class="btn-primary w-full py-3 rounded-xl font-bold text-[#0a0e1a] transition">
+                        Nunua kwa Salio
+                    </button>
                 </div>
 
                 <!-- Enterprise Plan -->
-                <div class="vps-card rounded-xl overflow-hidden">
-                    <div class="p-6">
-                        <div class="flex justify-between items-start mb-4">
-                            <h3 class="text-xl font-bold text-white">VPS Enterprise</h3>
-                            <span class="text-xs bg-purple-500/20 text-purple-300 px-2 py-1 rounded">Ultimate</span>
-                        </div>
-                        <div class="text-3xl font-extrabold text-[#00ffcc] mb-4">12,000 <span class="text-sm text-gray-400">TZS</span></div>
-                        <ul class="text-sm text-gray-400 space-y-2 mb-6">
-                            <li class="flex items-center gap-2">✓ 4 GB RAM</li>
-                            <li class="flex items-center gap-2">✓ 1 TB SSD</li>
-                            <li class="flex items-center gap-2">✓ 100% CPU</li>
-                            <li class="flex items-center gap-2">✓ 4 vCores</li>
-                        </ul>
-                        <input type="tel" id="phone-Enterprise" placeholder="0657779003" 
-                               class="input-modern w-full p-3 rounded-lg text-sm text-white mb-3">
-                        <button onclick="triggerPayment(event, 'Enterprise', 12000, 'phone-Enterprise')" 
-                                class="btn-pay w-full bg-gradient-to-r from-[#00ffcc] to-[#00b894] text-[#0a0e1a] py-3 rounded-lg font-bold text-sm hover:shadow-lg transition-all">
-                            Lipia na SonicPesa
-                        </button>
+                <div class="vps-card p-6 text-center">
+                    <div class="mb-4">
+                        <span class="text-4xl">🏆</span>
+                        <h3 class="text-xl font-bold text-white mt-2">VPS Enterprise</h3>
+                        <div class="text-3xl font-black text-[#00ffcc] my-3">12,000 <span class="text-sm text-gray-400">TZS</span></div>
                     </div>
+                    <ul class="text-left text-sm text-gray-400 space-y-2 mb-6">
+                        <li class="flex items-center gap-2">✓ 4 GB RAM</li>
+                        <li class="flex items-center gap-2">✓ 1 TB SSD</li>
+                        <li class="flex items-center gap-2">✓ 100% CPU</li>
+                        <li class="flex items-center gap-2">✓ 4 vCores</li>
+                    </ul>
+                    <button onclick="purchaseWithBalance('Enterprise', 12000)" 
+                            class="btn-primary w-full py-3 rounded-xl font-bold text-[#0a0e1a] transition">
+                        Nunua kwa Salio
+                    </button>
                 </div>
+            </div>
+        </div>
+
+        <!-- Recent Transactions -->
+        <div class="glass-card p-6">
+            <div class="flex items-center justify-between mb-5">
+                <div class="flex items-center gap-3">
+                    <div class="w-1 h-6 bg-yellow-500 rounded-full"></div>
+                    <h2 class="text-xl font-bold text-white">📋 Historia ya Miamala</h2>
+                </div>
+                <button onclick="refreshDashboard()" class="text-[#00ffcc] text-sm hover:underline">🔄 Refresh</button>
+            </div>
+            <div id="transactions-container" class="space-y-2 max-h-64 overflow-y-auto">
+                <p class="text-center text-gray-500 py-4">Loading transactions...</p>
             </div>
         </div>
     </div>
 
     <script>
-        // Global variables
         const token = localStorage.getItem('mickey_token');
         if (!token) {
             window.location.href = '/login.html';
         }
 
-        const user = JSON.parse(localStorage.getItem('mickey_user')) || {};
-        const isAdmin = user.role === 'admin';
+        let currentUser = null;
+        let currentBalance = 0;
 
-        // Update UI based on role
-        document.getElementById('user-display').innerText = `${isAdmin ? '👑 Admin' : '👤 Mteja'}: ${user.name || 'Mteja'}`;
-
-        if (isAdmin) {
-            document.getElementById('admin-badge').classList.remove('hidden');
-            document.getElementById('th-owner').classList.remove('hidden');
-            document.getElementById('servers-title').innerText = '📊 Seva Zote (Admin View)';
-            document.getElementById('pending-title').innerText = '📋 Miamala Yote Inayosubiri';
-            document.getElementById('vps-shop-section').classList.add('hidden');
-        }
-
-        // Logout function
-        function logout() {
-            localStorage.clear();
-            window.location.href = '/login.html';
-        }
-
-        // Set status message
-        function setStatus(message, type = 'info') {
-            const el = document.getElementById('payment-status');
-            const types = {
-                success: 'bg-emerald-500/20 text-emerald-100 border-emerald-500/30',
-                error: 'bg-red-500/20 text-red-100 border-red-500/30',
-                warning: 'bg-yellow-500/20 text-yellow-100 border-yellow-500/30',
-                info: 'bg-blue-500/20 text-blue-100 border-blue-500/30'
-            };
-            el.className = `rounded-xl border p-4 text-sm ${types[type] || types.info}`;
-            el.innerHTML = message;
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toast');
+            const icon = document.getElementById('toast-icon');
+            const msg = document.getElementById('toast-message');
             
-            // Auto clear after 8 seconds for success/info
-            if (type === 'success' || type === 'info') {
-                setTimeout(() => {
-                    if (el.innerHTML === message) {
-                        el.innerHTML = '💡 Jaza namba yako ya simu kwenye kifurushi unachotaka, kisha bonyeza "Lipia"';
-                        el.className = 'rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-100';
-                    }
-                }, 8000);
-            }
+            icon.textContent = isError ? '❌' : '✅';
+            msg.textContent = message;
+            toast.classList.remove('hidden');
+            
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 4000);
         }
 
-        // Fetch dashboard data
-        async function fetchDashboardData() {
+        async function refreshDashboard() {
             try {
                 const res = await fetch('/api/vps/my-assets', {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const data = await res.json();
-                if (!data.success) return;
-
-                // Update counters
-                document.getElementById('summary-servers').innerText = data.servers.length;
-                document.getElementById('summary-pending').innerText = data.pending.length;
-
+                
+                if (!data.success) throw new Error(data.message);
+                
+                currentBalance = data.balance || 0;
+                currentUser = data.user;
+                
+                // Update balance display
+                document.getElementById('user-balance').innerText = currentBalance.toLocaleString();
+                document.getElementById('user-name').innerText = currentUser?.name || 'User';
+                document.getElementById('servers-count').innerText = data.servers.length;
+                document.getElementById('pending-count').innerText = data.pending.length;
+                
+                // Check if admin
+                if (currentUser?.role === 'admin') {
+                    document.getElementById('admin-badge').classList.remove('hidden');
+                    document.getElementById('th-owner').classList.remove('hidden');
+                }
+                
                 // Render servers table
                 const tbody = document.getElementById('server-table-body');
                 tbody.innerHTML = '';
@@ -380,212 +332,149 @@
                     document.getElementById('no-servers').classList.add('hidden');
                     data.servers.forEach(srv => {
                         tbody.innerHTML += `
-                            <tr class="border-b border-white/5 hover:bg-white/5 transition-colors">
-                                ${isAdmin ? `<td class="px-4 py-3 text-xs text-yellow-400 font-semibold">${srv.owner_name || 'N/A'}</td>` : ''}
-                                <td class="px-4 py-3 font-semibold text-[#00ffcc]">${srv.plan || 'VPS'}</td>
-                                <td class="px-4 py-3 text-blue-400">${srv.host}</td>
-                                <td class="px-4 py-3 font-mono text-xs">${srv.user}</td>
-                                <td class="px-4 py-3"><code class="bg-white/10 px-2 py-1 rounded text-xs">${srv.pass}</code></td>
-                                <td class="px-4 py-3">${srv.port}</td>
+                            <tr class="border-b border-white/5 hover:bg-white/5">
+                                ${currentUser?.role === 'admin' ? `<td class="py-3 px-2 text-yellow-400 text-xs">${srv.owner_name}</td>` : ''}
+                                <td class="py-3 px-2 font-semibold text-[#00ffcc]">${srv.plan}</td>
+                                <td class="py-3 px-2 text-blue-400 text-sm">${srv.host}</td>
+                                <td class="py-3 px-2 font-mono text-xs">${srv.user}</td>
+                                <td class="py-3 px-2"><code class="bg-black/30 px-2 py-1 rounded text-xs">${srv.pass}</code></td>
+                                <td class="py-3 px-2">${srv.port}</td>
                             </tr>
                         `;
                     });
                 }
-
-                // Render pending orders
-                const pendingContainer = document.getElementById('pending-container');
-                pendingContainer.innerHTML = '';
-                if (data.pending.length > 0) {
-                    document.getElementById('pending-box').classList.remove('hidden');
-                    data.pending.forEach(order => {
-                        pendingContainer.innerHTML += `
-                            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 p-4 bg-yellow-500/5 border border-yellow-500/20 rounded-xl hover:bg-yellow-500/10 transition-colors">
-                                <div class="flex-1">
-                                    <div class="flex items-center gap-2 mb-1">
-                                        <span class="text-xs font-bold text-yellow-400">ORDER ID:</span>
-                                        <code class="text-xs bg-black/30 px-2 py-1 rounded">${order.sonicOrderId}</code>
-                                    </div>
-                                    <div class="text-sm">
-                                        <span class="font-semibold">${order.plan}</span>
-                                        ${isAdmin ? `<span class="text-gray-400 ml-2">| Mteja: ${order.buyer_name}</span>` : ''}
-                                    </div>
-                                    <div class="text-xs text-gray-400 mt-1">Kiasi: ${order.amount} TZS</div>
-                                </div>
-                                <div class="flex items-center gap-2">
-                                    <div class="blinking-text w-2 h-2 bg-yellow-500 rounded-full"></div>
-                                    <span class="text-yellow-400 font-semibold text-sm">Inasubiri Malipo</span>
+                
+                // Render transactions
+                await loadTransactions();
+                
+            } catch (err) {
+                console.error('Refresh error:', err);
+                showToast('Error loading dashboard data', true);
+            }
+        }
+        
+        async function loadTransactions() {
+            try {
+                const res = await fetch('/api/user/transactions', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                
+                const container = document.getElementById('transactions-container');
+                if (data.transactions && data.transactions.length > 0) {
+                    container.innerHTML = data.transactions.map(t => `
+                        <div class="flex justify-between items-center p-3 bg-white/5 rounded-xl">
+                            <div class="flex items-center gap-3">
+                                <span class="text-lg">${t.type === 'purchase' ? '🛒' : (t.type === 'credit' ? '➕' : '➖')}</span>
+                                <div>
+                                    <p class="text-sm font-medium text-white">${t.description}</p>
+                                    <p class="text-xs text-gray-500">${new Date(t.createdAt).toLocaleString()}</p>
                                 </div>
                             </div>
-                        `;
-                    });
+                            <div class="text-right">
+                                <p class="text-sm font-bold ${t.type === 'debit' || t.type === 'purchase' ? 'text-red-400' : 'text-green-400'}">
+                                    ${t.type === 'debit' || t.type === 'purchase' ? '-' : '+'} ${t.amount.toLocaleString()} TZS
+                                </p>
+                                <p class="text-xs text-gray-500">Salio: ${t.balance_after.toLocaleString()} TZS</p>
+                            </div>
+                        </div>
+                    `).join('');
                 } else {
-                    document.getElementById('pending-box').classList.add('hidden');
+                    container.innerHTML = '<p class="text-center text-gray-500 py-4">Hakuna miamala bado</p>';
                 }
             } catch (err) {
-                console.error('Fetch error:', err);
+                console.error('Transactions error:', err);
             }
         }
-
-        // Check order status
-        async function checkOrderStatus(orderId, retryCount = 0) {
-            try {
-                const res = await fetch('/api/vps/order-status', {
-                    method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json', 
-                        'Authorization': `Bearer ${token}` 
-                    },
-                    body: JSON.stringify({ order_id: orderId })
-                });
-                const data = await res.json();
-                
-                if (data.success) {
-                    const paymentStatus = (data.payment_status || 'PENDING').toUpperCase();
-                    if (paymentStatus === 'SUCCESS') {
-                        setStatus('✅ Malipo yamekamilika kikamilifu! Seva yako itaundwa kwa muda mfupi.', 'success');
-                        fetchDashboardData();
-                        return true;
-                    } else if (paymentStatus === 'PENDING' && retryCount < 6) {
-                        // Retry after 10 seconds up to 6 times (60 seconds)
-                        setTimeout(() => checkOrderStatus(orderId, retryCount + 1), 10000);
-                        return false;
-                    } else if (paymentStatus === 'PENDING') {
-                        setStatus('⏳ Malipo bado hayajathibitishwa. Tafadhali thibitisha kwenye simu yako kwa kuingiza PIN.', 'warning');
-                        return false;
-                    } else if (paymentStatus === 'CANCELLED' || paymentStatus === 'REJECTED') {
-                        setStatus('❌ Malipo yameghairiwa. Jaribu tena kwa namba sahihi.', 'error');
-                        return false;
-                    }
-                }
-            } catch (err) {
-                console.error('Status check error:', err);
-                if (retryCount < 3) {
-                    setTimeout(() => checkOrderStatus(orderId, retryCount + 1), 15000);
-                }
-            }
-            return false;
-        }
-
-        // Trigger payment
-        async function triggerPayment(event, planName, price, inputId) {
-            const button = event.currentTarget;
-            let phoneInput = document.getElementById(inputId).value.trim();
-
-            // Debug
-            console.log('🔍 Payment Triggered:', { planName, price, phoneInput });
-
-            // Validation
-            if (!phoneInput) {
-                setStatus('⚠️ Tafadhali ingiza namba yako ya simu kwanza.', 'warning');
-                document.getElementById(inputId).focus();
+        
+        async function purchaseWithBalance(planName, price) {
+            if (currentBalance < price) {
+                const shortfall = price - currentBalance;
+                showToast(`Salio la kutosha! Unahitaji ${price.toLocaleString()} TZS, salio lako ni ${currentBalance.toLocaleString()} TZS. Unakosa ${shortfall.toLocaleString()} TZS`, true);
                 return;
             }
-
-            // Remove spaces and validate digits
-            const digitsOnly = phoneInput.replace(/\D/g, '');
-            if (digitsOnly.length < 9) {
-                setStatus(`❌ Namba "${phoneInput}" si sahihi. Ingiza namba kama 0657779003 au 255657779003`, 'error');
-                document.getElementById(inputId).focus();
-                return;
-            }
-
-            // Disable button and show loading
+            
+            const confirmMsg = `Unakaribia kununua ${planName} VPS kwa ${price.toLocaleString()} TZS.\n\nSalio lako: ${currentBalance.toLocaleString()} TZS\nBaada ya kununua: ${(currentBalance - price).toLocaleString()} TZS\n\nEndelea?`;
+            
+            if (!confirm(confirmMsg)) return;
+            
+            const button = event.target;
             const originalText = button.textContent;
             button.disabled = true;
-            button.innerHTML = '<div class="loading-spinner mr-2"></div> Inatuma...';
-            setStatus('📤 Inatuma ombi la malipo kwa SonicPesa. Subiri kidogo...', 'info');
-
+            button.innerHTML = '<div class="spinner"></div> Inachakata...';
+            
             try {
-                const requestBody = { 
-                    plan: 'VPS ' + planName, 
-                    amount: price, 
-                    phone: phoneInput
-                };
-                
-                console.log('📤 Sending request:', requestBody);
-                
-                const res = await fetch('/api/vps/create-ussd-order', {
+                const res = await fetch('/api/vps/purchase-with-balance', {
                     method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json', 
+                    headers: {
+                        'Content-Type': 'application/json',
                         'Authorization': `Bearer ${token}`
                     },
-                    body: JSON.stringify(requestBody)
+                    body: JSON.stringify({ plan: planName, amount: price, phone: 'N/A' })
                 });
                 
                 const data = await res.json();
-                console.log('📥 Response:', data);
-
+                
                 if (data.success) {
-                    setStatus(`✅ ${data.message || 'Ombi limefumwa!'} Angalia simu yako, utapokea USSD push kutoka Tigo Pesa.`, 'success');
-                    
-                    if (data.order_id) {
-                        // Check status after 5 seconds
-                        setTimeout(() => checkOrderStatus(data.order_id), 5000);
-                    }
-                    
-                    // Refresh dashboard
-                    setTimeout(() => fetchDashboardData(), 2000);
-                    
-                    // Clear phone input after successful submission
-                    document.getElementById(inputId).value = '';
+                    showToast(data.message);
+                    refreshDashboard();
                 } else {
-                    let errorMsg = data.message || 'Kulipia kumekataa.';
-                    if (data.hint) errorMsg += ` ${data.hint}`;
-                    setStatus(`❌ ${errorMsg}`, 'error');
+                    showToast(data.message, true);
                 }
             } catch (err) {
-                console.error('Payment error:', err);
-                setStatus('❌ Imeshindwa kuwasiliana na huduma ya malipo. Angalia connection yako na ujaribu tena.', 'error');
+                console.error('Purchase error:', err);
+                showToast('Error processing purchase', true);
             } finally {
                 button.disabled = false;
                 button.innerHTML = originalText;
             }
         }
-
-        // Initial load
-        fetchDashboardData();
         
-        // Auto refresh every 10 seconds
-        setInterval(fetchDashboardData, 10000);
-
-        // 3D Background Animation
-        const init3D = () => {
+        function logout() {
+            localStorage.clear();
+            window.location.href = '/login.html';
+        }
+        
+        // 3D Background
+        function init3D() {
             const container = document.getElementById('canvas-3d');
+            if (!container) return;
+            
             const scene = new THREE.Scene();
             const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+            const renderer = new THREE.WebGLRenderer({ alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setClearColor(0x000000, 0);
             container.appendChild(renderer.domElement);
-
-            const geometry = new THREE.TorusKnotGeometry(2.8, 0.5, 140, 18);
+            
+            const geometry = new THREE.TorusKnotGeometry(2.5, 0.4, 120, 16);
             const material = new THREE.MeshBasicMaterial({ color: 0x00ffcc, wireframe: true });
             const mesh = new THREE.Mesh(geometry, material);
             scene.add(mesh);
-            camera.position.z = 7;
-
-            const animate = () => {
+            
+            camera.position.z = 6;
+            
+            function animate() {
                 requestAnimationFrame(animate);
                 mesh.rotation.x += 0.002;
-                mesh.rotation.y += 0.005;
-                mesh.rotation.z += 0.001;
+                mesh.rotation.y += 0.003;
                 renderer.render(scene, camera);
-            };
+            }
             animate();
-        };
+            
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        }
         
+        // Initialize
+        refreshDashboard();
         init3D();
         
-        // Handle window resize for 3D
-        window.addEventListener('resize', () => {
-            const container = document.getElementById('canvas-3d');
-            const renderer = container.querySelector('canvas');
-            if (renderer) {
-                // Re-initialize on resize
-                container.innerHTML = '';
-                init3D();
-            }
-        });
+        // Auto refresh every 15 seconds
+        setInterval(refreshDashboard, 15000);
     </script>
 </body>
 </html>
