@@ -60,6 +60,24 @@
             </div>
         </div>
 
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="vps-card p-5 rounded-xl border border-[#00ffcc]/20">
+                <p class="text-xs uppercase tracking-[0.35em] text-[#00ffcc]/70">Salio Lako</p>
+                <div class="mt-3 text-3xl font-black text-[#00ffcc]" id="balance-chip">0 TZS</div>
+                <p class="text-xs text-gray-400 mt-1">Salio hili linatumika moja kwa moja kununulia VPS na huduma zako.</p>
+            </div>
+            <div class="vps-card p-5 rounded-xl border border-white/5">
+                <p class="text-xs uppercase tracking-[0.35em] text-yellow-400/80">Seva Zilizopo</p>
+                <div class="mt-3 text-3xl font-black text-white" id="server-count-chip">0</div>
+                <p class="text-xs text-gray-400 mt-1">Idadi ya seva ulizozitengeneza kupitia mfumo wa Pterodactyl.</p>
+            </div>
+            <div class="vps-card p-5 rounded-xl border border-white/5">
+                <p class="text-xs uppercase tracking-[0.35em] text-blue-400/80">Njia za Malipo</p>
+                <div class="mt-3 text-sm text-gray-100 font-semibold">SonicPesa + Salio la akaunti</div>
+                <p class="text-xs text-gray-400 mt-1">Unapokuwa na salio, unaweza kununua VPS moja kwa moja bila kusubiri malipo ya nje.</p>
+            </div>
+        </div>
+
         <div id="pending-box" class="hidden">
             <h3 class="text-md font-bold mb-3 text-yellow-500" id="pending-title">Miamala Inayosubiri Malipo ya PIN</h3>
             <div id="pending-container" class="space-y-2"></div>
@@ -83,6 +101,7 @@
                     <div class="space-y-2">
                         <input type="text" id="phone-Starter" placeholder="Mfano: 0657779003" class="w-full p-2 bg-gray-900 border border-gray-800 rounded text-xs text-white focus:outline-none focus:border-[#00ffcc]">
                         <button onclick="triggerPayment('Starter', 3500)" class="w-full bg-[#00ffcc] text-[#0b0f19] py-2 rounded font-bold text-xs hover:bg-[#00cc99] transition">Lipia na SonicPesa (Push)</button>
+                        <button onclick="purchaseWithBalance('Starter', 3500)" class="w-full bg-emerald-500/10 border border-emerald-400/30 text-emerald-200 py-2 rounded font-bold text-xs hover:bg-emerald-500/20 transition">Nunua kwa Salio</button>
                     </div>
                 </div>
                 <div class="vps-card p-6 rounded-xl flex flex-col justify-between border-[#00ffcc]/30">
@@ -98,6 +117,7 @@
                     <div class="space-y-2">
                         <input type="text" id="phone-Professional" placeholder="Mfano: 0657779003" class="w-full p-2 bg-gray-900 border border-gray-800 rounded text-xs text-white focus:outline-none focus:border-[#00ffcc]">
                         <button onclick="triggerPayment('Professional', 7500)" class="w-full bg-[#00ffcc] text-[#0b0f19] py-2 rounded font-bold text-xs hover:bg-[#00cc99] transition">Lipia na SonicPesa (Push)</button>
+                        <button onclick="purchaseWithBalance('Professional', 7500)" class="w-full bg-emerald-500/10 border border-emerald-400/30 text-emerald-200 py-2 rounded font-bold text-xs hover:bg-emerald-500/20 transition">Nunua kwa Salio</button>
                     </div>
                 </div>
                 <div class="vps-card p-6 rounded-xl flex flex-col justify-between">
@@ -113,6 +133,7 @@
                     <div class="space-y-2">
                         <input type="text" id="phone-Enterprise" placeholder="Mfano: 0657779003" class="w-full p-2 bg-gray-900 border border-gray-800 rounded text-xs text-white focus:outline-none focus:border-[#00ffcc]">
                         <button onclick="triggerPayment('Enterprise', 12000)" class="w-full bg-[#00ffcc] text-[#0b0f19] py-2 rounded font-bold text-xs hover:bg-[#00cc99] transition">Lipia na SonicPesa (Push)</button>
+                        <button onclick="purchaseWithBalance('Enterprise', 12000)" class="w-full bg-emerald-500/10 border border-emerald-400/30 text-emerald-200 py-2 rounded font-bold text-xs hover:bg-emerald-500/20 transition">Nunua kwa Salio</button>
                     </div>
                 </div>
             </div>
@@ -141,6 +162,8 @@
             window.location.href = '/login.html';
         }
 
+        let currentBalance = 0;
+
         async function fetchDashboardData() {
             try {
                 const res = await fetch('/api/vps/my-assets', {
@@ -148,6 +171,10 @@
                 });
                 const data = await res.json();
                 if(!data.success) return;
+
+                currentBalance = Number(data.balance || 0);
+                document.getElementById('balance-chip').innerText = `${currentBalance.toLocaleString()} TZS`;
+                document.getElementById('server-count-chip').innerText = String(data.servers?.length || 0);
 
                 const tbody = document.getElementById('server-table-body');
                 tbody.innerHTML = '';
@@ -181,6 +208,29 @@
                     document.getElementById('pending-box').classList.add('hidden');
                 }
             } catch (err) { console.error(err); }
+        }
+
+        async function purchaseWithBalance(planName, price) {
+            if (currentBalance < price) {
+                alert(`Salio lako halitoshi. Unahitaji ${price.toLocaleString()} TZS, lakini una ${currentBalance.toLocaleString()} TZS tu.`);
+                return;
+            }
+
+            const confirmPurchase = confirm(`Unakaribia kununua VPS ${planName} kwa ${price.toLocaleString()} TZS ukitumia salio lako. Endelea?`);
+            if (!confirmPurchase) return;
+
+            const res = await fetch('/api/vps/purchase-with-balance', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ plan: 'VPS ' + planName, amount: price, phone: 'BALANCE' })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert(data.message || 'Umefanikiwa kununua VPS kwa salio lako.');
+                await fetchDashboardData();
+            } else {
+                alert(data.message || 'Imeshindikana kununua kwa salio.');
+            }
         }
 
         async function triggerPayment(planName, price) {

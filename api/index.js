@@ -51,7 +51,9 @@ const Order = mongoose.models.Order || mongoose.model('Order', new mongoose.Sche
     amount: Number,
     status: { type: String, enum: ['PENDING', 'SUCCESS', 'CANCELLED', 'REJECTED'], default: 'PENDING' },
     plan: String,
-    phone: String
+    phone: String,
+    sonicOrderId: String,
+    paymentMethod: { type: String, default: 'SonicPesa' }
 }, { timestamps: true }));
 
 const Server = mongoose.models.Server || mongoose.model('Server', new mongoose.Schema({
@@ -170,6 +172,43 @@ app.get('/api/user/transactions', verifyToken, async (req, res) => {
         const transactions = await Transaction.find({ userId: req.user.id }).sort({ createdAt: -1 }).limit(20);
         res.json({ success: true, transactions });
     } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// Unda oda ya malipo ya SonicPesa / USSD push
+app.post('/api/vps/create-ussd-order', verifyToken, async (req, res) => {
+    try {
+        await connectDB();
+        const { plan, amount, phone } = req.body;
+
+        const user = await User.findById(req.user.id);
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        const amountValue = Number(amount || 0);
+        const sonicOrderId = `SONIC-${Date.now()}-${Math.floor(Math.random() * 900 + 100)}`;
+
+        const order = await Order.create({
+            userId: user._id,
+            buyer_name: user.name,
+            amount: amountValue,
+            plan: plan || 'VPS',
+            phone: phone || 'N/A',
+            status: 'PENDING',
+            sonicOrderId,
+            paymentMethod: 'SonicPesa'
+        });
+
+        res.json({
+            success: true,
+            message: 'Oda ya malipo imeundwa. Tuma PIN yako ya USSD ili kukamilisha malipo yako.',
+            order,
+            sonicOrderId
+        });
+    } catch (err) {
+        console.error('USSD order error:', err);
         res.status(500).json({ success: false, message: err.message });
     }
 });

@@ -214,10 +214,11 @@
                         <li class="flex items-center gap-2">✓ 25% CPU</li>
                         <li class="flex items-center gap-2">✓ 1 vCore</li>
                     </ul>
-                    <button onclick="purchaseWithBalance('Starter', 3500)" 
-                            class="btn-primary w-full py-3 rounded-xl font-bold text-[#0a0e1a] transition">
-                        Nunua kwa Salio
-                    </button>
+                    <input type="text" id="phone-Starter" placeholder="Mfano: 0657779003" class="w-full px-3 py-2 mt-2 rounded-xl bg-black/30 border border-white/10 text-sm text-white focus:outline-none focus:border-[#00ffcc]">
+                    <div class="space-y-2 mt-3">
+                        <button onclick="triggerPayment('Starter', 3500)" class="w-full py-3 rounded-xl font-bold text-[#0a0e1a] bg-[#00ffcc] hover:bg-[#00e6b8] transition">Lipia na SonicPesa (Push)</button>
+                        <button onclick="purchaseWithBalance('Starter', 3500, event)" class="w-full py-3 rounded-xl font-bold text-[#0a0e1a] bg-emerald-400/90 hover:bg-emerald-300 transition">Nunua kwa Salio</button>
+                    </div>
                 </div>
 
                 <!-- Professional Plan -->
@@ -234,10 +235,11 @@
                         <li class="flex items-center gap-2">✓ 50% CPU</li>
                         <li class="flex items-center gap-2">✓ 2 vCores</li>
                     </ul>
-                    <button onclick="purchaseWithBalance('Professional', 7500)" 
-                            class="btn-primary w-full py-3 rounded-xl font-bold text-[#0a0e1a] transition">
-                        Nunua kwa Salio
-                    </button>
+                    <input type="text" id="phone-Professional" placeholder="Mfano: 0657779003" class="w-full px-3 py-2 mt-2 rounded-xl bg-black/30 border border-white/10 text-sm text-white focus:outline-none focus:border-[#00ffcc]">
+                    <div class="space-y-2 mt-3">
+                        <button onclick="triggerPayment('Professional', 7500)" class="w-full py-3 rounded-xl font-bold text-[#0a0e1a] bg-[#00ffcc] hover:bg-[#00e6b8] transition">Lipia na SonicPesa (Push)</button>
+                        <button onclick="purchaseWithBalance('Professional', 7500, event)" class="w-full py-3 rounded-xl font-bold text-[#0a0e1a] bg-emerald-400/90 hover:bg-emerald-300 transition">Nunua kwa Salio</button>
+                    </div>
                 </div>
 
                 <!-- Enterprise Plan -->
@@ -253,10 +255,11 @@
                         <li class="flex items-center gap-2">✓ 100% CPU</li>
                         <li class="flex items-center gap-2">✓ 4 vCores</li>
                     </ul>
-                    <button onclick="purchaseWithBalance('Enterprise', 12000)" 
-                            class="btn-primary w-full py-3 rounded-xl font-bold text-[#0a0e1a] transition">
-                        Nunua kwa Salio
-                    </button>
+                    <input type="text" id="phone-Enterprise" placeholder="Mfano: 0657779003" class="w-full px-3 py-2 mt-2 rounded-xl bg-black/30 border border-white/10 text-sm text-white focus:outline-none focus:border-[#00ffcc]">
+                    <div class="space-y-2 mt-3">
+                        <button onclick="triggerPayment('Enterprise', 12000)" class="w-full py-3 rounded-xl font-bold text-[#0a0e1a] bg-[#00ffcc] hover:bg-[#00e6b8] transition">Lipia na SonicPesa (Push)</button>
+                        <button onclick="purchaseWithBalance('Enterprise', 12000, event)" class="w-full py-3 rounded-xl font-bold text-[#0a0e1a] bg-emerald-400/90 hover:bg-emerald-300 transition">Nunua kwa Salio</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -387,7 +390,7 @@
             }
         }
         
-        async function purchaseWithBalance(planName, price) {
+        async function purchaseWithBalance(planName, price, event) {
             if (currentBalance < price) {
                 const shortfall = price - currentBalance;
                 showToast(`Salio la kutosha! Unahitaji ${price.toLocaleString()} TZS, salio lako ni ${currentBalance.toLocaleString()} TZS. Unakosa ${shortfall.toLocaleString()} TZS`, true);
@@ -398,10 +401,12 @@
             
             if (!confirm(confirmMsg)) return;
             
-            const button = event.target;
-            const originalText = button.textContent;
-            button.disabled = true;
-            button.innerHTML = '<div class="spinner"></div> Inachakata...';
+            const button = event?.target || null;
+            const originalText = button ? button.textContent : 'Nunua kwa Salio';
+            if (button) {
+                button.disabled = true;
+                button.innerHTML = '<div class="spinner"></div> Inachakata...';
+            }
             
             try {
                 const res = await fetch('/api/vps/purchase-with-balance', {
@@ -425,8 +430,40 @@
                 console.error('Purchase error:', err);
                 showToast('Error processing purchase', true);
             } finally {
-                button.disabled = false;
-                button.innerHTML = originalText;
+                if (button) {
+                    button.disabled = false;
+                    button.innerHTML = originalText;
+                }
+            }
+        }
+
+        async function triggerPayment(planName, price) {
+            const phoneInput = document.getElementById(`phone-${planName}`).value;
+            if (!phoneInput || phoneInput.length < 9) {
+                showToast('Tafadhali ingiza namba sahihi ya simu!', true);
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/vps/create-ussd-order', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ plan: 'VPS ' + planName, amount: price, phone: phoneInput })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    showToast(data.message || 'Oda ya malipo imeundwa.');
+                    await refreshDashboard();
+                } else {
+                    showToast(data.message || 'Imeshindikana kuunda oda ya malipo.', true);
+                }
+            } catch (err) {
+                console.error('Trigger payment error:', err);
+                showToast('Imeshindikana kuunda oda ya malipo.', true);
             }
         }
         
