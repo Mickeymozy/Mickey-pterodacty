@@ -3,6 +3,7 @@ require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
 const passport = require('passport');
+const LocalStrategy = require('passport-local').Strategy; // Imebadilishwa hapa
 const axios = require('axios');
 const path = require('path');
 
@@ -115,20 +116,21 @@ async function getUserByExternalIdentifier(identifier) {
 }
 
 async function ensurePteroAccount(user) {
-  const identifier = user.providerId || user.id;
+  // Inatumia email/username kama identifier kwa local login
+  const identifier = user.email || user.username;
   const existing = await getUserByExternalIdentifier(identifier);
 
   if (existing) return existing;
 
-  const username = `${user.provider}-${user.id}`;
+  const username = user.username.toLowerCase().replace(/[^a-z0-9]/g, '');
   const email = user.email || `${username}@local.invalid`;
   const password = Math.random().toString(36).slice(-12) + 'A1!';
 
   const res = await appApi.post('/users', {
     username,
     email,
-    first_name: user.displayName || 'User',
-    last_name: 'Account',
+    first_name: user.displayName || 'Local',
+    last_name: 'User',
     password,
     language: 'en'
   });
@@ -159,52 +161,30 @@ async function mapServerToClientData(server) {
   };
 }
 
-const DiscordStrategy = require('passport-discord').Strategy;
-const baseUrl = getBaseUrl();
+// --- MPINGILIO WA LOCAL STRATEGY (MANUAL LOGIN) ---
 passport.use(
-  new DiscordStrategy(
+  new LocalStrategy(
     {
-      clientID: process.env.DISCORD_CLIENT_ID,
-      clientSecret: process.env.DISCORD_CLIENT_SECRET,
-      callbackURL: `${baseUrl}/auth/discord/callback`,
-      scope: ['identify', 'email']
+      usernameField: 'username', // Inaweza kupokea email au username kutoka kwenye form
+      passwordField: 'password'
     },
-    async (accessToken, refreshToken, profile, done) => {
-      const user = {
-        provider: 'discord',
-        providerId: profile.id,
-        id: profile.id,
-        username: profile.username,
-        email: profile.email || `${profile.id}@discord.local`,
-        displayName: profile.global_name || profile.username,
-        avatar: profile.avatar
-      };
-      done(null, user);
-    }
-  )
-);
-
-const GitHubStrategy = require('passport-github2').Strategy;
-passport.use(
-  new GitHubStrategy(
-    {
-      clientID: process.env.GITHUB_CLIENT_ID,
-      clientSecret: process.env.GITHUB_CLIENT_SECRET,
-      callbackURL: `${baseUrl}/auth/github/callback`,
-      scope: ['user:email']
-    },
-    async (accessToken, refreshToken, profile, done) => {
-      const email = profile.emails?.[0]?.value || `${profile.username}@github.local`;
-      const user = {
-        provider: 'github',
-        providerId: profile.id,
-        id: profile.id,
-        username: profile.username,
-        email,
-        displayName: profile.displayName || profile.username,
-        avatar: profile.photos?.[0]?.value
-      };
-      done(null, user);
+    async (username, password, done) => {
+      try {
+        // NOTE: Hapa unaweza kuweka password yako ngumu ya jumla au ukaacha yoyote ikubali
+        // Kwa sasa nimeruhusu login yoyote itengeneze akaunti Ptero kama haipo
+        const isEmail = username.includes('@');
+        const user = {
+          provider: 'local',
+          id: username,
+          username: isEmail ? username.split('@')[0] : username,
+          email: isEmail ? username : `${username}@local.com`,
+          displayName: isEmail ? username.split('@')[0] : username
+        };
+        
+        return done(null, user);
+      } catch (err) {
+        return done(err);
+      }
     }
   )
 );
@@ -234,18 +214,13 @@ app.get('/logout', (req, res, next) => {
   });
 });
 
-app.get('/auth/discord', passport.authenticate('discord'));
-app.get(
-  '/auth/discord/callback',
-  passport.authenticate('discord', { failureRedirect: '/login' }),
-  (req, res) => res.redirect('/')
-);
-
-app.get('/auth/github', passport.authenticate('github'));
-app.get(
-  '/auth/github/callback',
-  passport.authenticate('github', { failureRedirect: '/login' }),
-  (req, res) => res.redirect('/')
+// Route ya kushughulikia Manual Login kutoka kwenye HTML Form
+app.post(
+  '/auth/login',
+  passport.authenticate('local', {
+    successRedirect: '/',
+    failureRedirect: '/login'
+  })
 );
 
 app.get('/api/me', requireAuth, (req, res) => {
