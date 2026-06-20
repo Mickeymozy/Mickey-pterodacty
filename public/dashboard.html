@@ -1,101 +1,228 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Server Dashboard</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - PteroPanel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        
+        * {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        
+        .glass {
+            background: rgba(255, 255, 255, 0.02);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .gradient-text {
+            background: linear-gradient(135deg, #818cf8, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .server-card {
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .server-card:hover {
+            border-color: rgba(99, 102, 241, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.35);
+        }
+        
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .status-running {
+            background: rgba(34, 197, 94, 0.15);
+            color: #86efac;
+            border: 1px solid rgba(34, 197, 94, 0.2);
+        }
+        
+        .status-stopped {
+            background: rgba(251, 191, 36, 0.15);
+            color: #fcd34d;
+            border: 1px solid rgba(251, 191, 36, 0.2);
+        }
+        
+        .status-installing {
+            background: rgba(99, 102, 241, 0.15);
+            color: #a5b4fc;
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .input-glass {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            transition: all 0.3s ease;
+        }
+        
+        .input-glass:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+            background: rgba(0, 0, 0, 0.5);
+        }
+        
+        .scrollbar-thin::-webkit-scrollbar {
+            width: 4px;
+        }
+        
+        .scrollbar-thin::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        .scrollbar-thin::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 9999px;
+        }
+    </style>
 </head>
-<body class="min-h-screen bg-slate-950 text-slate-50">
-  <div class="absolute inset-0 overflow-hidden pointer-events-none">
-    <div class="absolute -top-24 right-0 h-72 w-72 rounded-full bg-cyan-500/10 blur-3xl"></div>
-    <div class="absolute top-1/3 left-0 h-64 w-64 rounded-full bg-emerald-500/10 blur-3xl"></div>
-  </div>
+<body class="min-h-screen bg-[#0a0a14] text-slate-50">
 
-  <div class="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-    <header class="rounded-3xl border border-slate-800 bg-slate-900/80 p-6 shadow-2xl shadow-slate-950/30 backdrop-blur">
-      <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p class="text-sm text-slate-400">Welcome back</p>
-          <h1 id="userName" class="mt-1 text-2xl font-semibold text-white">Loading...</h1>
+<!-- Background Effects -->
+<div class="fixed inset-0 overflow-hidden pointer-events-none">
+    <div class="absolute -top-40 -right-40 h-96 w-96 rounded-full bg-purple-500/10 blur-3xl"></div>
+    <div class="absolute top-1/2 -left-40 h-96 w-96 rounded-full bg-indigo-500/10 blur-3xl"></div>
+    <div class="absolute bottom-0 right-0 h-72 w-72 rounded-full bg-blue-500/10 blur-3xl"></div>
+</div>
+
+<div class="relative mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+    
+    <!-- Header -->
+    <header class="glass rounded-2xl p-6 mb-6">
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+                <p class="text-sm text-slate-400 font-medium">Welcome back</p>
+                <h1 id="userName" class="mt-1 text-2xl font-bold text-white">
+                    <span class="inline-block w-24 h-6 bg-slate-700/50 rounded animate-pulse"></span>
+                </h1>
+            </div>
+            <div class="flex items-center gap-3">
+                <button id="refreshBtn" class="px-4 py-2.5 rounded-xl bg-slate-800/50 text-sm font-medium text-slate-300 hover:bg-slate-700/50 transition border border-slate-700/50">
+                    🔄 Refresh
+                </button>
+                <a href="/logout" class="px-4 py-2.5 rounded-xl bg-red-500/10 text-sm font-medium text-red-400 hover:bg-red-500/20 transition border border-red-500/20">
+                    Logout
+                </a>
+            </div>
         </div>
-        <a href="/logout" class="inline-flex items-center justify-center rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-medium text-slate-200 transition hover:bg-slate-800">Logout</a>
-      </div>
     </header>
 
-    <section class="mt-6 grid gap-4 sm:grid-cols-3">
-      <div class="rounded-2xl border border-slate-800 bg-slate-900/80 p-5">
-        <p class="text-sm text-slate-400">Total Servers</p>
-        <h2 id="totalServers" class="mt-2 text-3xl font-semibold">0</h2>
-      </div>
-      <div class="rounded-2xl border border-slate-800 bg-slate-900/80 p-5">
-        <p class="text-sm text-slate-400">Running</p>
-        <h2 id="runningServers" class="mt-2 text-3xl font-semibold text-emerald-400">0</h2>
-      </div>
-      <div class="rounded-2xl border border-slate-800 bg-slate-900/80 p-5">
-        <p class="text-sm text-slate-400">Stopped</p>
-        <h2 id="stoppedServers" class="mt-2 text-3xl font-semibold text-amber-400">0</h2>
-      </div>
+    <!-- Stats -->
+    <section class="grid gap-4 sm:grid-cols-3 mb-6">
+        <div class="glass rounded-2xl p-5">
+            <p class="text-sm text-slate-400 font-medium">Total Servers</p>
+            <h2 id="totalServers" class="mt-2 text-3xl font-bold text-white">0</h2>
+        </div>
+        <div class="glass rounded-2xl p-5">
+            <p class="text-sm text-slate-400 font-medium">Running</p>
+            <h2 id="runningServers" class="mt-2 text-3xl font-bold text-emerald-400">0</h2>
+        </div>
+        <div class="glass rounded-2xl p-5">
+            <p class="text-sm text-slate-400 font-medium">Stopped</p>
+            <h2 id="stoppedServers" class="mt-2 text-3xl font-bold text-amber-400">0</h2>
+        </div>
     </section>
 
-    <section class="mt-8 grid gap-6 xl:grid-cols-[1.8fr_1fr]">
-      <div class="rounded-3xl border border-slate-800 bg-slate-900/80 p-6 shadow-xl shadow-slate-950/20">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm text-slate-400">Manage</p>
-            <h2 class="text-2xl font-semibold">Your Servers</h2>
-          </div>
-          <button id="refreshBtn" class="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-500">Refresh</button>
+    <!-- Main Content -->
+    <section class="grid gap-6 lg:grid-cols-[1.8fr_1fr]">
+        
+        <!-- Server List -->
+        <div class="glass rounded-2xl p-6">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <p class="text-sm text-slate-400 font-medium">Manage</p>
+                    <h2 class="text-2xl font-bold text-white">Your Servers</h2>
+                </div>
+            </div>
+            <div id="serverList" class="space-y-4 max-h-[500px] overflow-y-auto scrollbar-thin pr-2">
+                <!-- Rendered by JavaScript -->
+            </div>
         </div>
-        <div id="serverList" class="mt-6 space-y-4"></div>
-      </div>
 
-      <div class="rounded-3xl border border-slate-800 bg-slate-900/80 p-6 shadow-xl shadow-slate-950/20">
-        <div>
-          <p class="text-sm text-slate-400">Create</p>
-          <h2 class="text-2xl font-semibold">New Server</h2>
+        <!-- Create Server -->
+        <div class="glass rounded-2xl p-6">
+            <div>
+                <p class="text-sm text-slate-400 font-medium">Create</p>
+                <h2 class="text-2xl font-bold text-white">New Server</h2>
+            </div>
+            
+            <form id="createForm" class="mt-5 space-y-4">
+                <div>
+                    <label for="serverName" class="mb-1.5 block text-sm font-medium text-slate-300">Server Name</label>
+                    <input id="serverName" required placeholder="e.g. My App" 
+                           class="w-full rounded-xl input-glass px-4 py-3 text-sm outline-none text-white">
+                </div>
+
+                <div>
+                    <label for="egg" class="mb-1.5 block text-sm font-medium text-slate-300">Server Type</label>
+                    <select id="egg" class="w-full rounded-xl input-glass px-4 py-3 text-sm outline-none text-white">
+                        <option value="16" class="bg-slate-900">Node.js</option>
+                        <option value="27" class="bg-slate-900">Python</option>
+                        <option value="28" class="bg-slate-900">Java</option>
+                    </select>
+                </div>
+
+                <div class="grid gap-3 sm:grid-cols-3">
+                    <div>
+                        <label for="cpu" class="mb-1.5 block text-sm font-medium text-slate-300">CPU</label>
+                        <input id="cpu" type="number" min="50" value="100" 
+                               class="w-full rounded-xl input-glass px-4 py-3 text-sm outline-none text-white">
+                        <p class="mt-1 text-xs text-slate-500">vCores</p>
+                    </div>
+                    <div>
+                        <label for="memory" class="mb-1.5 block text-sm font-medium text-slate-300">RAM</label>
+                        <input id="memory" type="number" min="512" value="1024" 
+                               class="w-full rounded-xl input-glass px-4 py-3 text-sm outline-none text-white">
+                        <p class="mt-1 text-xs text-slate-500">MB</p>
+                    </div>
+                    <div>
+                        <label for="disk" class="mb-1.5 block text-sm font-medium text-slate-300">Disk</label>
+                        <input id="disk" type="number" min="1024" value="2048" 
+                               class="w-full rounded-xl input-glass px-4 py-3 text-sm outline-none text-white">
+                        <p class="mt-1 text-xs text-slate-500">MB</p>
+                    </div>
+                </div>
+
+                <button type="submit" class="w-full btn-primary rounded-xl px-4 py-3 text-sm font-semibold text-white">
+                    🚀 Create Server
+                </button>
+            </form>
+            <p id="formMessage" class="mt-3 text-sm text-slate-400"></p>
         </div>
-        <form id="createForm" class="mt-5 space-y-4">
-          <div>
-            <label for="serverName" class="mb-1 block text-sm font-medium text-slate-300">Server Name</label>
-            <input id="serverName" required placeholder="e.g. My App Server" class="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-4 py-3 text-sm outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500" />
-          </div>
-
-          <div>
-            <label for="egg" class="mb-1 block text-sm font-medium text-slate-300">Server Type</label>
-            <select id="egg" class="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-4 py-3 text-sm outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500">
-              <option value="16">Node.js</option>
-              <option value="27">Python</option>
-              <option value="28">Java</option>
-            </select>
-          </div>
-
-          <div class="grid gap-4 sm:grid-cols-3">
-            <div>
-              <label for="cpu" class="mb-1 block text-sm font-medium text-slate-300">CPU</label>
-              <input id="cpu" type="number" min="50" value="100" class="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-4 py-3 text-sm outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500" />
-              <p class="mt-1 text-xs text-slate-500">vCores / Threads</p>
-            </div>
-            <div>
-              <label for="memory" class="mb-1 block text-sm font-medium text-slate-300">RAM</label>
-              <input id="memory" type="number" min="512" value="1024" class="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-4 py-3 text-sm outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500" />
-              <p class="mt-1 text-xs text-slate-500">MB</p>
-            </div>
-            <div>
-              <label for="disk" class="mb-1 block text-sm font-medium text-slate-300">Disk</label>
-              <input id="disk" type="number" min="1024" value="2048" class="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-4 py-3 text-sm outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500" />
-              <p class="mt-1 text-xs text-slate-500">MB</p>
-            </div>
-          </div>
-
-          <button class="w-full rounded-xl bg-cyan-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-cyan-500">Create Server</button>
-        </form>
-        <p id="formMessage" class="mt-3 text-sm text-slate-400"></p>
-      </div>
+        
     </section>
-  </div>
+</div>
 
-  <script>
+<script>
     const serverList = document.getElementById('serverList');
     const userName = document.getElementById('userName');
     const createForm = document.getElementById('createForm');
@@ -105,93 +232,183 @@
     const stoppedServers = document.getElementById('stoppedServers');
 
     async function loadUser() {
-      const res = await fetch('/api/me');
-      const data = await res.json();
-      userName.textContent = data.user.displayName || data.user.username;
+        try {
+            const res = await fetch('/api/me');
+            const data = await res.json();
+            userName.textContent = data.user.displayName || data.user.username;
+        } catch (e) {
+            userName.textContent = 'User';
+        }
     }
 
     async function loadServers() {
-      const res = await fetch('/api/servers');
-      const data = await res.json();
-      const servers = data.servers || [];
+        try {
+            const res = await fetch('/api/servers');
+            const data = await res.json();
+            const servers = data.servers || [];
 
-      totalServers.textContent = servers.length;
-      runningServers.textContent = servers.filter(s => s.status === 'running').length;
-      stoppedServers.textContent = servers.filter(s => s.status !== 'running').length;
+            totalServers.textContent = servers.length;
+            const running = servers.filter(s => s.status === 'running' || s.status === 'starting');
+            const stopped = servers.filter(s => s.status === 'stopped' || s.status === 'offline');
+            runningServers.textContent = running.length;
+            stoppedServers.textContent = stopped.length;
 
-      if (!servers.length) {
-        serverList.innerHTML = `
-          <div class="rounded-2xl border border-dashed border-slate-700 bg-slate-950/40 p-10 text-center">
-            <h3 class="text-lg font-semibold">No servers yet</h3>
-            <p class="mt-1 text-sm text-slate-400">Create a new server using the form on the right.</p>
-          </div>
-        `;
-        return;
-      }
+            if (!servers.length) {
+                serverList.innerHTML = `
+                    <div class="rounded-2xl border border-dashed border-slate-700/50 bg-slate-800/20 p-10 text-center">
+                        <div class="text-4xl mb-3">🪶</div>
+                        <h3 class="text-lg font-semibold text-white">No servers yet</h3>
+                        <p class="mt-1 text-sm text-slate-400">Create your first server using the form on the right.</p>
+                    </div>
+                `;
+                return;
+            }
 
-      serverList.innerHTML = servers.map(server => `
-        <div class="rounded-2xl border border-slate-800 bg-slate-950/70 p-5">
-          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <div class="flex items-center gap-2">
-                <h3 class="text-lg font-semibold">${server.name}</h3>
-                <span class="rounded-full px-2.5 py-1 text-[11px] font-medium ${server.status === 'running' ? 'bg-emerald-500/15 text-emerald-300' : 'bg-amber-500/15 text-amber-300'}">${server.status}</span>
-              </div>
-              <p class="mt-1 text-sm text-slate-400">Server ID: ${server.identifier}</p>
-            </div>
-            <div class="flex gap-2">
-              <button data-action="start" data-id="${server.identifier}" class="rounded-xl bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-500">Start</button>
-              <button data-action="stop" data-id="${server.identifier}" class="rounded-xl bg-amber-600 px-3 py-2 text-sm font-medium text-white hover:bg-amber-500">Stop</button>
-              <button data-action="restart" data-id="${server.identifier}" class="rounded-xl bg-sky-600 px-3 py-2 text-sm font-medium text-white hover:bg-sky-500">Restart</button>
-            </div>
-          </div>
-        </div>
-      `).join('');
+            serverList.innerHTML = servers.map(server => {
+                const statusClass = server.status === 'running' || server.status === 'starting' 
+                    ? 'status-running' 
+                    : server.status === 'installing' 
+                        ? 'status-installing' 
+                        : 'status-stopped';
+                
+                return `
+                    <div class="server-card glass rounded-xl p-5">
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <h3 class="text-lg font-semibold text-white truncate">${server.name}</h3>
+                                    <span class="status-badge ${statusClass}">${server.status || 'unknown'}</span>
+                                </div>
+                                <p class="mt-1 text-sm text-slate-400 font-mono">${server.identifier || server.id}</p>
+                            </div>
+                            <div class="flex gap-2 flex-wrap">
+                                <button data-action="start" data-id="${server.identifier || server.id}" 
+                                        class="px-3 py-2 rounded-xl bg-emerald-500/10 text-emerald-400 text-sm font-medium hover:bg-emerald-500/20 transition border border-emerald-500/20">
+                                    ▶ Start
+                                </button>
+                                <button data-action="stop" data-id="${server.identifier || server.id}" 
+                                        class="px-3 py-2 rounded-xl bg-amber-500/10 text-amber-400 text-sm font-medium hover:bg-amber-500/20 transition border border-amber-500/20">
+                                    ⏹ Stop
+                                </button>
+                                <button data-action="restart" data-id="${server.identifier || server.id}" 
+                                        class="px-3 py-2 rounded-xl bg-blue-500/10 text-blue-400 text-sm font-medium hover:bg-blue-500/20 transition border border-blue-500/20">
+                                    🔄 Restart
+                                </button>
+                                <button data-action="delete" data-id="${server.identifier || server.id}" 
+                                        class="px-3 py-2 rounded-xl bg-red-500/10 text-red-400 text-sm font-medium hover:bg-red-500/20 transition border border-red-500/20">
+                                    🗑 Delete
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        } catch (e) {
+            serverList.innerHTML = `
+                <div class="rounded-2xl bg-red-500/10 p-6 text-center border border-red-500/20">
+                    <p class="text-red-400">Failed to load servers. Please refresh.</p>
+                </div>
+            `;
+        }
     }
 
+    // Handle server actions (start/stop/restart/delete)
     serverList.addEventListener('click', async (e) => {
-      const btn = e.target.closest('button[data-action]');
-      if (!btn) return;
-      const signal = btn.dataset.action;
-      const id = btn.dataset.id;
-      const res = await fetch(`/api/servers/${id}/power/${signal}`, { method: 'POST' });
-      const data = await res.json();
-      if (data.success) {
-        await loadServers();
-      }
+        const btn = e.target.closest('button[data-action]');
+        if (!btn) return;
+        
+        const action = btn.dataset.action;
+        const id = btn.dataset.id;
+        
+        if (action === 'delete') {
+            if (!confirm(`Are you sure you want to delete this server? This cannot be undone.`)) return;
+            
+            try {
+                const res = await fetch(`/api/servers/${id}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (data.success) {
+                    await loadServers();
+                } else {
+                    alert('Failed to delete server: ' + (data.error || 'Unknown error'));
+                }
+            } catch (err) {
+                alert('Error deleting server: ' + err.message);
+            }
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/servers/${id}/power/${action}`, { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                await loadServers();
+            } else {
+                alert('Failed to ' + action + ' server: ' + (data.error || 'Unknown error'));
+            }
+        } catch (err) {
+            alert('Error: ' + err.message);
+        }
     });
 
+    // Create server
     createForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      formMessage.textContent = 'Creating server...';
-      const payload = {
-        name: document.getElementById('serverName').value,
-        egg: Number(document.getElementById('egg').value),
-        cpu: Number(document.getElementById('cpu').value),
-        memory: Number(document.getElementById('memory').value),
-        disk: Number(document.getElementById('disk').value),
-        startupCommand: 'npm start'
-      };
-      const res = await fetch('/api/servers/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      formMessage.textContent = data.success ? 'Server created successfully.' : data.error || 'Failed to create server.';
-      if (data.success) {
-        createForm.reset();
-        await loadServers();
-      }
+        e.preventDefault();
+        formMessage.textContent = '⏳ Creating server...';
+        formMessage.className = 'mt-3 text-sm text-slate-400';
+        
+        const payload = {
+            name: document.getElementById('serverName').value.trim(),
+            egg: Number(document.getElementById('egg').value),
+            cpu: Number(document.getElementById('cpu').value),
+            memory: Number(document.getElementById('memory').value),
+            disk: Number(document.getElementById('disk').value)
+        };
+
+        if (!payload.name) {
+            formMessage.textContent = '⚠️ Please enter a server name.';
+            formMessage.className = 'mt-3 text-sm text-amber-400';
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/servers/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            
+            if (data.success) {
+                formMessage.textContent = '✅ ' + (data.message || 'Server created successfully!');
+                formMessage.className = 'mt-3 text-sm text-emerald-400';
+                createForm.reset();
+                document.getElementById('cpu').value = 100;
+                document.getElementById('memory').value = 1024;
+                document.getElementById('disk').value = 2048;
+                await loadServers();
+            } else {
+                formMessage.textContent = '❌ ' + (data.error || 'Failed to create server.');
+                formMessage.className = 'mt-3 text-sm text-red-400';
+            }
+        } catch (err) {
+            formMessage.textContent = '❌ Error: ' + err.message;
+            formMessage.className = 'mt-3 text-sm text-red-400';
+        }
     });
 
+    // Refresh button
     document.getElementById('refreshBtn').addEventListener('click', () => {
-      loadUser();
-      loadServers();
+        loadUser();
+        loadServers();
     });
 
+    // Initial load
     loadUser();
     loadServers();
-  </script>
+
+    // Auto-refresh every 30 seconds
+    setInterval(loadServers, 30000);
+</script>
+
 </body>
 </html>
