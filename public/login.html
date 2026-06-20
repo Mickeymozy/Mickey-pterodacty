@@ -1,342 +1,147 @@
 <!DOCTYPE html>
 <html lang="sw">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pterodactyl Dashboard - Login</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-
-        .auth-container {
-            width: 100%;
-            max-width: 460px;
-        }
-
-        .auth-card {
-            background: rgba(255, 255, 255, 0.03);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border-radius: 24px;
-            padding: 40px;
-            border: 1px solid rgba(255, 255, 255, 0.06);
-            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
-        }
-
-        .brand {
-            text-align: center;
-            margin-bottom: 32px;
-        }
-
-        .brand-icon {
-            display: inline-block;
-            font-size: 32px;
-            background: linear-gradient(135deg, #6366f1, #8b5cf6);
-            width: 60px;
-            height: 60px;
-            line-height: 60px;
-            border-radius: 16px;
-            margin-bottom: 12px;
-        }
-
-        .brand h1 {
-            color: #ffffff;
-            font-size: 24px;
-            font-weight: 700;
-            letter-spacing: -0.5px;
-        }
-
-        .brand p {
-            color: #94a3b8;
-            font-size: 14px;
-            margin-top: 4px;
-        }
-
-        /* Tabs */
-        .tabs {
-            display: flex;
-            gap: 4px;
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 12px;
-            padding: 4px;
-            margin-bottom: 28px;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .tab-btn {
-            flex: 1;
-            padding: 10px 0;
-            border: none;
-            background: transparent;
-            color: #94a3b8;
-            font-size: 13px;
-            font-weight: 600;
-            border-radius: 9px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .tab-btn.active {
-            background: rgba(99, 102, 241, 0.2);
-            color: #a5b4fc;
-            box-shadow: 0 0 20px rgba(99, 102, 241, 0.1);
-        }
-
-        .tab-btn:hover:not(.active) {
-            color: #e2e8f0;
-        }
-
-        /* Alert */
-        .alert {
-            padding: 14px 16px;
-            border-radius: 12px;
-            font-size: 13px;
-            font-weight: 500;
-            display: none;
-            margin-bottom: 20px;
-            border: 1px solid transparent;
-        }
-
-        .alert-error {
-            background: rgba(239, 68, 68, 0.12);
-            border-color: rgba(239, 68, 68, 0.2);
-            color: #fca5a5;
-        }
-
-        .alert-success {
-            background: rgba(34, 197, 94, 0.12);
-            border-color: rgba(34, 197, 94, 0.2);
-            color: #86efac;
-        }
-
-        /* Forms */
-        .tab-content {
-            display: none;
-        }
-
-        .tab-content.active {
-            display: block;
-            animation: fadeIn 0.3s ease;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(8px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .form-group {
-            margin-bottom: 18px;
-        }
-
-        .form-group label {
-            display: block;
-            font-size: 13px;
-            font-weight: 500;
-            color: #cbd5e1;
-            margin-bottom: 6px;
-        }
-
-        .form-group input {
-            width: 100%;
-            padding: 13px 16px;
-            background: rgba(0, 0, 0, 0.35);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 12px;
-            color: #f1f5f9;
-            font-size: 14px;
-            transition: all 0.3s ease;
-            outline: none;
-        }
-
-        .form-group input:focus {
-            border-color: #6366f1;
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
-            background: rgba(0, 0, 0, 0.5);
-        }
-
-        .form-group input::placeholder {
-            color: #475569;
-        }
-
-        .btn-submit {
-            width: 100%;
-            padding: 14px;
-            background: linear-gradient(135deg, #6366f1, #8b5cf6);
-            border: none;
-            border-radius: 12px;
-            color: #ffffff;
-            font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            margin-top: 4px;
-        }
-
-        .btn-submit:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.35);
-        }
-
-        .btn-submit:active {
-            transform: translateY(0);
-        }
-
-        .helper-text {
-            text-align: center;
-            font-size: 12px;
-            color: #64748b;
-            margin-top: 16px;
-            line-height: 1.6;
-        }
-
-        .helper-text a {
-            color: #a5b4fc;
-            text-decoration: none;
-        }
-
-        .helper-text a:hover {
-            color: #c7d2fe;
-            text-decoration: underline;
-        }
-
-        /* Responsive */
-        @media (max-width: 480px) {
-            .auth-card {
-                padding: 24px;
-            }
-            
-            .brand h1 {
-                font-size: 20px;
-            }
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PteroPanel - Ingia</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+    * { font-family: 'Inter', sans-serif; }
+    .glass { background: rgba(18, 20, 28, 0.92); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.06); }
+    .gradient-text { background: linear-gradient(135deg, #818cf8, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .tab-btn { transition: all 0.3s ease; }
+    .tab-btn.active { background: #6366f1; color: white; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3); }
+    .input-field { transition: all 0.3s ease; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.06); }
+    .input-field:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15); }
+    .submit-btn { background: linear-gradient(135deg, #6366f1, #8b5cf6); transition: all 0.3s ease; }
+    .submit-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(99, 102, 241, 0.4); }
+  </style>
 </head>
-<body>
+<body class="min-h-screen bg-[#0a0c12] flex items-center justify-center p-4">
 
-<div class="auth-container">
-    <div class="auth-card">
-        <div class="brand">
-            <div class="brand-icon">🪶</div>
-            <h1>PteroPanel</h1>
-            <p>Manage your servers with ease</p>
-        </div>
+  <!-- Background Glow -->
+  <div class="fixed inset-0 pointer-events-none">
+    <div class="absolute top-[-20%] right-[-10%] w-[500px] h-[500px] rounded-full bg-indigo-600/10 blur-3xl"></div>
+    <div class="absolute bottom-[-20%] left-[-10%] w-[500px] h-[500px] rounded-full bg-purple-600/10 blur-3xl"></div>
+  </div>
 
-        <div id="alert-box" class="alert"></div>
+  <div class="relative w-full max-w-[440px] glass rounded-2xl p-8 shadow-2xl shadow-black/60">
 
-        <div class="tabs">
-            <button class="tab-btn active" onclick="switchTab('login')">Sign In</button>
-            <button class="tab-btn" onclick="switchTab('register')">Register</button>
-            <button class="tab-btn" onclick="switchTab('reset')">Reset</button>
-        </div>
-
-        <!-- Login Tab -->
-        <div id="login-tab" class="tab-content active">
-            <form action="/auth/login" method="POST">
-                <div class="form-group">
-                    <label>Username or Email</label>
-                    <input type="text" name="username" placeholder="Enter your username or email" required>
-                </div>
-                <div class="form-group">
-                    <label>Password</label>
-                    <input type="password" name="password" placeholder="Enter your password" required>
-                </div>
-                <button type="submit" class="btn-submit">Sign In</button>
-            </form>
-        </div>
-
-        <!-- Register Tab -->
-        <div id="register-tab" class="tab-content">
-            <form action="/auth/register" method="POST">
-                <div class="form-group">
-                    <label>Username</label>
-                    <input type="text" name="username" placeholder="Choose a username" required>
-                </div>
-                <div class="form-group">
-                    <label>Email Address</label>
-                    <input type="email" name="email" placeholder="your@email.com" required>
-                </div>
-                <div class="form-group">
-                    <label>Password</label>
-                    <input type="password" name="password" placeholder="Create a strong password" required>
-                </div>
-                <button type="submit" class="btn-submit">Create Account</button>
-            </form>
-            <div class="helper-text">
-                By registering, you agree to our terms of service.
-            </div>
-        </div>
-
-        <!-- Reset Tab -->
-        <div id="reset-tab" class="tab-content">
-            <form action="/auth/reset-password" method="POST">
-                <div class="form-group">
-                    <label>Email Address</label>
-                    <input type="email" name="email" placeholder="Enter your registered email" required>
-                </div>
-                <button type="submit" class="btn-submit">Send Reset Link</button>
-            </form>
-            <div class="helper-text">
-                We'll send you a link to reset your password securely.
-            </div>
-        </div>
+    <div class="text-center mb-8">
+      <h1 class="text-4xl font-extrabold gradient-text">PteroPanel</h1>
+      <p class="text-slate-400 text-sm mt-1">Manage your servers with ease</p>
     </div>
-</div>
 
-<script>
-    function switchTab(tabName) {
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    <div id="alert-box" class="hidden p-3 rounded-xl text-sm font-medium mb-5"></div>
 
-        const selectedBtn = Array.from(document.querySelectorAll('.tab-btn')).find(
-            b => b.textContent.toLowerCase().includes(tabName)
-        );
-        if (selectedBtn) selectedBtn.classList.add('active');
+    <div class="flex gap-1 bg-black/30 p-1 rounded-xl mb-6">
+      <button class="tab-btn flex-1 py-2.5 rounded-lg text-sm font-semibold text-slate-400 active" onclick="switchTab('login')">Ingia</button>
+      <button class="tab-btn flex-1 py-2.5 rounded-lg text-sm font-semibold text-slate-400" onclick="switchTab('register')">Sajili</button>
+      <button class="tab-btn flex-1 py-2.5 rounded-lg text-sm font-semibold text-slate-400" onclick="switchTab('reset')">Reset</button>
+    </div>
 
-        document.getElementById(`${tabName}-tab`).classList.add('active');
+    <!-- Login -->
+    <div id="login-tab" class="tab-content">
+      <form action="/auth/login" method="POST" class="space-y-4">
+        <div>
+          <label class="block text-slate-300 text-sm font-medium mb-1.5">Username au Email</label>
+          <input type="text" name="username" required placeholder="Ingiza username au email"
+                 class="input-field w-full px-4 py-3 rounded-xl text-white text-sm outline-none" />
+        </div>
+        <div>
+          <label class="block text-slate-300 text-sm font-medium mb-1.5">Password</label>
+          <input type="password" name="password" required placeholder="Ingiza password yako"
+                 class="input-field w-full px-4 py-3 rounded-xl text-white text-sm outline-none" />
+        </div>
+        <button type="submit" class="submit-btn w-full py-3.5 rounded-xl text-white font-semibold text-sm">Ingia Sasa</button>
+      </form>
+    </div>
+
+    <!-- Register -->
+    <div id="register-tab" class="tab-content hidden">
+      <form action="/auth/register" method="POST" class="space-y-3">
+        <div>
+          <label class="block text-slate-300 text-sm font-medium mb-1.5">Username</label>
+          <input type="text" name="username" required placeholder="Chagua jina la mtumiaji"
+                 class="input-field w-full px-4 py-3 rounded-xl text-white text-sm outline-none" />
+        </div>
+        <div>
+          <label class="block text-slate-300 text-sm font-medium mb-1.5">Barua Pepe (Email)</label>
+          <input type="email" name="email" required placeholder="mfano@gmail.com"
+                 class="input-field w-full px-4 py-3 rounded-xl text-white text-sm outline-none" />
+        </div>
+        <div>
+          <label class="block text-slate-300 text-sm font-medium mb-1.5">Jina Kamili</label>
+          <input type="text" name="first_name" placeholder="Jina lako la kwanza"
+                 class="input-field w-full px-4 py-3 rounded-xl text-white text-sm outline-none" />
+        </div>
+        <div>
+          <label class="block text-slate-300 text-sm font-medium mb-1.5">Password</label>
+          <input type="password" name="password" required placeholder="Weka password ngumu"
+                 class="input-field w-full px-4 py-3 rounded-xl text-white text-sm outline-none" />
+        </div>
+        <button type="submit" class="submit-btn w-full py-3.5 rounded-xl text-white font-semibold text-sm">Fungua Akaunti</button>
+      </form>
+    </div>
+
+    <!-- Reset -->
+    <div id="reset-tab" class="tab-content hidden">
+      <form action="/auth/reset-password" method="POST" class="space-y-4">
+        <div>
+          <label class="block text-slate-300 text-sm font-medium mb-1.5">Barua Pepe Yako</label>
+          <input type="email" name="email" required placeholder="Weka email uliyosajilia"
+                 class="input-field w-full px-4 py-3 rounded-xl text-white text-sm outline-none" />
+        </div>
+        <button type="submit" class="submit-btn w-full py-3.5 rounded-xl text-white font-semibold text-sm">Tuma Maelezo</button>
+      </form>
+      <p class="text-center text-slate-500 text-xs mt-4">Tutakutumia maelezo ya kubadili password</p>
+    </div>
+
+    <p class="text-center text-slate-500 text-xs mt-6">© 2026 PteroPanel</p>
+  </div>
+
+  <script>
+    const alertBox = document.getElementById('alert-box');
+
+    function switchTab(tab) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+
+      const btn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.textContent.trim().toLowerCase() === tab);
+      if (btn) btn.classList.add('active');
+
+      document.getElementById(`${tab}-tab`).classList.remove('hidden');
     }
 
     async function checkAlerts() {
-        try {
-            const res = await fetch('/api/auth/flash');
-            const data = await res.json();
-            const alertBox = document.getElementById('alert-box');
+      try {
+        const res = await fetch('/api/auth/flash');
+        const data = await res.json();
 
-            if (data.error && data.error.length > 0) {
-                alertBox.className = "alert alert-error";
-                alertBox.innerText = data.error[0];
-                alertBox.style.display = "block";
-            } else if (data.success && data.success.length > 0) {
-                alertBox.className = "alert alert-success";
-                alertBox.innerText = data.success[0];
-                alertBox.style.display = "block";
-            }
-        } catch (e) {
-            console.log(e);
+        if (data.error?.length || data.success?.length) {
+          alertBox.classList.remove('hidden');
+          const isError = data.error?.length > 0;
+          alertBox.className = `p-3 rounded-xl text-sm font-medium mb-5 ${isError ? 'bg-red-500/15 text-red-400 border border-red-500/20' : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'}`;
+          alertBox.textContent = isError ? data.error[0] : data.success[0];
+
+          setTimeout(() => { alertBox.classList.add('hidden'); }, 5000);
         }
+      } catch (e) { console.log(e); }
     }
 
-    // Switch tab from URL parameter
     const urlParams = new URLSearchParams(window.location.search);
-    const activeTab = urlParams.get('tab');
-    if (activeTab && ['login', 'register', 'reset'].includes(activeTab)) {
-        switchTab(activeTab);
+    const tab = urlParams.get('tab');
+    if (tab) switchTab(tab);
+
+    if (urlParams.get('error')) {
+      alertBox.classList.remove('hidden');
+      alertBox.className = 'p-3 rounded-xl text-sm font-medium mb-5 bg-red-500/15 text-red-400 border border-red-500/20';
+      alertBox.textContent = '❌ Username au password sio sahihi. Jaribu tena.';
     }
 
     checkAlerts();
-</script>
+  </script>
 
 </body>
 </html>
