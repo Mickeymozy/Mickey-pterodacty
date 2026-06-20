@@ -9,13 +9,34 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+app.set('trust proxy', 1);
+
+function getBaseUrl() {
+  if (process.env.BASE_URL) return process.env.BASE_URL.replace(/\/$/, '');
+  if (process.env.RENDER_EXTERNAL_URL) return process.env.RENDER_EXTERNAL_URL.replace(/\/$/, '');
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  return `http://localhost:${PORT}`;
+}
+
 const PTERODACTYL_URL = process.env.PTERODACTYL_URL?.replace(/\/$/, '');
 const PTERODACTYL_APP_API_KEY = process.env.PTERODACTYL_APP_API_KEY;
 const PTERODACTYL_CLIENT_API_KEY = process.env.PTERODACTYL_CLIENT_API_KEY;
 
-if (!PTERODACTYL_URL || !PTERODACTYL_APP_API_KEY || !PTERODACTYL_CLIENT_API_KEY) {
-  console.error('Missing required Pterodactyl environment variables.');
+const requiredEnv = [
+  'PTERODACTYL_URL',
+  'PTERODACTYL_APP_API_KEY',
+  'PTERODACTYL_CLIENT_API_KEY'
+];
+
+const missingEnv = requiredEnv.filter((name) => !process.env[name]);
+if (missingEnv.length > 0) {
+  console.warn(
+    `Missing environment variables: ${missingEnv.join(', ')}. ` +
+    'The app may not work until these are configured.'
+  );
 }
+
+const hasPteroConfig = missingEnv.length === 0;
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -25,6 +46,11 @@ app.use(
     secret: process.env.SESSION_SECRET || 'change-this-secret',
     resave: false,
     saveUninitialized: false,
+    cookie: {
+      secure: process.env.NODE_ENV === 'production',
+      httpOnly: true,
+      sameSite: 'lax'
+    }
   })
 );
 app.use(passport.initialize());
@@ -33,27 +59,40 @@ app.use(passport.session());
 passport.serializeUser((user, done) => done(null, user));
 passport.deserializeUser((user, done) => done(null, user));
 
-const appApi = axios.create({
-  baseURL: `${PTERODACTYL_URL}/api/application`,
-  headers: {
-    Authorization: `Bearer ${PTERODACTYL_APP_API_KEY}`,
-    'Content-Type': 'application/json',
-    Accept: 'application/json'
-  }
-});
+const appApi = hasPteroConfig
+  ? axios.create({
+      baseURL: `${PTERODACTYL_URL}/api/application`,
+      headers: {
+        Authorization: `Bearer ${PTERODACTYL_APP_API_KEY}`,
+        'Content-Type': 'application/json',
+        Accept: 'application/json'
+      }
+    })
+  : null;
 
-const clientApi = axios.create({
-  baseURL: `${PTERODACTYL_URL}/api/client`,
-  headers: {
-    Authorization: `Bearer ${PTERODACTYL_CLIENT_API_KEY}`,
-    'Content-Type': 'application/json',
-    Accept: 'application/json'
-  }
-});
+const clientApi = hasPteroConfig
+  ? axios.create({
+      baseURL: `${PTERODACTYL_URL}/api/client`,
+      headers: {
+        Authorization: `Bearer ${PTERODACTYL_CLIENT_API_KEY}`,
+        'Content-Type': 'application/json',
+        Accept: 'application/json'
+      }
+    })
+  : null;
 
 function requireAuth(req, res, next) {
   if (req.isAuthenticated()) return next();
   res.redirect('/login');
+}
+
+function requirePteroConfig(req, res, next) {
+  if (!hasPteroConfig || !appApi || !clientApi) {
+    return res.status(503).json({
+      error: 'Pterodactyl API configuration is missing. Please set the required environment variables.'
+    });
+  }
+  next();
 }
 
 async function getUserByExternalIdentifier(identifier) {
@@ -121,12 +160,13 @@ async function mapServerToClientData(server) {
 }
 
 const DiscordStrategy = require('passport-discord').Strategy;
+const baseUrl = getBaseUrl();
 passport.use(
   new DiscordStrategy(
     {
       clientID: process.env.DISCORD_CLIENT_ID,
       clientSecret: process.env.DISCORD_CLIENT_SECRET,
-      callbackURL: `${process.env.BASE_URL || 'http://localhost:3000'}/auth/discord/callback`,
+      callbackURL: `${baseUrl}/auth/discord/callback`,
       scope: ['identify', 'email']
     },
     async (accessToken, refreshToken, profile, done) => {
@@ -150,7 +190,7 @@ passport.use(
     {
       clientID: process.env.GITHUB_CLIENT_ID,
       clientSecret: process.env.GITHUB_CLIENT_SECRET,
-      callbackURL: `${process.env.BASE_URL || 'http://localhost:3000'}/auth/github/callback`,
+      callbackURL: `${baseUrl}/auth/github/callback`,
       scope: ['user:email']
     },
     async (accessToken, refreshToken, profile, done) => {
@@ -169,15 +209,18 @@ passport.use(
   )
 );
 
-app.get('/', requireAuth, async (req, res) => {
+app.get('/', requireAuth, requirePteroConfig, async (req, res) => {
   try {
-    const serverList = await getServersForUser(req.user);
-    const servers = await Promise.all(serverList.map(mapServerToClientData));
+    await getServersForUser(req.user);
     res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to load dashboard data' });
   }
+});
+
+app.get('/health', (req, res) => {
+  res.json({ ok: true, message: 'Server is healthy' });
 });
 
 app.get('/login', (req, res) => {
@@ -209,7 +252,7 @@ app.get('/api/me', requireAuth, (req, res) => {
   res.json({ user: req.user });
 });
 
-app.get('/api/servers', requireAuth, async (req, res) => {
+app.get('/api/servers', requireAuth, requirePteroConfig, async (req, res) => {
   try {
     const serverList = await getServersForUser(req.user);
     const servers = await Promise.all(serverList.map(mapServerToClientData));
@@ -220,7 +263,7 @@ app.get('/api/servers', requireAuth, async (req, res) => {
   }
 });
 
-app.post('/api/servers/create', requireAuth, async (req, res) => {
+app.post('/api/servers/create', requireAuth, requirePteroConfig, async (req, res) => {
   try {
     const { name, egg, cpu, memory, disk, startupCommand } = req.body;
     const panelUser = await ensurePteroAccount(req.user);
@@ -266,7 +309,7 @@ app.post('/api/servers/create', requireAuth, async (req, res) => {
   }
 });
 
-app.post('/api/servers/:identifier/power/:signal', requireAuth, async (req, res) => {
+app.post('/api/servers/:identifier/power/:signal', requireAuth, requirePteroConfig, async (req, res) => {
   try {
     const { identifier, signal } = req.params;
     if (!['start', 'stop', 'restart'].includes(signal)) {
@@ -281,6 +324,10 @@ app.post('/api/servers/:identifier/power/:signal', requireAuth, async (req, res)
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Dashboard running at http://localhost:${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Dashboard running at http://localhost:${PORT}`);
+  });
+}
+
+module.exports = app;
