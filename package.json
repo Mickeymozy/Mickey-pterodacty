@@ -1,21 +1,19 @@
 {
   "name": "pterodactyl-dashboard",
   "version": "1.0.0",
-  "description": "Web dashboard for managing Pterodactyl servers using Discord and GitHub login",
+  "description": "Web dashboard for managing Pterodactyl servers",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js"
+    "start": "node server.js"
   },
   "dependencies": {
     "axios": "^1.6.0",
+    "bcryptjs": "^2.4.3",
+    "connect-flash": "^0.1.1",
     "dotenv": "^16.4.1",
     "express": "^4.19.2",
     "express-session": "^1.18.0",
     "passport": "^0.7.0",
     "passport-local": "^1.0.0"
-  },
-  "devDependencies": {
-    "nodemon": "^3.1.14"
   }
 }
