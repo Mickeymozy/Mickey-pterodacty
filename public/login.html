@@ -3,184 +3,252 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login & Auth - Pterodactyl Dashboard</title>
+    <title>Uthibitisho - Pterodactyl Dashboard</title>
     <style>
+        :root {
+            --bg-color: #12141c;
+            --card-bg: #1e2230;
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --text-main: #ffffff;
+            --text-muted: #9ca3af;
+            --border: #374151;
+            --danger: #ef4444;
+            --success: #22c55e;
+        }
+
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #1a1c23;
-            color: #fff;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
             margin: 0;
         }
-        .auth-container {
-            background-color: #24262d;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+
+        .auth-card {
+            background-color: var(--card-bg);
+            padding: 35px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
             width: 100%;
-            max-width: 400px;
+            max-width: 420px;
+            border: 1px solid var(--border);
         }
-        .logo-title {
+
+        .brand {
             text-align: center;
-            margin-bottom: 20px;
-            color: #7e57c2;
-            font-size: 24px;
-            font-weight: bold;
+            font-size: 26px;
+            font-weight: 800;
+            color: var(--primary);
+            margin-bottom: 25px;
+            letter-spacing: -0.5px;
         }
-        /* Tab Navigation */
-        .tabs {
+
+        /* Tabs System */
+        .tabs-header {
             display: flex;
-            border-bottom: 2px solid #434657;
-            margin-bottom: 20px;
+            background-color: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            padding: 4px;
+            margin-bottom: 25px;
+            border: 1px solid var(--border);
         }
-        .tab-btn {
+
+        .tab-trigger {
             flex: 1;
             background: none;
             border: none;
-            color: #9e9e9e;
+            color: var(--text-muted);
             padding: 10px;
             cursor: pointer;
             font-size: 14px;
-            font-weight: bold;
-            transition: 0.3s;
-            text-align: center;
+            font-weight: 600;
+            border-radius: 6px;
+            transition: all 0.2s ease;
         }
-        .tab-btn:hover {
-            color: #fff;
+
+        .tab-trigger.active {
+            background-color: var(--primary);
+            color: var(--text-main);
         }
-        .tab-btn.active {
-            color: #7e57c2;
-            border-bottom: 2px solid #7e57c2;
-            margin-bottom: -2px;
-        }
-        /* Tab Content */
+
         .tab-content {
             display: none;
         }
+
         .tab-content.active {
             display: block;
         }
-        /* Form Styling */
-        .form-group {
-            margin-bottom: 15px;
+
+        /* Alert System */
+        .alert {
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            margin-bottom: 20px;
+            display: none;
+            font-weight: 500;
         }
+        .alert-error { background-color: rgba(239, 68, 68, 0.15); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.3); }
+        .alert-success { background-color: rgba(34, 197, 94, 0.15); color: var(--success); border: 1px solid rgba(34, 197, 94, 0.3); }
+
+        /* Form Inputs */
+        .form-group {
+            margin-bottom: 18px;
+        }
+
         label {
             display: block;
-            margin-bottom: 5px;
-            font-size: 14px;
-            color: #9e9e9e;
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+            font-weight: 500;
         }
+
         input {
             width: 100%;
-            padding: 10px;
-            border: 1px solid #434657;
-            border-radius: 4px;
-            background-color: #1a1c23;
-            color: #fff;
+            padding: 12px;
+            background-color: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-main);
+            font-size: 14px;
             box-sizing: border-box;
+            transition: border-color 0.2s;
         }
+
         input:focus {
             outline: none;
-            border-color: #7e57c2;
+            border-color: var(--primary);
         }
-        submit-btn {
-            display: block;
+
+        .btn-submit {
             width: 100%;
             padding: 12px;
-            background-color: #7e57c2;
-            border: none;
-            border-radius: 4px;
+            background-color: var(--primary);
             color: white;
-            font-size: 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 15px;
+            font-weight: 600;
             cursor: pointer;
-            font-weight: bold;
-            margin-top: 15px;
-        }
-        submit-btn:hover {
-            background-color: #673ab7;
-        }
-        .info-text {
-            font-size: 12px;
-            color: #9e9e9e;
             margin-top: 10px;
+            transition: background-color 0.2s;
+        }
+
+        .btn-submit:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .helper-text {
+            font-size: 12px;
+            color: var(--text-muted);
             text-align: center;
+            margin-top: 15px;
         }
     </style>
 </head>
 <body>
 
-<div class="auth-container">
-    <div class="logo-title">Ptero Dashboard</div>
-    
-    <div class="tabs">
-        <button class="tab-btn active" onclick="switchTab('login')">Ingia</button>
-        <button class="tab-btn" onclick="switchTab('register')">Sajili</button>
-        <button class="tab-btn" onclick="switchTab('reset')">Reset</button>
+<div class="auth-card">
+    <div class="brand">PteroPanel</div>
+
+    <div id="alert-box" class="alert"></div>
+
+    <div class="tabs-header">
+        <button class="tab-trigger active" onclick="switchTab('login')">Ingia</button>
+        <button class="tab-trigger" onclick="switchTab('register')">Sajili</button>
+        <button class="tab-trigger" onclick="switchTab('reset')">Reset</button>
     </div>
 
     <div id="login-tab" class="tab-content active">
         <form action="/auth/login" method="POST">
             <div class="form-group">
-                <label for="login-username">Username au Email</label>
-                <input type="text" id="login-username" name="username" placeholder="Weka username au email" required>
+                <label>Username au Email</label>
+                <input type="text" name="username" placeholder="Ingiza jina au barua pepe" required>
             </div>
             <div class="form-group">
-                <label for="login-password">Password</label>
-                <input type="password" id="login-password" name="password" placeholder="Weka password" required>
+                <label>Password</label>
+                <input type="password" name="password" placeholder="Ingiza password yako" required>
             </div>
-            <button type="submit" class="submit-btn">Ingia (Login)</button>
+            <button type="submit" class="btn-submit">Ingia Sasa</button>
         </form>
     </div>
 
     <div id="register-tab" class="tab-content">
         <form action="/auth/register" method="POST">
             <div class="form-group">
-                <label for="reg-username">Username</label>
-                <input type="text" id="reg-username" name="username" placeholder="Chagua username" required>
+                <label>Chagua Username</label>
+                <input type="text" name="username" placeholder="Mfano: kingmozy" required>
             </div>
             <div class="form-group">
-                <label for="reg-email">Barua Pepe (Email)</label>
-                <input type="email" id="reg-email" name="email" placeholder="Weka email yako" required>
+                <label>Barua Pepe (Email)</label>
+                <input type="email" name="email" placeholder="mfano@gmail.com" required>
             </div>
             <div class="form-group">
-                <label for="reg-password">Password</label>
-                <input type="password" id="reg-password" name="password" placeholder="Tengeneza password ngumu" required>
+                <label>Weka Password</label>
+                <input type="password" name="password" placeholder="Tengeneza password ngumu" required>
             </div>
-            <button type="submit" class="submit-btn">Sajili Akaunti</button>
+            <button type="submit" class="btn-submit">Fungua Akaunti</button>
         </form>
     </div>
 
     <div id="reset-tab" class="tab-content">
         <form action="/auth/reset-password" method="POST">
-            <p class="info-text" style="text-align: left; margin-bottom: 15px;">
-                Weka email yako uliyosajilia ili tutume maelezo ya kubadili password.
-            </p>
             <div class="form-group">
-                <label for="reset-email">Barua Pepe (Email)</label>
-                <input type="email" id="reset-email" name="email" placeholder="Weka email yako" required>
+                <label>Weka Email Yako</label>
+                <input type="email" name="email" placeholder="Weka ile email uliyosajilia" required>
             </div>
-            <button type="submit" class="submit-btn">Tuma Link ya Reset</button>
+            <button type="submit" class="btn-submit">Tuma Link</button>
         </form>
+        <div class="helper-text">Tutakutumia maelezo ya kubadili nenosiri lako haraka.</div>
     </div>
 </div>
 
 <script>
-    // JS ya ku-switch tab kulingana na click ya mtumiaji
+    // Badilisha tab kwa urahisi
     function switchTab(tabName) {
-        // Ondoa active class kwenye button zote na content zote
-        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+        document.querySelectorAll('.tab-trigger').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
 
-        // Tafuta button iliyobonyezwa na uweke active
-        const clickedBtn = event.currentTarget;
-        clickedBtn.classList.add('active');
-
-        // Onyesha content inayohusika
+        // Tafuta button husika na weka active
+        const selectedBtn = Array.from(document.querySelectorAll('.tab-trigger')).find(b => b.getAttribute('onclick').includes(tabName));
+        if(selectedBtn) selectedBtn.classList.add('active');
+        
         document.getElementById(`${tabName}-tab`).classList.add('active');
     }
+
+    // Angalia kama kuna flash messages kutoka kwa server ili kuzionyesha
+    async function checkAlerts() {
+        try {
+            const res = await fetch('/api/auth/flash');
+            const data = await res.json();
+            const alertBox = document.getElementById('alert-box');
+
+            if(data.error && data.error.length > 0) {
+                alertBox.className = "alert alert-error";
+                alertBox.innerText = data.error[0];
+                alertBox.style.display = "block";
+            } else if(data.success && data.success.length > 0) {
+                alertBox.className = "alert alert-success";
+                alertBox.innerText = data.success[0];
+                alertBox.style.display = "block";
+            }
+        } catch (e) { console.log(e); }
+    }
+
+    // Switsh tab kulingana na URL Query (?tab=register mfano)
+    const urlParams = new URLSearchParams(window.location.search);
+    const activeTab = urlParams.get('tab');
+    if(activeTab) {
+        switchTab(activeTab);
+    }
+
+    // Run kuangalia ujumbe pindi tu ukurasa unapofunguka
+    checkAlerts();
 </script>
 
 </body>
