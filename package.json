@@ -13,7 +13,7 @@
     "express": "^4.21.1",
     "express-session": "^1.7.0",
     "passport": "^0.6.0",
-    "passport-discord": "^0.0.1",
+    "passport-discord": "^0.1.4",
     "passport-github2": "^0.2.0"
   },
   "devDependencies": {
