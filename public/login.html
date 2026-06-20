@@ -3,251 +3,338 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Uthibitisho - Pterodactyl Dashboard</title>
+    <title>Pterodactyl Dashboard - Login</title>
     <style>
-        :root {
-            --bg-color: #12141c;
-            --card-bg: #1e2230;
-            --primary: #6366f1;
-            --primary-hover: #4f46e5;
-            --text-main: #ffffff;
-            --text-muted: #9ca3af;
-            --border: #374151;
-            --danger: #ef4444;
-            --success: #22c55e;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
 
         body {
-            font-family: 'Inter', system-ui, -apple-system, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-main);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%);
+            min-height: 100vh;
             display: flex;
-            justify-content: center;
             align-items: center;
-            height: 100vh;
-            margin: 0;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .auth-container {
+            width: 100%;
+            max-width: 460px;
         }
 
         .auth-card {
-            background-color: var(--card-bg);
-            padding: 35px;
-            border-radius: 12px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-            width: 100%;
-            max-width: 420px;
-            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 40px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
         }
 
         .brand {
             text-align: center;
-            font-size: 26px;
-            font-weight: 800;
-            color: var(--primary);
-            margin-bottom: 25px;
+            margin-bottom: 32px;
+        }
+
+        .brand-icon {
+            display: inline-block;
+            font-size: 32px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            width: 60px;
+            height: 60px;
+            line-height: 60px;
+            border-radius: 16px;
+            margin-bottom: 12px;
+        }
+
+        .brand h1 {
+            color: #ffffff;
+            font-size: 24px;
+            font-weight: 700;
             letter-spacing: -0.5px;
         }
 
-        /* Tabs System */
-        .tabs-header {
-            display: flex;
-            background-color: rgba(0, 0, 0, 0.2);
-            border-radius: 8px;
-            padding: 4px;
-            margin-bottom: 25px;
-            border: 1px solid var(--border);
-        }
-
-        .tab-trigger {
-            flex: 1;
-            background: none;
-            border: none;
-            color: var(--text-muted);
-            padding: 10px;
-            cursor: pointer;
+        .brand p {
+            color: #94a3b8;
             font-size: 14px;
+            margin-top: 4px;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 4px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            padding: 4px;
+            margin-bottom: 28px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 10px 0;
+            border: none;
+            background: transparent;
+            color: #94a3b8;
+            font-size: 13px;
             font-weight: 600;
-            border-radius: 6px;
-            transition: all 0.2s ease;
+            border-radius: 9px;
+            cursor: pointer;
+            transition: all 0.3s ease;
         }
 
-        .tab-trigger.active {
-            background-color: var(--primary);
-            color: var(--text-main);
+        .tab-btn.active {
+            background: rgba(99, 102, 241, 0.2);
+            color: #a5b4fc;
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.1);
         }
 
+        .tab-btn:hover:not(.active) {
+            color: #e2e8f0;
+        }
+
+        /* Alert */
+        .alert {
+            padding: 14px 16px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 500;
+            display: none;
+            margin-bottom: 20px;
+            border: 1px solid transparent;
+        }
+
+        .alert-error {
+            background: rgba(239, 68, 68, 0.12);
+            border-color: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+        }
+
+        .alert-success {
+            background: rgba(34, 197, 94, 0.12);
+            border-color: rgba(34, 197, 94, 0.2);
+            color: #86efac;
+        }
+
+        /* Forms */
         .tab-content {
             display: none;
         }
 
         .tab-content.active {
             display: block;
+            animation: fadeIn 0.3s ease;
         }
 
-        /* Alert System */
-        .alert {
-            padding: 12px;
-            border-radius: 6px;
-            font-size: 13px;
-            margin-bottom: 20px;
-            display: none;
-            font-weight: 500;
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
         }
-        .alert-error { background-color: rgba(239, 68, 68, 0.15); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.3); }
-        .alert-success { background-color: rgba(34, 197, 94, 0.15); color: var(--success); border: 1px solid rgba(34, 197, 94, 0.3); }
 
-        /* Form Inputs */
         .form-group {
             margin-bottom: 18px;
         }
 
-        label {
+        .form-group label {
             display: block;
             font-size: 13px;
-            color: var(--text-muted);
-            margin-bottom: 6px;
             font-weight: 500;
+            color: #cbd5e1;
+            margin-bottom: 6px;
         }
 
-        input {
+        .form-group input {
             width: 100%;
-            padding: 12px;
-            background-color: rgba(0, 0, 0, 0.2);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            color: var(--text-main);
+            padding: 13px 16px;
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            color: #f1f5f9;
             font-size: 14px;
-            box-sizing: border-box;
-            transition: border-color 0.2s;
+            transition: all 0.3s ease;
+            outline: none;
         }
 
-        input:focus {
-            outline: none;
-            border-color: var(--primary);
+        .form-group input:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        .form-group input::placeholder {
+            color: #475569;
         }
 
         .btn-submit {
             width: 100%;
-            padding: 12px;
-            background-color: var(--primary);
-            color: white;
+            padding: 14px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
             border: none;
-            border-radius: 6px;
+            border-radius: 12px;
+            color: #ffffff;
             font-size: 15px;
             font-weight: 600;
             cursor: pointer;
-            margin-top: 10px;
-            transition: background-color 0.2s;
+            transition: all 0.3s ease;
+            margin-top: 4px;
         }
 
         .btn-submit:hover {
-            background-color: var(--primary-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.35);
+        }
+
+        .btn-submit:active {
+            transform: translateY(0);
         }
 
         .helper-text {
-            font-size: 12px;
-            color: var(--text-muted);
             text-align: center;
-            margin-top: 15px;
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 16px;
+            line-height: 1.6;
+        }
+
+        .helper-text a {
+            color: #a5b4fc;
+            text-decoration: none;
+        }
+
+        .helper-text a:hover {
+            color: #c7d2fe;
+            text-decoration: underline;
+        }
+
+        /* Responsive */
+        @media (max-width: 480px) {
+            .auth-card {
+                padding: 24px;
+            }
+            
+            .brand h1 {
+                font-size: 20px;
+            }
         }
     </style>
 </head>
 <body>
 
-<div class="auth-card">
-    <div class="brand">PteroPanel</div>
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="brand">
+            <div class="brand-icon">🪶</div>
+            <h1>PteroPanel</h1>
+            <p>Manage your servers with ease</p>
+        </div>
 
-    <div id="alert-box" class="alert"></div>
+        <div id="alert-box" class="alert"></div>
 
-    <div class="tabs-header">
-        <button class="tab-trigger active" onclick="switchTab('login')">Ingia</button>
-        <button class="tab-trigger" onclick="switchTab('register')">Sajili</button>
-        <button class="tab-trigger" onclick="switchTab('reset')">Reset</button>
-    </div>
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('login')">Sign In</button>
+            <button class="tab-btn" onclick="switchTab('register')">Register</button>
+            <button class="tab-btn" onclick="switchTab('reset')">Reset</button>
+        </div>
 
-    <div id="login-tab" class="tab-content active">
-        <form action="/auth/login" method="POST">
-            <div class="form-group">
-                <label>Username au Email</label>
-                <input type="text" name="username" placeholder="Ingiza jina au barua pepe" required>
-            </div>
-            <div class="form-group">
-                <label>Password</label>
-                <input type="password" name="password" placeholder="Ingiza password yako" required>
-            </div>
-            <button type="submit" class="btn-submit">Ingia Sasa</button>
-        </form>
-    </div>
+        <!-- Login Tab -->
+        <div id="login-tab" class="tab-content active">
+            <form action="/auth/login" method="POST">
+                <div class="form-group">
+                    <label>Username or Email</label>
+                    <input type="text" name="username" placeholder="Enter your username or email" required>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" name="password" placeholder="Enter your password" required>
+                </div>
+                <button type="submit" class="btn-submit">Sign In</button>
+            </form>
+        </div>
 
-    <div id="register-tab" class="tab-content">
-        <form action="/auth/register" method="POST">
-            <div class="form-group">
-                <label>Chagua Username</label>
-                <input type="text" name="username" placeholder="Mfano: kingmozy" required>
+        <!-- Register Tab -->
+        <div id="register-tab" class="tab-content">
+            <form action="/auth/register" method="POST">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" name="username" placeholder="Choose a username" required>
+                </div>
+                <div class="form-group">
+                    <label>Email Address</label>
+                    <input type="email" name="email" placeholder="your@email.com" required>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" name="password" placeholder="Create a strong password" required>
+                </div>
+                <button type="submit" class="btn-submit">Create Account</button>
+            </form>
+            <div class="helper-text">
+                By registering, you agree to our terms of service.
             </div>
-            <div class="form-group">
-                <label>Barua Pepe (Email)</label>
-                <input type="email" name="email" placeholder="mfano@gmail.com" required>
-            </div>
-            <div class="form-group">
-                <label>Weka Password</label>
-                <input type="password" name="password" placeholder="Tengeneza password ngumu" required>
-            </div>
-            <button type="submit" class="btn-submit">Fungua Akaunti</button>
-        </form>
-    </div>
+        </div>
 
-    <div id="reset-tab" class="tab-content">
-        <form action="/auth/reset-password" method="POST">
-            <div class="form-group">
-                <label>Weka Email Yako</label>
-                <input type="email" name="email" placeholder="Weka ile email uliyosajilia" required>
+        <!-- Reset Tab -->
+        <div id="reset-tab" class="tab-content">
+            <form action="/auth/reset-password" method="POST">
+                <div class="form-group">
+                    <label>Email Address</label>
+                    <input type="email" name="email" placeholder="Enter your registered email" required>
+                </div>
+                <button type="submit" class="btn-submit">Send Reset Link</button>
+            </form>
+            <div class="helper-text">
+                We'll send you a link to reset your password securely.
             </div>
-            <button type="submit" class="btn-submit">Tuma Link</button>
-        </form>
-        <div class="helper-text">Tutakutumia maelezo ya kubadili nenosiri lako haraka.</div>
+        </div>
     </div>
 </div>
 
 <script>
-    // Badilisha tab kwa urahisi
     function switchTab(tabName) {
-        document.querySelectorAll('.tab-trigger').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
 
-        // Tafuta button husika na weka active
-        const selectedBtn = Array.from(document.querySelectorAll('.tab-trigger')).find(b => b.getAttribute('onclick').includes(tabName));
-        if(selectedBtn) selectedBtn.classList.add('active');
-        
+        const selectedBtn = Array.from(document.querySelectorAll('.tab-btn')).find(
+            b => b.textContent.toLowerCase().includes(tabName)
+        );
+        if (selectedBtn) selectedBtn.classList.add('active');
+
         document.getElementById(`${tabName}-tab`).classList.add('active');
     }
 
-    // Angalia kama kuna flash messages kutoka kwa server ili kuzionyesha
     async function checkAlerts() {
         try {
             const res = await fetch('/api/auth/flash');
             const data = await res.json();
             const alertBox = document.getElementById('alert-box');
 
-            if(data.error && data.error.length > 0) {
+            if (data.error && data.error.length > 0) {
                 alertBox.className = "alert alert-error";
                 alertBox.innerText = data.error[0];
                 alertBox.style.display = "block";
-            } else if(data.success && data.success.length > 0) {
+            } else if (data.success && data.success.length > 0) {
                 alertBox.className = "alert alert-success";
                 alertBox.innerText = data.success[0];
                 alertBox.style.display = "block";
             }
-        } catch (e) { console.log(e); }
+        } catch (e) {
+            console.log(e);
+        }
     }
 
-    // Switsh tab kulingana na URL Query (?tab=register mfano)
+    // Switch tab from URL parameter
     const urlParams = new URLSearchParams(window.location.search);
     const activeTab = urlParams.get('tab');
-    if(activeTab) {
+    if (activeTab && ['login', 'register', 'reset'].includes(activeTab)) {
         switchTab(activeTab);
     }
 
-    // Run kuangalia ujumbe pindi tu ukurasa unapofunguka
     checkAlerts();
 </script>
 
