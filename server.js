@@ -3,45 +3,31 @@ require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
 const passport = require('passport');
-const LocalStrategy = require('passport-local').Strategy; // Imebadilishwa hapa
+const LocalStrategy = require('passport-local').Strategy;
 const axios = require('axios');
 const path = require('path');
+const bcrypt = require('bcryptjs'); // Kwa ajili ya usalama wa password
+const flash = require('connect-flash'); // Onyesha error/success alerts
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.set('trust proxy', 1);
 
-function getBaseUrl() {
-  if (process.env.BASE_URL) return process.env.BASE_URL.replace(/\/$/, '');
-  if (process.env.RENDER_EXTERNAL_URL) return process.env.RENDER_EXTERNAL_URL.replace(/\/$/, '');
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-  return `http://localhost:${PORT}`;
-}
+// Database ya muda ya majaribio (In-memory array)
+// Kwenye production unaweza kuunganisha na MySQL/MongoDB
+const localUsersDB = [];
 
 const PTERODACTYL_URL = process.env.PTERODACTYL_URL?.replace(/\/$/, '');
 const PTERODACTYL_APP_API_KEY = process.env.PTERODACTYL_APP_API_KEY;
 const PTERODACTYL_CLIENT_API_KEY = process.env.PTERODACTYL_CLIENT_API_KEY;
 
-const requiredEnv = [
-  'PTERODACTYL_URL',
-  'PTERODACTYL_APP_API_KEY',
-  'PTERODACTYL_CLIENT_API_KEY'
-];
-
-const missingEnv = requiredEnv.filter((name) => !process.env[name]);
-if (missingEnv.length > 0) {
-  console.warn(
-    `Missing environment variables: ${missingEnv.join(', ')}. ` +
-    'The app may not work until these are configured.'
-  );
-}
-
-const hasPteroConfig = missingEnv.length === 0;
+const hasPteroConfig = PTERODACTYL_URL && PTERODACTYL_APP_API_KEY && PTERODACTYL_CLIENT_API_KEY;
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
+
 app.use(
   session({
     secret: process.env.SESSION_SECRET || 'change-this-secret',
@@ -54,11 +40,24 @@ app.use(
     }
   })
 );
+
+app.use(flash());
 app.use(passport.initialize());
 app.use(passport.session());
 
-passport.serializeUser((user, done) => done(null, user));
-passport.deserializeUser((user, done) => done(null, user));
+// Pasi data za Alerts kwenda kwenye HTML views kirahisi
+app.use((req, res, next) => {
+  res.locals.success_msg = req.flash('success_msg');
+  res.locals.error_msg = req.flash('error_msg');
+  res.locals.error = req.flash('error'); // Kutoka kwa passport yenyewe
+  next();
+});
+
+passport.serializeUser((user, done) => done(null, user.id));
+passport.deserializeUser((id, done) => {
+  const user = localUsersDB.find(u => u.id === id);
+  done(null, user);
+});
 
 const appApi = hasPteroConfig
   ? axios.create({
@@ -71,238 +70,128 @@ const appApi = hasPteroConfig
     })
   : null;
 
-const clientApi = hasPteroConfig
-  ? axios.create({
-      baseURL: `${PTERODACTYL_URL}/api/client`,
-      headers: {
-        Authorization: `Bearer ${PTERODACTYL_CLIENT_API_KEY}`,
-        'Content-Type': 'application/json',
-        Accept: 'application/json'
-      }
-    })
-  : null;
-
 function requireAuth(req, res, next) {
   if (req.isAuthenticated()) return next();
   res.redirect('/login');
 }
 
-function requirePteroConfig(req, res, next) {
-  if (!hasPteroConfig || !appApi || !clientApi) {
-    return res.status(503).json({
-      error: 'Pterodactyl API configuration is missing. Please set the required environment variables.'
-    });
-  }
-  next();
-}
-
-async function getUserByExternalIdentifier(identifier) {
-  let page = 1;
-  while (true) {
-    const res = await appApi.get(`/users?page=${page}&per_page=100`);
-    const users = res.data.data || [];
-    if (!users.length) break;
-
-    const found = users.find((u) =>
-      u.attributes.username === String(identifier) ||
-      u.attributes.email === String(identifier)
-    );
-
-    if (found) return found;
-    page += 1;
-  }
-
-  return null;
-}
-
-async function ensurePteroAccount(user) {
-  // Inatumia email/username kama identifier kwa local login
-  const identifier = user.email || user.username;
-  const existing = await getUserByExternalIdentifier(identifier);
-
-  if (existing) return existing;
-
-  const username = user.username.toLowerCase().replace(/[^a-z0-9]/g, '');
-  const email = user.email || `${username}@local.invalid`;
-  const password = Math.random().toString(36).slice(-12) + 'A1!';
-
-  const res = await appApi.post('/users', {
-    username,
-    email,
-    first_name: user.displayName || 'Local',
-    last_name: 'User',
-    password,
-    language: 'en'
-  });
-
-  return res.data;
-}
-
-async function getServersForUser(user) {
-  const panelUser = await ensurePteroAccount(user);
-  const panelUserId = panelUser?.attributes?.id || panelUser?.data?.attributes?.id;
-  if (!panelUserId) {
-    throw new Error('Unable to resolve Pterodactyl user ID');
-  }
-
-  const res = await appApi.get(`/users/${panelUserId}/servers`);
-  return res.data.data || [];
-}
-
-async function mapServerToClientData(server) {
-  const identifier = server.attributes.identifier;
-  const res = await clientApi.get(`/servers/${identifier}/resources`);
-  return {
-    id: server.attributes.id,
-    name: server.attributes.name,
-    identifier,
-    user: server.attributes.user,
-    status: res.data.attributes?.current_state || 'unknown'
-  };
-}
-
-// --- MPINGILIO WA LOCAL STRATEGY (MANUAL LOGIN) ---
+// --- PASSPORT LOCAL CONFIG (LOGIN LOGIC) ---
 passport.use(
-  new LocalStrategy(
-    {
-      usernameField: 'username', // Inaweza kupokea email au username kutoka kwenye form
-      passwordField: 'password'
-    },
-    async (username, password, done) => {
-      try {
-        // NOTE: Hapa unaweza kuweka password yako ngumu ya jumla au ukaacha yoyote ikubali
-        // Kwa sasa nimeruhusu login yoyote itengeneze akaunti Ptero kama haipo
-        const isEmail = username.includes('@');
-        const user = {
-          provider: 'local',
-          id: username,
-          username: isEmail ? username.split('@')[0] : username,
-          email: isEmail ? username : `${username}@local.com`,
-          displayName: isEmail ? username.split('@')[0] : username
-        };
-        
-        return done(null, user);
-      } catch (err) {
-        return done(err);
-      }
+  new LocalStrategy({ usernameField: 'username' }, async (username, password, done) => {
+    // Tafuta kama mtumiaji yupo kwa username au email
+    const user = localUsersDB.find(u => u.username === username || u.email === username);
+    if (!user) {
+      return done(null, false, { message: 'Mtumiaji hapatikani au hajasajiliwa.' });
     }
-  )
+
+    // Linganisha password iliyowekwa na ya kwenye database
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return done(null, false, { message: 'Password uliyoweka sio sahihi.' });
+    }
+
+    return done(null, user);
+  })
 );
 
-app.get('/', requireAuth, requirePteroConfig, async (req, res) => {
-  try {
-    await getServersForUser(req.user);
-    res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to load dashboard data' });
-  }
-});
+// --- ROUTES ---
 
-app.get('/health', (req, res) => {
-  res.json({ ok: true, message: 'Server is healthy' });
+app.get('/', requireAuth, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
 });
 
 app.get('/login', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
+// API ya kurudisha ujumbe wa makosa kwenda kwenye login.html (kwa AJAX/Fetch)
+app.get('/api/auth/flash', (req, res) => {
+  res.json({
+    success: req.flash('success_msg'),
+    error: req.flash('error_msg') || req.flash('error')
+  });
+});
+
+// 1. ROUTE YA LOGIN
+app.post('/auth/login', (req, res, next) => {
+  passport.authenticate('local', {
+    successRedirect: '/',
+    failureRedirect: '/login',
+    failureFlash: true
+  })(req, res, next);
+});
+
+// 2. ROUTE YA REGISTER (CREATE ACCOUNT & PTERO ACC)
+app.post('/auth/register', async (req, res) => {
+  const { username, email, password } = req.body;
+  
+  try {
+    // Angalia kama mtumiaji tayari yupo
+    const userExists = localUsersDB.some(u => u.username === username || u.email === email);
+    if (userExists) {
+      req.flash('error_msg', 'Username au Email tayari inatumiwa na mtu mwingine.');
+      return res.redirect('/login?tab=register');
+    }
+
+    // Hash password kwa ajili ya usalama
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const cleanUsername = username.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    // Tengeneza akaunti kule Pterodactyl Panel kwanza
+    let pteroId = null;
+    if (hasPteroConfig) {
+      const pteroRes = await appApi.post('/users', {
+        username: cleanUsername,
+        email: email,
+        first_name: username,
+        last_name: 'LocalUser',
+        password: password, // Inashauriwa pia panel iwe na pass yake
+        language: 'en'
+      });
+      pteroId = pteroRes.data.attributes.id;
+    }
+
+    // Hifadhi kwenye database ya ndani
+    const newUser = {
+      id: Date.now().toString(),
+      username: cleanUsername,
+      email: email,
+      password: hashedPassword,
+      pteroUserId: pteroId
+    };
+    localUsersDB.push(newUser);
+
+    req.flash('success_msg', 'Akaunti imefunguliwa kikamilifu! Sasa unaweza kuingia.');
+    res.redirect('/login?tab=login');
+
+  } catch (err) {
+    console.error(err.response?.data || err.message);
+    req.flash('error_msg', 'Imefeli kutengeneza akaunti kwenye Pterodactyl Panel.');
+    res.redirect('/login?tab=register');
+  }
+});
+
+// 3. ROUTE YA RESET PASSWORD
+app.post('/auth/reset-password', async (req, res) => {
+  const { email } = req.body;
+  const user = localUsersDB.find(u => u.email === email);
+
+  if (!user) {
+    req.flash('error_msg', 'Barua pepe hiyo haijasajiliwa kwenye mfumo wetu.');
+    return res.redirect('/login?tab=reset');
+  }
+
+  // Hapa unaweza kuweka code ya kutuma email halisi. Kwa sasa tunaiga (mock simulation)
+  req.flash('success_msg', `Link ya ku-reset imetumwa kwenda ${email} (Huu ni mfano tu).`);
+  res.redirect('/login?tab=reset');
+});
+
 app.get('/logout', (req, res, next) => {
   req.logout((err) => {
     if (err) return next(err);
+    req.flash('success_msg', 'Umetoka kwenye akaunti yako.');
     res.redirect('/login');
   });
 });
 
-// Route ya kushughulikia Manual Login kutoka kwenye HTML Form
-app.post(
-  '/auth/login',
-  passport.authenticate('local', {
-    successRedirect: '/',
-    failureRedirect: '/login'
-  })
-);
-
-app.get('/api/me', requireAuth, (req, res) => {
-  res.json({ user: req.user });
-});
-
-app.get('/api/servers', requireAuth, requirePteroConfig, async (req, res) => {
-  try {
-    const serverList = await getServersForUser(req.user);
-    const servers = await Promise.all(serverList.map(mapServerToClientData));
-    res.json({ servers });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Unable to fetch servers' });
-  }
-});
-
-app.post('/api/servers/create', requireAuth, requirePteroConfig, async (req, res) => {
-  try {
-    const { name, egg, cpu, memory, disk, startupCommand } = req.body;
-    const panelUser = await ensurePteroAccount(req.user);
-    const panelUserId = panelUser?.attributes?.id || panelUser?.data?.attributes?.id;
-
-    if (!panelUserId) {
-      return res.status(400).json({ error: 'Unable to locate Pterodactyl user' });
-    }
-
-    const response = await appApi.post('/servers', {
-      name,
-      user: panelUserId,
-      egg,
-      startup: startupCommand || 'npm start',
-      environment: {
-        USER_UPLOAD: '0',
-        AUTO_UPDATE: '1'
-      },
-      limits: {
-        memory,
-        swap: 0,
-        disk,
-        io: 500,
-        cpu
-      },
-      feature_limits: {
-        databases: 0,
-        backups: 1,
-        allocations: 1
-      },
-      deploy: {
-        locations: [1],
-        dedicated_ip: false,
-        port_range: []
-      },
-      start_on_completion: true
-    });
-
-    res.json({ success: true, server: response.data });
-  } catch (err) {
-    console.error(err.response?.data || err.message || err);
-    res.status(500).json({ error: 'Failed to create server' });
-  }
-});
-
-app.post('/api/servers/:identifier/power/:signal', requireAuth, requirePteroConfig, async (req, res) => {
-  try {
-    const { identifier, signal } = req.params;
-    if (!['start', 'stop', 'restart'].includes(signal)) {
-      return res.status(400).json({ error: 'Invalid power action' });
-    }
-
-    await clientApi.post(`/servers/${identifier}/power`, { signal });
-    res.json({ success: true, signal });
-  } catch (err) {
-    console.error(err.response?.data || err.message || err);
-    res.status(500).json({ error: 'Failed to execute power action' });
-  }
-});
-
-if (require.main === module) {
-  app.listen(PORT, () => {
-    console.log(`Dashboard running at http://localhost:${PORT}`);
-  });
-}
-
-module.exports = app;
+app.listen(PORT, () => console.log(`Server inapiga kazi kwenye http://localhost:${PORT}`));
