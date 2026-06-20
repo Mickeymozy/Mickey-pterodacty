@@ -1,33 +1,187 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="sw">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Login - Pterodactyl Dashboard</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login & Auth - Pterodactyl Dashboard</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1a1c23;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .auth-container {
+            background-color: #24262d;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 400px;
+        }
+        .logo-title {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #7e57c2;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        /* Tab Navigation */
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #434657;
+            margin-bottom: 20px;
+        }
+        .tab-btn {
+            flex: 1;
+            background: none;
+            border: none;
+            color: #9e9e9e;
+            padding: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: 0.3s;
+            text-align: center;
+        }
+        .tab-btn:hover {
+            color: #fff;
+        }
+        .tab-btn.active {
+            color: #7e57c2;
+            border-bottom: 2px solid #7e57c2;
+            margin-bottom: -2px;
+        }
+        /* Tab Content */
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        /* Form Styling */
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+            color: #9e9e9e;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #434657;
+            border-radius: 4px;
+            background-color: #1a1c23;
+            color: #fff;
+            box-sizing: border-box;
+        }
+        input:focus {
+            outline: none;
+            border-color: #7e57c2;
+        }
+        submit-btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            background-color: #7e57c2;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 15px;
+        }
+        submit-btn:hover {
+            background-color: #673ab7;
+        }
+        .info-text {
+            font-size: 12px;
+            color: #9e9e9e;
+            margin-top: 10px;
+            text-align: center;
+        }
+    </style>
 </head>
-<body class="min-h-screen bg-slate-950 text-white">
-  <div class="absolute inset-0 overflow-hidden pointer-events-none">
-    <div class="absolute -top-20 right-0 h-72 w-72 rounded-full bg-cyan-500/10 blur-3xl"></div>
-    <div class="absolute bottom-0 left-0 h-72 w-72 rounded-full bg-emerald-500/10 blur-3xl"></div>
-  </div>
+<body>
 
-  <main class="relative flex min-h-screen items-center justify-center px-4">
-    <div class="w-full max-w-md rounded-3xl border border-slate-800 bg-slate-900/80 p-8 shadow-2xl shadow-slate-950/40 backdrop-blur">
-      <div class="text-center">
-        <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-cyan-500/10 text-cyan-300">⚙</div>
-        <h1 class="mt-4 text-3xl font-semibold">Pterodactyl Dashboard</h1>
-        <p class="mt-2 text-sm text-slate-400">Choose how you want to sign in</p>
-      </div>
-      <div class="mt-8 space-y-3">
-        <a href="/auth/discord" class="flex items-center justify-center gap-3 rounded-xl bg-[#5865F2] px-4 py-3 font-medium text-white transition hover:bg-[#4752c4]">
-          <span>Login with Discord</span>
-        </a>
-        <a href="/auth/github" class="flex items-center justify-center gap-3 rounded-xl bg-slate-100 px-4 py-3 font-medium text-slate-900 transition hover:bg-white">
-          <span>Login with GitHub</span>
-        </a>
-      </div>
+<div class="auth-container">
+    <div class="logo-title">Ptero Dashboard</div>
+    
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('login')">Ingia</button>
+        <button class="tab-btn" onclick="switchTab('register')">Sajili</button>
+        <button class="tab-btn" onclick="switchTab('reset')">Reset</button>
     </div>
-  </main>
+
+    <div id="login-tab" class="tab-content active">
+        <form action="/auth/login" method="POST">
+            <div class="form-group">
+                <label for="login-username">Username au Email</label>
+                <input type="text" id="login-username" name="username" placeholder="Weka username au email" required>
+            </div>
+            <div class="form-group">
+                <label for="login-password">Password</label>
+                <input type="password" id="login-password" name="password" placeholder="Weka password" required>
+            </div>
+            <button type="submit" class="submit-btn">Ingia (Login)</button>
+        </form>
+    </div>
+
+    <div id="register-tab" class="tab-content">
+        <form action="/auth/register" method="POST">
+            <div class="form-group">
+                <label for="reg-username">Username</label>
+                <input type="text" id="reg-username" name="username" placeholder="Chagua username" required>
+            </div>
+            <div class="form-group">
+                <label for="reg-email">Barua Pepe (Email)</label>
+                <input type="email" id="reg-email" name="email" placeholder="Weka email yako" required>
+            </div>
+            <div class="form-group">
+                <label for="reg-password">Password</label>
+                <input type="password" id="reg-password" name="password" placeholder="Tengeneza password ngumu" required>
+            </div>
+            <button type="submit" class="submit-btn">Sajili Akaunti</button>
+        </form>
+    </div>
+
+    <div id="reset-tab" class="tab-content">
+        <form action="/auth/reset-password" method="POST">
+            <p class="info-text" style="text-align: left; margin-bottom: 15px;">
+                Weka email yako uliyosajilia ili tutume maelezo ya kubadili password.
+            </p>
+            <div class="form-group">
+                <label for="reset-email">Barua Pepe (Email)</label>
+                <input type="email" id="reset-email" name="email" placeholder="Weka email yako" required>
+            </div>
+            <button type="submit" class="submit-btn">Tuma Link ya Reset</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    // JS ya ku-switch tab kulingana na click ya mtumiaji
+    function switchTab(tabName) {
+        // Ondoa active class kwenye button zote na content zote
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+        // Tafuta button iliyobonyezwa na uweke active
+        const clickedBtn = event.currentTarget;
+        clickedBtn.classList.add('active');
+
+        // Onyesha content inayohusika
+        document.getElementById(`${tabName}-tab`).classList.add('active');
+    }
+</script>
+
 </body>
 </html>
