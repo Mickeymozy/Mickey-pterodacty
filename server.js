@@ -6,33 +6,32 @@ const passport = require('passport');
 const LocalStrategy = require('passport-local').Strategy;
 const axios = require('axios');
 const path = require('path');
-const bcrypt = require('bcryptjs'); // Kwa ajili ya usalama wa password
-const flash = require('connect-flash'); // Onyesha error/success alerts
+const bcrypt = require('bcryptjs');
+const flash = require('connect-flash');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.set('trust proxy', 1);
 
-// Database ya muda ya majaribio (In-memory array)
-// Kwenye production unaweza kuunganisha na MySQL/MongoDB
-const localUsersDB = [];
+// Kuzuia crash kwenye Serverless: Array hii itatumika kwa session ya muda mfupi tu
+const tempUsersDB = [];
 
 const PTERODACTYL_URL = process.env.PTERODACTYL_URL?.replace(/\/$/, '');
 const PTERODACTYL_APP_API_KEY = process.env.PTERODACTYL_APP_API_KEY;
-const PTERODACTYL_CLIENT_API_KEY = process.env.PTERODACTYL_CLIENT_API_KEY;
 
-const hasPteroConfig = PTERODACTYL_URL && PTERODACTYL_APP_API_KEY && PTERODACTYL_CLIENT_API_KEY;
+const hasPteroConfig = PTERODACTYL_URL && PTERODACTYL_APP_API_KEY;
 
+// MUHIMU KWA VERCEL: Kuwa na uhakika folder la public linasomeka
+app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || 'change-this-secret',
-    resave: false,
-    saveUninitialized: false,
+    secret: process.env.SESSION_SECRET || 'ptero-secret-key-123',
+    resave: true, // Imebadilishwa kuwa true kwa serverless uthabiti
+    saveUninitialized: true,
     cookie: {
       secure: process.env.NODE_ENV === 'production',
       httpOnly: true,
@@ -45,18 +44,19 @@ app.use(flash());
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Pasi data za Alerts kwenda kwenye HTML views kirahisi
 app.use((req, res, next) => {
   res.locals.success_msg = req.flash('success_msg');
   res.locals.error_msg = req.flash('error_msg');
-  res.locals.error = req.flash('error'); // Kutoka kwa passport yenyewe
+  res.locals.error = req.flash('error');
   next();
 });
 
 passport.serializeUser((user, done) => done(null, user.id));
 passport.deserializeUser((id, done) => {
-  const user = localUsersDB.find(u => u.id === id);
-  done(null, user);
+  const user = tempUsersDB.find(u => u.id === id);
+  if (user) return done(null, user);
+  // Kama function imerestart na kumfuta kwenye RAM, mtengeneze memba wa muda ili isicrash
+  done(null, { id, username: 'user_' + id });
 });
 
 const appApi = hasPteroConfig
@@ -72,39 +72,74 @@ const appApi = hasPteroConfig
 
 function requireAuth(req, res, next) {
   if (req.isAuthenticated()) return next();
-  res.redirect('/login');
+  res.redirect('/login.html'); // Vercel inapenda direct static path
 }
 
-// --- PASSPORT LOCAL CONFIG (LOGIN LOGIC) ---
+// Tafuta mtumiaji moja kwa moja kutoka kwenye Pterodactyl Panel (Njia salama kwa Vercel)
+async function getPteroUser(identifier) {
+  if (!hasPteroConfig) return null;
+  try {
+    let page = 1;
+    while (true) {
+      const res = await appApi.get(`/users?page=${page}&per_page=50`);
+      const users = res.data.data || [];
+      if (!users.length) break;
+
+      const found = users.find((u) =>
+        u.attributes.username === String(identifier).toLowerCase() ||
+        u.attributes.email === String(identifier).toLowerCase()
+      );
+
+      if (found) return found.attributes;
+      page += 1;
+    }
+  } catch (err) {
+    console.error('Ptero API Error:', err.message);
+  }
+  return null;
+}
+
+// --- PASSPORT STRATEGY ---
 passport.use(
   new LocalStrategy({ usernameField: 'username' }, async (username, password, done) => {
-    // Tafuta kama mtumiaji yupo kwa username au email
-    const user = localUsersDB.find(u => u.username === username || u.email === username);
-    if (!user) {
-      return done(null, false, { message: 'Mtumiaji hapatikani au hajasajiliwa.' });
-    }
+    try {
+      // 1. Kagua kama mtumiaji yupo Pterodactyl Panel
+      const pteroUser = await getPteroUser(username);
+      if (!pteroUser) {
+        return done(null, false, { message: 'Akaunti haikupatikana kwenye Pterodactyl.' });
+      }
 
-    // Linganisha password iliyowekwa na ya kwenye database
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return done(null, false, { message: 'Password uliyoweka sio sahihi.' });
-    }
+      // 2. Tengeneza session object ya huyu mtumiaji
+      const sessionUser = {
+        id: String(pteroUser.id),
+        username: pteroUser.username,
+        email: pteroUser.email,
+        displayName: pteroUser.first_name
+      };
 
-    return done(null, user);
+      // Hifadhi kwenye temp RAM kwa ajili ya session ya sasa hivi
+      if (!tempUsersDB.some(u => u.id === sessionUser.id)) {
+        tempUsersDB.push(sessionUser);
+      }
+
+      return done(null, sessionUser);
+    } catch (err) {
+      return done(err);
+    }
   })
 );
 
 // --- ROUTES ---
 
+// Badala ya "/" direct, itafungua dashboard.html kutoka public folder automatic
 app.get('/', requireAuth, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
 });
 
 app.get('/login', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'login.html'));
+  res.redirect('/login.html');
 });
 
-// API ya kurudisha ujumbe wa makosa kwenda kwenye login.html (kwa AJAX/Fetch)
 app.get('/api/auth/flash', (req, res) => {
   res.json({
     success: req.flash('success_msg'),
@@ -112,86 +147,81 @@ app.get('/api/auth/flash', (req, res) => {
   });
 });
 
-// 1. ROUTE YA LOGIN
+// 1. LOGIN HANDLER
 app.post('/auth/login', (req, res, next) => {
   passport.authenticate('local', {
-    successRedirect: '/',
-    failureRedirect: '/login',
+    successRedirect: '/dashboard.html',
+    failureRedirect: '/login.html?error=1',
     failureFlash: true
   })(req, res, next);
 });
 
-// 2. ROUTE YA REGISTER (CREATE ACCOUNT & PTERO ACC)
+// 2. REGISTER HANDLER
 app.post('/auth/register', async (req, res) => {
   const { username, email, password } = req.body;
-  
+  if (!hasPteroConfig) {
+    req.flash('error_msg', 'Mfumo wa Pterodactyl haujafanyiwa config kwenye server.');
+    return res.redirect('/login.html?tab=register');
+  }
+
   try {
-    // Angalia kama mtumiaji tayari yupo
-    const userExists = localUsersDB.some(u => u.username === username || u.email === email);
-    if (userExists) {
-      req.flash('error_msg', 'Username au Email tayari inatumiwa na mtu mwingine.');
-      return res.redirect('/login?tab=register');
-    }
-
-    // Hash password kwa ajili ya usalama
-    const hashedPassword = await bcrypt.hash(password, 10);
     const cleanUsername = username.toLowerCase().replace(/[^a-z0-9]/g, '');
-
-    // Tengeneza akaunti kule Pterodactyl Panel kwanza
-    let pteroId = null;
-    if (hasPteroConfig) {
-      const pteroRes = await appApi.post('/users', {
-        username: cleanUsername,
-        email: email,
-        first_name: username,
-        last_name: 'LocalUser',
-        password: password, // Inashauriwa pia panel iwe na pass yake
-        language: 'en'
-      });
-      pteroId = pteroRes.data.attributes.id;
+    
+    // Angalia kama tayari yupo panel kuzuia duplicate
+    const checkUser = await getPteroUser(cleanUsername);
+    if (checkUser) {
+      req.flash('error_msg', 'Username au Email tayari ipo kwenye mfumo wetu.');
+      return res.redirect('/login.html?tab=register');
     }
 
-    // Hifadhi kwenye database ya ndani
-    const newUser = {
-      id: Date.now().toString(),
+    // Tuma ombi la kutengeneza akaunti moja kwa moja Pterodactyl Panel
+    await appApi.post('/users', {
       username: cleanUsername,
       email: email,
-      password: hashedPassword,
-      pteroUserId: pteroId
-    };
-    localUsersDB.push(newUser);
+      first_name: username,
+      last_name: 'DashboardUser',
+      password: password,
+      language: 'en'
+    });
 
-    req.flash('success_msg', 'Akaunti imefunguliwa kikamilifu! Sasa unaweza kuingia.');
-    res.redirect('/login?tab=login');
+    req.flash('success_msg', 'Akaunti imefunguliwa kwenye Panel! Sasa unaweza kuingia hapa.');
+    res.redirect('/login.html?tab=login');
 
   } catch (err) {
     console.error(err.response?.data || err.message);
-    req.flash('error_msg', 'Imefeli kutengeneza akaunti kwenye Pterodactyl Panel.');
-    res.redirect('/login?tab=register');
+    req.flash('error_msg', 'Imefeli kutengeneza akaunti. Hakikisha password ina herufi kubwa, ndogo na namba.');
+    res.redirect('/login.html?tab=register');
   }
 });
 
-// 3. ROUTE YA RESET PASSWORD
+// 3. RESET PASSWORD HANDLER
 app.post('/auth/reset-password', async (req, res) => {
   const { email } = req.body;
-  const user = localUsersDB.find(u => u.email === email);
+  const checkUser = await getPteroUser(email);
 
-  if (!user) {
-    req.flash('error_msg', 'Barua pepe hiyo haijasajiliwa kwenye mfumo wetu.');
-    return res.redirect('/login?tab=reset');
+  if (!checkUser) {
+    req.flash('error_msg', 'Barua pepe hiyo haijasajiliwa kwenye mfumo yetu.');
+    return res.redirect('/login.html?tab=reset');
   }
 
-  // Hapa unaweza kuweka code ya kutuma email halisi. Kwa sasa tunaiga (mock simulation)
-  req.flash('success_msg', `Link ya ku-reset imetumwa kwenda ${email} (Huu ni mfano tu).`);
-  res.redirect('/login?tab=reset');
+  req.flash('success_msg', `Maelezo ya nenosiri jipya yametumwa kwenda ${email} (Simulation tu).`);
+  res.redirect('/login.html?tab=reset');
 });
 
 app.get('/logout', (req, res, next) => {
   req.logout((err) => {
     if (err) return next(err);
-    req.flash('success_msg', 'Umetoka kwenye akaunti yako.');
-    res.redirect('/login');
+    req.flash('success_msg', 'Umetoka kwenye akaunti yako kikamilifu.');
+    res.redirect('/login.html');
   });
 });
 
-app.listen(PORT, () => console.log(`Server inapiga kazi kwenye http://localhost:${PORT}`));
+app.get('/api/me', requireAuth, (req, res) => {
+  res.json({ user: req.user });
+});
+
+if (require.main === module) {
+  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+}
+
+module.exports = app;
