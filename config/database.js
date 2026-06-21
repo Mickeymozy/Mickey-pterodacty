@@ -1,20 +1,25 @@
 const mongoose = require('mongoose');
 
 const connectDB = async () => {
+  if (!process.env.MONGODB_URI) {
+    console.warn('⚠️ MONGODB_URI is not set. Skipping DB connection.');
+    return null;
+  }
+
+  if (mongoose.connection.readyState >= 1) {
+    return mongoose.connection;
+  }
+
   try {
     const conn = await mongoose.connect(process.env.MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
       serverSelectionTimeoutMS: 5000
     });
+
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
     return conn;
   } catch (err) {
     console.error(`❌ MongoDB Error: ${err.message}`);
-    // Usiache server iendelee kama hakuna database
-    if (process.env.NODE_ENV === 'production') {
-      process.exit(1);
-    }
+    return null;
   }
 };
 

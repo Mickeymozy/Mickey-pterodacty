@@ -17,29 +17,39 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ============================================
-// 1. CONNECT TO DATABASE
+// 1. CONNECT TO DATABASE (non-fatal for serverless)
 // ============================================
-connectDB();
+connectDB().catch((err) => {
+  console.error('❌ DB startup failed:', err);
+});
 
 // ============================================
-// 2. MIDDLEWARE
+// 2. PASSPORT CONFIG
+// ============================================
+require('./config/passport')(passport);
+
+// ============================================
+// 3. MIDDLEWARE
 // ============================================
 app.set('trust proxy', 1);
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Session with MongoDB store
+const sessionStore = process.env.MONGODB_URI
+  ? MongoStore.create({
+      mongoUrl: process.env.MONGODB_URI,
+      collectionName: 'sessions',
+      ttl: 24 * 60 * 60,
+      autoRemove: 'native'
+    })
+  : null;
+
 app.use(session({
   secret: process.env.SESSION_SECRET || 'default-secret-change-this',
   resave: false,
   saveUninitialized: false,
-  store: MongoStore.create({
-    mongoUrl: process.env.MONGODB_URI,
-    collectionName: 'sessions',
-    ttl: 24 * 60 * 60,
-    autoRemove: 'native'
-  }),
+  store: sessionStore || undefined,
   cookie: {
     secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
@@ -61,11 +71,6 @@ app.use((req, res, next) => {
   res.locals.user = req.user || null;
   next();
 });
-
-// ============================================
-// 3. PASSPORT CONFIG
-// ============================================
-require('./config/passport')(passport);
 
 // ============================================
 // 4. ROUTES

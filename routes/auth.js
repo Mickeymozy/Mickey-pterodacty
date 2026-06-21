@@ -57,10 +57,24 @@ router.get('/login', requireGuest, (req, res) => {
 
 // Login handler
 router.post('/auth/login', (req, res, next) => {
-  passport.authenticate('local', {
-    successRedirect: '/dashboard.html',
-    failureRedirect: '/login.html?error=1',
-    failureFlash: true
+  passport.authenticate('local', (err, user, info) => {
+    if (err) {
+      console.error('❌ Login error:', err);
+      return next(err);
+    }
+
+    if (!user) {
+      req.flash('error_msg', info?.message || '❌ Login failed.');
+      return res.redirect('/login.html?error=1');
+    }
+
+    req.logIn(user, (loginErr) => {
+      if (loginErr) {
+        console.error('❌ Session error:', loginErr);
+        return next(loginErr);
+      }
+      return res.redirect('/dashboard.html');
+    });
   })(req, res, next);
 });
 
