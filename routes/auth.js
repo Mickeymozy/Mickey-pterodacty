@@ -1,8 +1,10 @@
 const express = require('express');
 const passport = require('passport');
+const crypto = require('crypto');
 const router = express.Router();
 const User = require('../models/User');
 const { requireGuest } = require('../middleware/auth');
+const sendEmail = require('../utils/email');
 const axios = require('axios');
 
 // Pterodactyl API helper
@@ -22,7 +24,6 @@ const appApi = hasPteroConfig
     })
   : null;
 
-// Helper: Get Pterodactyl user
 async function getPteroUser(identifier) {
   if (!hasPteroConfig) return null;
   try {
@@ -46,16 +47,40 @@ async function getPteroUser(identifier) {
   return null;
 }
 
+function generateCode(length = 6) {
+  return crypto.randomInt(0, 10 ** length).toString().padStart(length, '0');
+}
+
+function generateToken() {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+async function sendVerificationMessage(user) {
+  if (!user || !user.email) return;
+
+  const code = generateCode();
+  user.verificationCode = code;
+  user.verificationCodeExpires = Date.now() + 5 * 60 * 1000;
+  await user.save();
+
+  const sent = await sendEmail({
+    to: user.email,
+    subject: 'Verify your account',
+    text: `Your verification code is ${code}`,
+    html: `<p>Your verification code is <strong>${code}</strong>. It expires in 5 minutes.</p>`
+  });
+
+  return sent;
+}
+
 // ============================================
 // ROUTES
 // ============================================
 
-// Login page
 router.get('/login', requireGuest, (req, res) => {
   res.sendFile('login.html', { root: './public' });
 });
 
-// Login handler
 router.post('/auth/login', (req, res, next) => {
   passport.authenticate('local', (err, user, info) => {
     if (err) {
@@ -73,67 +98,71 @@ router.post('/auth/login', (req, res, next) => {
         console.error('❌ Session error:', loginErr);
         return next(loginErr);
       }
+
+      if (!user.isEmailVerified) {
+        req.flash('success_msg', '✅ Ingia; unaweza kuendelea kutumia akaunti yako.');
+      }
+
       return res.redirect('/dashboard.html');
     });
   })(req, res, next);
 });
 
-// Register handler
 router.post('/auth/register', async (req, res) => {
   const { username, email, password, first_name, last_name } = req.body;
+  const cleanUsername = String(username || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+  const cleanEmail = String(email || '').trim().toLowerCase();
 
-  if (!hasPteroConfig) {
-    req.flash('error_msg', '❌ Mfumo wa Pterodactyl haujasanidiwa.');
+  if (!cleanUsername || !cleanEmail || !password) {
+    req.flash('error_msg', '❌ Taarifa zote zinahitajika.');
     return res.redirect('/login.html?tab=register');
   }
 
   try {
-    const cleanUsername = username.toLowerCase().replace(/[^a-z0-9]/g, '');
-
-    // Check if user exists in MongoDB
     const existingUser = await User.findOne({
-      $or: [{ username: cleanUsername }, { email: email.toLowerCase() }]
+      $or: [{ username: cleanUsername }, { email: cleanEmail }]
     });
+
     if (existingUser) {
       req.flash('error_msg', '❌ Username au Email tayari imesajiliwa.');
       return res.redirect('/login.html?tab=register');
     }
 
-    // Check if user exists in Pterodactyl
-    const pteroCheck = await getPteroUser(cleanUsername);
-    if (pteroCheck) {
-      req.flash('error_msg', '❌ Username au Email tayari ipo kwenye panel.');
-      return res.redirect('/login.html?tab=register');
+    let pteroData = null;
+    if (hasPteroConfig) {
+      const pteroCheck = await getPteroUser(cleanUsername);
+      if (pteroCheck) {
+        req.flash('error_msg', '❌ Username au Email tayari ipo kwenye panel.');
+        return res.redirect('/login.html?tab=register');
+      }
+
+      const pteroUser = await appApi.post('/users', {
+        username: cleanUsername,
+        email: cleanEmail,
+        first_name: first_name || username,
+        last_name: last_name || 'User',
+        password,
+        language: 'en'
+      });
+      pteroData = pteroUser.data.attributes;
     }
 
-    // Create user in Pterodactyl
-    const pteroUser = await appApi.post('/users', {
-      username: cleanUsername,
-      email: email.toLowerCase(),
-      first_name: first_name || username,
-      last_name: last_name || 'User',
-      password: password,
-      language: 'en'
-    });
-
-    const pteroData = pteroUser.data.attributes;
-
-    // Save user to MongoDB
     const newUser = new User({
       username: cleanUsername,
-      email: email.toLowerCase(),
+      email: cleanEmail,
       password,
-      pteroId: pteroData.id,
-      firstName: pteroData.first_name || first_name || username,
-      lastName: pteroData.last_name || last_name || 'User',
-      displayName: pteroData.first_name || first_name || username
+      pteroId: pteroData?.id || 0,
+      firstName: pteroData?.first_name || first_name || username,
+      lastName: pteroData?.last_name || last_name || 'User',
+      displayName: pteroData?.first_name || first_name || username,
+      isEmailVerified: false
     });
 
     await newUser.save();
+    await sendVerificationMessage(newUser);
 
-    req.flash('success_msg', '✅ Akaunti imefunguliwa! Sasa unaweza kuingia.');
+    req.flash('success_msg', '✅ Akaunti imeundwa. Angalia email yako kwa msimbo wa uthibitisho.');
     res.redirect('/login.html?tab=login');
-
   } catch (err) {
     console.error('❌ Registration error:', err.response?.data || err.message);
     req.flash('error_msg', '❌ Imefeli kusajili. Hakikisha password ina herufi kubwa, ndogo na namba.');
@@ -141,22 +170,69 @@ router.post('/auth/register', async (req, res) => {
   }
 });
 
-// Reset password
 router.post('/auth/reset-password', async (req, res) => {
-  const { email } = req.body;
-  const user = await User.findOne({ email: email.toLowerCase() });
+  const email = String(req.body.email || '').trim().toLowerCase();
 
+  if (!email) {
+    req.flash('error_msg', '❌ Taarifa ya email inahitajika.');
+    return res.redirect('/login.html?tab=reset');
+  }
+
+  const user = await User.findOne({ email });
   if (!user) {
     req.flash('error_msg', '❌ Barua pepe hiyo haijasajiliwa.');
     return res.redirect('/login.html?tab=reset');
   }
 
-  // In production, send email with reset link
-  req.flash('success_msg', `✅ Maelezo ya kubadili password yametumwa kwa ${email}`);
+  const token = generateToken();
+  user.resetToken = token;
+  user.resetTokenExpires = Date.now() + 30 * 60 * 1000;
+  await user.save();
+
+  const resetLink = `${process.env.APP_URL || 'http://localhost:3000'}/login.html?tab=reset&token=${token}`;
+  const sent = await sendEmail({
+    to: user.email,
+    subject: 'Reset your password',
+    text: `Use this link to reset your password: ${resetLink}`,
+    html: `<p>Use this link to reset your password:</p><p><a href="${resetLink}">${resetLink}</a></p>`
+  });
+
+  if (sent) {
+    req.flash('success_msg', `✅ Maelezo ya kubadili password yametumwa kwa ${email}`);
+  } else {
+    req.flash('error_msg', '❌ Haikuweza kutuma email ya reset. Angalia SMTP settings.');
+  }
+
   res.redirect('/login.html?tab=reset');
 });
 
-// Logout
+router.post('/auth/reset-password/confirm', async (req, res) => {
+  const { token, password } = req.body;
+
+  if (!token || !password || password.length < 6) {
+    req.flash('error_msg', '❌ Token au password si sahihi.');
+    return res.redirect('/login.html?tab=reset');
+  }
+
+  const user = await User.findOne({
+    resetToken: token,
+    resetTokenExpires: { $gt: Date.now() }
+  });
+
+  if (!user) {
+    req.flash('error_msg', '❌ Token ya reset imepita au si sahihi.');
+    return res.redirect('/login.html?tab=reset');
+  }
+
+  user.password = password;
+  user.resetToken = null;
+  user.resetTokenExpires = null;
+  await user.save();
+
+  req.flash('success_msg', '✅ Password yako imebadilishwa.');
+  res.redirect('/login.html?tab=login');
+});
+
 router.get('/logout', (req, res, next) => {
   req.logout((err) => {
     if (err) return next(err);
@@ -165,11 +241,10 @@ router.get('/logout', (req, res, next) => {
   });
 });
 
-// Get flash messages
 router.get('/api/auth/flash', (req, res) => {
   res.json({
-    success: req.flash('success_msg'),
-    error: req.flash('error_msg') || req.flash('error')
+    success: res.locals.success_msg || [],
+    error: res.locals.error_msg || res.locals.error || []
   });
 });
 

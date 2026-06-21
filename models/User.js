@@ -5,7 +5,8 @@ const UserSchema = new mongoose.Schema({
   pteroId: {
     type: Number,
     required: true,
-    unique: true
+    unique: true,
+    default: 0
   },
   username: {
     type: String,
@@ -41,6 +42,26 @@ const UserSchema = new mongoose.Schema({
     type: String,
     enum: ['user', 'admin'],
     default: 'user'
+  },
+  isEmailVerified: {
+    type: Boolean,
+    default: false
+  },
+  verificationCode: {
+    type: String,
+    default: null
+  },
+  verificationCodeExpires: {
+    type: Date,
+    default: null
+  },
+  resetToken: {
+    type: String,
+    default: null
+  },
+  resetTokenExpires: {
+    type: Date,
+    default: null
   },
   lastLogin: {
     type: Date,

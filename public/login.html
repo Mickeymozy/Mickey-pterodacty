@@ -95,6 +95,20 @@
         </div>
         <button type="submit" class="submit-btn w-full py-3.5 rounded-xl text-white font-semibold text-sm">Tuma Maelezo</button>
       </form>
+
+      <form action="/auth/reset-password/confirm" method="POST" class="space-y-3 mt-4">
+        <div>
+          <label class="block text-slate-300 text-sm font-medium mb-1.5">Token ya Reset</label>
+          <input id="resetTokenInput" type="text" name="token" placeholder="Bandika token uliyopewa kwa email"
+                 class="input-field w-full px-4 py-3 rounded-xl text-white text-sm outline-none" />
+        </div>
+        <div>
+          <label class="block text-slate-300 text-sm font-medium mb-1.5">Password Mpya</label>
+          <input type="password" name="password" required placeholder="Weka password mpya"
+                 class="input-field w-full px-4 py-3 rounded-xl text-white text-sm outline-none" />
+        </div>
+        <button type="submit" class="submit-btn w-full py-3.5 rounded-xl text-white font-semibold text-sm">Badilisha Password</button>
+      </form>
       <p class="text-center text-slate-500 text-xs mt-4">Tutakutumia maelezo ya kubadili password</p>
     </div>
 
@@ -132,7 +146,14 @@
 
     const urlParams = new URLSearchParams(window.location.search);
     const tab = urlParams.get('tab');
+    const token = urlParams.get('token');
     if (tab) switchTab(tab);
+
+    if (token) {
+      const tokenInput = document.getElementById('resetTokenInput');
+      if (tokenInput) tokenInput.value = token;
+      switchTab('reset');
+    }
 
     if (urlParams.get('error')) {
       alertBox.classList.remove('hidden');

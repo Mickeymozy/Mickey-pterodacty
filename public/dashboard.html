@@ -336,7 +336,9 @@
             
             try {
                 const res = await fetch(`/api/servers/${id}`, { method: 'DELETE' });
-            const data = await res.json().catch(() => ({}));
+                const data = await res.json().catch(() => ({}));
+                if (data.success) {
+                    await loadServers();
                 } else {
                     alert('Failed to delete server: ' + (data.error || 'Unknown error'));
                 }
