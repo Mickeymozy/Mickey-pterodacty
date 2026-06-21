@@ -11,21 +11,31 @@ const UserSchema = new mongoose.Schema({
     type: String,
     required: true,
     unique: true,
-    lowercase: true
+    lowercase: true,
+    trim: true
   },
   email: {
     type: String,
     required: true,
     unique: true,
-    lowercase: true
-  },
-  displayName: {
-    type: String,
-    required: true
+    lowercase: true,
+    trim: true
   },
   password: {
     type: String,
     required: true
+  },
+  firstName: {
+    type: String,
+    default: ''
+  },
+  lastName: {
+    type: String,
+    default: ''
+  },
+  displayName: {
+    type: String,
+    default: ''
   },
   role: {
     type: String,
@@ -48,5 +58,9 @@ UserSchema.pre('save', async function(next) {
   this.password = await bcrypt.hash(this.password, 10);
   next();
 });
+
+UserSchema.methods.comparePassword = async function(candidatePassword) {
+  return bcrypt.compare(candidatePassword, this.password);
+};
 
 module.exports = mongoose.model('User', UserSchema);

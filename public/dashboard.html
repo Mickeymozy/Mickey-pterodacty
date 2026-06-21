@@ -234,16 +234,27 @@
     async function loadUser() {
         try {
             const res = await fetch('/api/me');
+            if (!res.ok) {
+                window.location.href = '/login.html';
+                return;
+            }
             const data = await res.json();
-            userName.textContent = data.user.displayName || data.user.username;
+            userName.textContent = data.user?.displayName || data.user?.username || 'User';
         } catch (e) {
-            userName.textContent = 'User';
+            window.location.href = '/login.html';
         }
     }
 
     async function loadServers() {
         try {
             const res = await fetch('/api/servers');
+            if (!res.ok) {
+                if (res.status === 401 || res.status === 403) {
+                    window.location.href = '/login.html';
+                    return;
+                }
+                throw new Error('Unable to load servers');
+            }
             const data = await res.json();
             const servers = data.servers || [];
 
@@ -325,9 +336,7 @@
             
             try {
                 const res = await fetch(`/api/servers/${id}`, { method: 'DELETE' });
-                const data = await res.json();
-                if (data.success) {
-                    await loadServers();
+            const data = await res.json().catch(() => ({}));
                 } else {
                     alert('Failed to delete server: ' + (data.error || 'Unknown error'));
                 }
@@ -376,7 +385,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-            const data = await res.json();
+            const data = await res.json().catch(() => ({}));
             
             if (data.success) {
                 formMessage.textContent = '✅ ' + (data.message || 'Server created successfully!');

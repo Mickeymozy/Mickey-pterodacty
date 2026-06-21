@@ -108,10 +108,11 @@ router.post('/auth/register', async (req, res) => {
     const newUser = new User({
       username: cleanUsername,
       email: email.toLowerCase(),
-      password: password,
-      pterodactylId: pteroData.id,
-      firstName: pteroData.first_name,
-      lastName: pteroData.last_name
+      password,
+      pteroId: pteroData.id,
+      firstName: pteroData.first_name || first_name || username,
+      lastName: pteroData.last_name || last_name || 'User',
+      displayName: pteroData.first_name || first_name || username
     });
 
     await newUser.save();
