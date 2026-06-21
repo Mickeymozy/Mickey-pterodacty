@@ -82,6 +82,52 @@ async function getFirstValidLocation() {
   }
 }
 
+async function resolveAndSavePteroId(user) {
+  if (!appApi || !user) return null;
+
+  const currentId = Number(user.pteroId);
+  if (currentId > 0) {
+    try {
+      const response = await appApi.get(`/users/${currentId}`);
+      if (response?.data?.attributes?.id) {
+        return currentId;
+      }
+    } catch (err) {
+      // ignore and continue lookup by username/email below
+    }
+  }
+
+  try {
+    let page = 1;
+    while (true) {
+      const response = await appApi.get(`/users?page=${page}&per_page=100`);
+      const users = response.data?.data || [];
+      if (!users.length) break;
+
+      const matched = users.find((entry) => {
+        const attrs = entry?.attributes || {};
+        return (
+          attrs.username === String(user.username || '').toLowerCase() ||
+          attrs.email === String(user.email || '').toLowerCase()
+        );
+      });
+
+      if (matched?.attributes?.id) {
+        user.pteroId = matched.attributes.id;
+        await user.save();
+        return Number(matched.attributes.id);
+      }
+
+      if (users.length < 100) break;
+      page += 1;
+    }
+  } catch (err) {
+    console.error('Failed to resolve Pterodactyl user:', err.message);
+  }
+
+  return null;
+}
+
 // Get current user info
 router.get('/api/me', requireAuth, (req, res) => {
   res.json({
@@ -90,7 +136,8 @@ router.get('/api/me', requireAuth, (req, res) => {
       username: req.user.username,
       email: req.user.email,
       displayName: req.user.displayName || req.user.firstName || req.user.username,
-      pterodactylId: req.user.pteroId
+      pterodactylId: req.user.pteroId,
+      linkedToPtero: Boolean(req.user.pteroId && Number(req.user.pteroId) > 0)
     }
   });
 });
@@ -102,9 +149,17 @@ router.get('/api/servers', requireAuth, async (req, res) => {
   }
 
   try {
+    const resolvedPteroId = await resolveAndSavePteroId(req.user);
+    if (!resolvedPteroId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Your Pterodactyl account is not linked yet. Please register or log in again after the panel settings are fixed.'
+      });
+    }
+
     const response = await appApi.get('/servers?per_page=1000');
     const servers = (response.data?.data || [])
-      .filter((server) => server?.attributes?.user === req.user.pteroId)
+      .filter((server) => Number(server?.attributes?.user) === Number(resolvedPteroId))
       .map(sanitizeServer);
 
     res.json({ success: true, servers });
@@ -127,7 +182,8 @@ router.post('/api/servers/create', requireAuth, async (req, res) => {
       return res.status(400).json({ success: false, error: 'Invalid server details.' });
     }
 
-    if (!req.user || !req.user.pteroId || Number(req.user.pteroId) <= 0) {
+    const resolvedPteroId = await resolveAndSavePteroId(req.user);
+    if (!resolvedPteroId) {
       return res.status(400).json({
         success: false,
         error: 'Your Pterodactyl account is not linked yet. Please log in again or register correctly.'
@@ -142,7 +198,7 @@ router.post('/api/servers/create', requireAuth, async (req, res) => {
       });
     }
 
-    const pteroUserId = Number(req.user.pteroId);
+    const pteroUserId = Number(resolvedPteroId);
     const panelUser = await appApi.get(`/users/${pteroUserId}`);
     if (!panelUser?.data?.attributes?.id) {
       return res.status(400).json({

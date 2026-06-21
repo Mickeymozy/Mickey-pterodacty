@@ -124,6 +124,7 @@
                 <h1 id="userName" class="mt-1 text-2xl font-bold text-white">
                     <span class="inline-block w-24 h-6 bg-slate-700/50 rounded animate-pulse"></span>
                 </h1>
+                <p id="panelStatus" class="mt-1 text-sm text-slate-400">Checking panel connection...</p>
             </div>
             <div class="flex items-center gap-3">
                 <button id="refreshBtn" class="px-4 py-2.5 rounded-xl bg-slate-800/50 text-sm font-medium text-slate-300 hover:bg-slate-700/50 transition border border-slate-700/50">
@@ -225,11 +226,19 @@
 <script>
     const serverList = document.getElementById('serverList');
     const userName = document.getElementById('userName');
+    const panelStatus = document.getElementById('panelStatus');
     const createForm = document.getElementById('createForm');
     const formMessage = document.getElementById('formMessage');
     const totalServers = document.getElementById('totalServers');
     const runningServers = document.getElementById('runningServers');
     const stoppedServers = document.getElementById('stoppedServers');
+    let linkedToPtero = false;
+
+    function setFormDisabled(disabled) {
+        createForm.querySelectorAll('input, select, button').forEach((el) => {
+            el.disabled = disabled;
+        });
+    }
 
     async function loadUser() {
         try {
@@ -239,7 +248,19 @@
                 return;
             }
             const data = await res.json();
-            userName.textContent = data.user?.displayName || data.user?.username || 'User';
+            const user = data.user || {};
+            userName.textContent = user.displayName || user.username || 'User';
+            linkedToPtero = Boolean(user.linkedToPtero);
+
+            if (linkedToPtero) {
+                panelStatus.textContent = '✅ Pterodactyl account linked';
+                panelStatus.className = 'mt-1 text-sm text-emerald-400';
+                setFormDisabled(false);
+            } else {
+                panelStatus.textContent = '⚠️ Pterodactyl account not linked yet';
+                panelStatus.className = 'mt-1 text-sm text-amber-400';
+                setFormDisabled(true);
+            }
         } catch (e) {
             window.location.href = '/login.html';
         }
@@ -253,7 +274,12 @@
                     window.location.href = '/login.html';
                     return;
                 }
-                throw new Error('Unable to load servers');
+                const errData = await res.json().catch(() => ({}));
+                if (errData.error) {
+                    formMessage.textContent = '❌ ' + errData.error;
+                    formMessage.className = 'mt-3 text-sm text-red-400';
+                }
+                throw new Error(errData.error || 'Unable to load servers');
             }
             const data = await res.json();
             const servers = data.servers || [];
@@ -364,6 +390,12 @@
     // Create server
     createForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+        if (!linkedToPtero) {
+            formMessage.textContent = '❌ Your panel account is not linked yet. Please fix the account setup first.';
+            formMessage.className = 'mt-3 text-sm text-red-400';
+            return;
+        }
+
         formMessage.textContent = '⏳ Creating server...';
         formMessage.className = 'mt-3 text-sm text-slate-400';
         
