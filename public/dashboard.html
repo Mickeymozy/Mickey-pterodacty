@@ -194,7 +194,7 @@
                 <div class="grid gap-3 sm:grid-cols-3">
                     <div>
                         <label for="cpu" class="mb-1.5 block text-sm font-medium text-slate-300">CPU</label>
-                        <input id="cpu" type="number" min="50" value="100" 
+                        <input id="cpu" type="number" min="1" max="59" value="59" 
                                class="w-full rounded-xl input-glass px-4 py-3 text-sm outline-none text-white">
                         <p class="mt-1 text-xs text-slate-500">vCores</p>
                     </div>
@@ -367,12 +367,13 @@
         formMessage.textContent = '⏳ Creating server...';
         formMessage.className = 'mt-3 text-sm text-slate-400';
         
+        const cpuInput = Number(document.getElementById('cpu').value) || 59;
         const payload = {
             name: document.getElementById('serverName').value.trim(),
             egg: Number(document.getElementById('egg').value),
-            cpu: Number(document.getElementById('cpu').value),
-            memory: Number(document.getElementById('memory').value),
-            disk: Number(document.getElementById('disk').value)
+            cpu: Math.min(59, Math.max(1, cpuInput)),
+            memory: Math.max(512, Number(document.getElementById('memory').value) || 1024),
+            disk: Math.max(1024, Number(document.getElementById('disk').value) || 2048)
         };
 
         if (!payload.name) {
@@ -393,7 +394,7 @@
                 formMessage.textContent = '✅ ' + (data.message || 'Server created successfully!');
                 formMessage.className = 'mt-3 text-sm text-emerald-400';
                 createForm.reset();
-                document.getElementById('cpu').value = 100;
+                document.getElementById('cpu').value = 59;
                 document.getElementById('memory').value = 1024;
                 document.getElementById('disk').value = 2048;
                 await loadServers();

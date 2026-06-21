@@ -69,6 +69,19 @@ const sanitizeServer = (server) => {
   };
 };
 
+async function getFirstValidLocation() {
+  if (!appApi) return null;
+  try {
+    const response = await appApi.get('/locations?per_page=100');
+    const locations = response.data?.data || [];
+    const firstLocation = locations.find((loc) => loc?.attributes?.id);
+    return firstLocation?.attributes?.id || null;
+  } catch (err) {
+    console.error('Failed to fetch locations:', err.message);
+    return null;
+  }
+}
+
 // Get current user info
 router.get('/api/me', requireAuth, (req, res) => {
   res.json({
@@ -114,9 +127,34 @@ router.post('/api/servers/create', requireAuth, async (req, res) => {
       return res.status(400).json({ success: false, error: 'Invalid server details.' });
     }
 
+    if (!req.user || !req.user.pteroId || Number(req.user.pteroId) <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Your Pterodactyl account is not linked yet. Please log in again or register correctly.'
+      });
+    }
+
+    const locationId = await getFirstValidLocation();
+    if (!locationId) {
+      return res.status(503).json({
+        success: false,
+        error: 'No valid server location is available right now.'
+      });
+    }
+
+    const pteroUserId = Number(req.user.pteroId);
+    const panelUser = await appApi.get(`/users/${pteroUserId}`);
+    if (!panelUser?.data?.attributes?.id) {
+      return res.status(400).json({
+        success: false,
+        error: 'This account is not linked to a valid Pterodactyl user.'
+      });
+    }
+
+    const safeCpu = Math.min(59, Math.max(1, Number(cpu) || 59));
     const payload = {
       name,
-      user: req.user.pteroId,
+      user: pteroUserId,
       egg: Number(egg),
       docker_image: eggConfig.docker_image,
       startup: eggConfig.startup,
@@ -126,7 +164,7 @@ router.post('/api/servers/create', requireAuth, async (req, res) => {
         swap: 0,
         disk: Number(disk) || 2048,
         io: 500,
-        cpu: Number(cpu) || 100,
+        cpu: safeCpu,
         oom_disabled: false
       },
       feature_limits: {
@@ -135,7 +173,7 @@ router.post('/api/servers/create', requireAuth, async (req, res) => {
         allocations: 1
       },
       deploy: {
-        locations: [1],
+        locations: [locationId],
         dedicated_ip: false,
         port_range: []
       },
@@ -150,9 +188,16 @@ router.post('/api/servers/create', requireAuth, async (req, res) => {
       server: sanitizeServer(response.data)
     });
   } catch (err) {
-    res.status(500).json({
+    const status = err.response?.status;
+    const apiError = err.response?.data?.errors?.[0]?.detail || err.response?.data?.message || err.message;
+    const message =
+      status === 401 || status === 403
+        ? 'This action is unauthorized. Please check the Pterodactyl API key permissions or linked account.'
+        : apiError || 'Failed to create server.';
+
+    res.status(status && status !== 500 ? status : 500).json({
       success: false,
-      error: err.response?.data?.errors?.[0]?.detail || err.message || 'Failed to create server.'
+      error: message
     });
   }
 });
