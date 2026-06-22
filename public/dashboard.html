@@ -186,16 +186,14 @@
                 <div>
                     <label for="egg" class="mb-1.5 block text-sm font-medium text-slate-300">Server Type</label>
                     <select id="egg" class="w-full rounded-xl input-glass px-4 py-3 text-sm outline-none text-white">
-                        <option value="16" class="bg-slate-900">Node.js</option>
-                        <option value="27" class="bg-slate-900">Python</option>
-                        <option value="28" class="bg-slate-900">Java</option>
+                        <option value="" class="bg-slate-900">Loading server types...</option>
                     </select>
                 </div>
 
                 <div class="grid gap-3 sm:grid-cols-3">
                     <div>
                         <label for="cpu" class="mb-1.5 block text-sm font-medium text-slate-300">CPU</label>
-                        <input id="cpu" type="number" min="1" max="59" value="59" 
+                        <input id="cpu" type="number" min="1" max="25" value="25" 
                                class="w-full rounded-xl input-glass px-4 py-3 text-sm outline-none text-white">
                         <p class="mt-1 text-xs text-slate-500">vCores</p>
                     </div>
@@ -232,6 +230,7 @@
     const totalServers = document.getElementById('totalServers');
     const runningServers = document.getElementById('runningServers');
     const stoppedServers = document.getElementById('stoppedServers');
+    const eggSelect = document.getElementById('egg');
     let linkedToPtero = false;
 
     function setFormDisabled(disabled) {
@@ -263,6 +262,30 @@
             }
         } catch (e) {
             window.location.href = '/login.html';
+        }
+    }
+
+    async function loadEggOptions() {
+        try {
+            const res = await fetch('/api/eggs');
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data.success) {
+                throw new Error(data.error || 'Unable to load server types');
+            }
+
+            const eggs = Array.isArray(data.eggs) ? data.eggs : [];
+            if (!eggs.length) {
+                eggSelect.innerHTML = '<option value="" class="bg-slate-900">No server types available</option>';
+                return;
+            }
+
+            eggSelect.innerHTML = eggs.map((egg) => `
+                <option value="${egg.id}" class="bg-slate-900">${egg.name}</option>
+            `).join('');
+        } catch (e) {
+            eggSelect.innerHTML = `
+                <option value="" class="bg-slate-900">Server types unavailable</option>
+            `;
         }
     }
 
@@ -399,11 +422,11 @@
         formMessage.textContent = '⏳ Creating server...';
         formMessage.className = 'mt-3 text-sm text-slate-400';
         
-        const cpuInput = Number(document.getElementById('cpu').value) || 59;
+        const cpuInput = Number(document.getElementById('cpu').value) || 25;
         const payload = {
             name: document.getElementById('serverName').value.trim(),
             egg: Number(document.getElementById('egg').value),
-            cpu: Math.min(59, Math.max(1, cpuInput)),
+            cpu: Math.min(25, Math.max(1, cpuInput)),
             memory: Math.max(512, Number(document.getElementById('memory').value) || 1024),
             disk: Math.max(1024, Number(document.getElementById('disk').value) || 2048)
         };
@@ -426,9 +449,10 @@
                 formMessage.textContent = '✅ ' + (data.message || 'Server created successfully!');
                 formMessage.className = 'mt-3 text-sm text-emerald-400';
                 createForm.reset();
-                document.getElementById('cpu').value = 59;
+                document.getElementById('cpu').value = 25;
                 document.getElementById('memory').value = 1024;
                 document.getElementById('disk').value = 2048;
+                await loadEggOptions();
                 await loadServers();
             } else {
                 formMessage.textContent = '❌ ' + (data.error || 'Failed to create server.');
@@ -448,6 +472,7 @@
 
     // Initial load
     loadUser();
+    loadEggOptions();
     loadServers();
 
     // Auto-refresh every 30 seconds

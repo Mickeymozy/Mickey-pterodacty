@@ -88,7 +88,42 @@ async function getFirstValidLocation() {
   }
 }
 
-function resolveEggConfig(rawEgg) {
+async function fetchPanelEggOptions() {
+  if (!appApi) return [];
+
+  try {
+    const nestsResponse = await appApi.get('/nests?per_page=1000');
+    const nests = nestsResponse.data?.data || [];
+    const eggs = [];
+
+    for (const nest of nests) {
+      const nestId = nest?.attributes?.id;
+      if (!nestId) continue;
+
+      const eggsResponse = await appApi.get(`/nests/${nestId}/eggs?per_page=1000`);
+      const eggEntries = eggsResponse.data?.data || [];
+
+      for (const entry of eggEntries) {
+        const attrs = entry?.attributes || {};
+        eggs.push({
+          id: Number(attrs.id),
+          name: attrs.name || `Egg ${attrs.id}`,
+          docker_image: attrs.docker_image || '',
+          startup: attrs.startup || '',
+          environment: attrs.environment || {},
+          nestId
+        });
+      }
+    }
+
+    return eggs.filter((egg) => Number.isFinite(egg.id));
+  } catch (err) {
+    console.error('Failed to fetch panel eggs:', err.message);
+    return [];
+  }
+}
+
+async function resolveEggConfig(rawEgg) {
   if (rawEgg === null || rawEgg === undefined || rawEgg === '') {
     return null;
   }
@@ -105,7 +140,12 @@ function resolveEggConfig(rawEgg) {
   const numericValue = Number(normalized);
   const configKey = Number.isFinite(numericValue) ? numericValue : normalized;
 
-  return eggConfigs[configKey] || null;
+  if (eggConfigs[configKey]) {
+    return eggConfigs[configKey];
+  }
+
+  const panelEggOptions = await fetchPanelEggOptions();
+  return panelEggOptions.find((egg) => Number(egg.id) === Number(configKey)) || null;
 }
 
 async function resolveAndSavePteroId(user) {
@@ -194,6 +234,20 @@ router.get('/api/servers', requireAuth, async (req, res) => {
   }
 });
 
+// Get eggs available in the panel
+router.get('/api/eggs', requireAuth, async (req, res) => {
+  if (!appApi) {
+    return res.status(503).json({ success: false, error: 'Pterodactyl API is not configured.' });
+  }
+
+  try {
+    const eggs = await fetchPanelEggOptions();
+    res.json({ success: true, eggs });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message || 'Failed to fetch eggs.' });
+  }
+});
+
 // Create server
 router.post('/api/servers/create', requireAuth, async (req, res) => {
   if (!appApi) {
@@ -202,7 +256,7 @@ router.post('/api/servers/create', requireAuth, async (req, res) => {
 
   try {
     const { name, egg, cpu, memory, disk } = req.body;
-    const eggConfig = resolveEggConfig(egg);
+    const eggConfig = await resolveEggConfig(egg);
 
     if (!name || !eggConfig) {
       return res.status(400).json({
@@ -236,7 +290,7 @@ router.post('/api/servers/create', requireAuth, async (req, res) => {
       });
     }
 
-    const safeCpu = Math.min(59, Math.max(1, Number(cpu) || 59));
+    const safeCpu = Math.min(25, Math.max(1, Number(cpu) || 25));
     const payload = {
       name,
       user: pteroUserId,
