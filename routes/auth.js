@@ -7,6 +7,66 @@ const { requireGuest } = require('../middleware/auth');
 const sendEmail = require('../utils/email');
 const axios = require('axios');
 
+const COMMON_PASSWORDS = new Set([
+  'password', '123456', '123456789', 'qwerty', 'password123', 'admin', 'welcome',
+  'changeme', 'letmein', 'secret', 'test1234', 'iloveyou', 'sunshine', 'monkey'
+]);
+
+function isAcceptablePassword(password) {
+  const trimmed = String(password || '');
+  return trimmed.length >= 8 && !COMMON_PASSWORDS.has(trimmed.toLowerCase());
+}
+
+function generateRandomPassword(length = 24) {
+  return crypto.randomBytes(length).toString('base64').replace(/[^A-Za-z0-9]/g, '').slice(0, length);
+}
+
+async function findOrCreateGithubUser(profile) {
+  const email = String(profile.email || '').trim().toLowerCase();
+  let user = await User.findOne({ githubId: String(profile.id) });
+
+  if (!user && email) {
+    user = await User.findOne({ email });
+  }
+
+  if (!user) {
+    const baseUsername = String(profile.login || profile.name || 'githubuser')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '')
+      .slice(0, 20) || 'githubuser';
+
+    let username = baseUsername;
+    let suffix = 1;
+    while (await User.findOne({ username })) {
+      username = `${baseUsername}${suffix}`;
+      suffix += 1;
+    }
+
+    user = new User({
+      username,
+      email: email || `${username}@github.local`,
+      password: generateRandomPassword(),
+      githubId: String(profile.id),
+      authProvider: 'github',
+      firstName: profile.name?.split(' ')[0] || profile.login || 'GitHub',
+      lastName: profile.name?.split(' ').slice(1).join(' ') || '',
+      displayName: profile.name || profile.login || username,
+      isEmailVerified: true
+    });
+
+    await user.save();
+  } else if (!user.githubId) {
+    user.githubId = String(profile.id);
+    user.authProvider = 'github';
+    if (!user.displayName) user.displayName = profile.name || profile.login || user.username;
+    if (!user.firstName) user.firstName = profile.name?.split(' ')[0] || profile.login || 'GitHub';
+    await user.save();
+  }
+
+  return user;
+}
+
 // Pterodactyl API helper
 const PTERODACTYL_URL = process.env.PTERODACTYL_URL?.replace(/\/$/, '');
 const PTERODACTYL_APP_API_KEY = process.env.PTERODACTYL_APP_API_KEY;
@@ -118,6 +178,11 @@ router.post('/auth/register', async (req, res) => {
     return res.redirect('/login.html?tab=register');
   }
 
+  if (!isAcceptablePassword(password)) {
+    req.flash('error_msg', '❌ Password lazima iwe angalau neno la 8 au zaidi na lisilo la kawaida.');
+    return res.redirect('/login.html?tab=register');
+  }
+
   try {
     const existingUser = await User.findOne({
       $or: [{ username: cleanUsername }, { email: cleanEmail }]
@@ -214,8 +279,8 @@ router.post('/auth/reset-password', async (req, res) => {
 router.post('/auth/reset-password/confirm', async (req, res) => {
   const { token, password } = req.body;
 
-  if (!token || !password || password.length < 6) {
-    req.flash('error_msg', '❌ Token au password si sahihi.');
+  if (!token || !password || !isAcceptablePassword(password)) {
+    req.flash('error_msg', '❌ Token au password si sahihi. Password lazima iwe na angalau 8 herufi na isiwe ya kawaida.');
     return res.redirect('/login.html?tab=reset');
   }
 
@@ -236,6 +301,94 @@ router.post('/auth/reset-password/confirm', async (req, res) => {
 
   req.flash('success_msg', '✅ Password yako imebadilishwa.');
   res.redirect('/login.html?tab=login');
+});
+
+router.get('/auth/github', (req, res) => {
+  const clientId = process.env.GITHUB_CLIENT_ID;
+  const redirectUri = `${process.env.APP_URL || 'http://localhost:3000'}/auth/github/callback`;
+
+  if (!clientId) {
+    req.flash('error_msg', '❌ GitHub login haijasanidiwa bado.');
+    return res.redirect('/login.html?tab=login');
+  }
+
+  const params = new URLSearchParams({
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    scope: 'read:user user:email',
+    allow_signup: 'true'
+  });
+
+  res.redirect(`https://github.com/login/oauth/authorize?${params.toString()}`);
+});
+
+router.get('/auth/github/callback', async (req, res, next) => {
+  const code = req.query.code;
+  if (!code) {
+    req.flash('error_msg', '❌ GitHub login ilikatishwa.');
+    return res.redirect('/login.html?tab=login');
+  }
+
+  try {
+    const tokenRes = await axios.post(
+      'https://github.com/login/oauth/access_token',
+      {
+        client_id: process.env.GITHUB_CLIENT_ID,
+        client_secret: process.env.GITHUB_CLIENT_SECRET,
+        code,
+        redirect_uri: `${process.env.APP_URL || 'http://localhost:3000'}/auth/github/callback`
+      },
+      {
+        headers: {
+          Accept: 'application/json'
+        }
+      }
+    );
+
+    const accessToken = tokenRes.data?.access_token;
+    if (!accessToken) {
+      throw new Error('GitHub token not provided.');
+    }
+
+    const userRes = await axios.get('https://api.github.com/user', {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: 'application/json'
+      }
+    });
+
+    const profile = userRes.data || {};
+    let email = profile.email || '';
+
+    if (!email) {
+      const emailRes = await axios.get('https://api.github.com/user/emails', {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          Accept: 'application/json'
+        }
+      });
+      const primaryEmail = (emailRes.data || []).find((entry) => entry.primary && entry.verified);
+      email = primaryEmail?.email || '';
+    }
+
+    const user = await findOrCreateGithubUser({
+      id: profile.id,
+      login: profile.login,
+      name: profile.name,
+      email
+    });
+
+    req.logIn(user, async (loginErr) => {
+      if (loginErr) return next(loginErr);
+      user.lastLogin = new Date();
+      await user.save();
+      res.redirect('/dashboard.html');
+    });
+  } catch (err) {
+    console.error('❌ GitHub auth error:', err.response?.data || err.message);
+    req.flash('error_msg', '❌ GitHub login ilifeli. Jaribu tena baadaye.');
+    res.redirect('/login.html?tab=login');
+  }
 });
 
 router.get('/logout', (req, res, next) => {

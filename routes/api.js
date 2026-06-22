@@ -123,6 +123,40 @@ async function fetchPanelEggOptions() {
   }
 }
 
+async function fetchEggDetails(eggConfig) {
+  if (!appApi || !eggConfig?.id || !eggConfig?.nestId) return eggConfig;
+
+  try {
+    const response = await appApi.get(`/nests/${eggConfig.nestId}/eggs/${eggConfig.id}?include=variables`);
+    const attrs = response.data?.attributes || {};
+    const included = response.data?.included || [];
+
+    const variableDefaults = {};
+    for (const item of included) {
+      if (item?.type !== 'egg_variable') continue;
+      const variable = item?.attributes || {};
+      const envKey = variable.env_variable;
+      if (envKey && variable.default_value !== undefined && variable.default_value !== null) {
+        variableDefaults[envKey] = String(variable.default_value);
+      }
+    }
+
+    return {
+      ...eggConfig,
+      docker_image: attrs.docker_image || eggConfig.docker_image,
+      startup: attrs.startup || eggConfig.startup,
+      environment: {
+        ...(eggConfig.environment || {}),
+        ...(attrs.environment || {}),
+        ...variableDefaults
+      }
+    };
+  } catch (err) {
+    console.warn('Unable to fetch egg details, using fallback defaults:', err.message);
+    return eggConfig;
+  }
+}
+
 async function resolveEggConfig(rawEgg) {
   if (rawEgg === null || rawEgg === undefined || rawEgg === '') {
     return null;
@@ -265,6 +299,13 @@ router.post('/api/servers/create', requireAuth, async (req, res) => {
       });
     }
 
+    const resolvedEggConfig = await fetchEggDetails(eggConfig);
+    const safeEnvironment = {
+      USER_UPLOAD: '0',
+      AUTO_UPDATE: '1',
+      ...(resolvedEggConfig.environment || {})
+    };
+
     const resolvedPteroId = await resolveAndSavePteroId(req.user);
     if (!resolvedPteroId) {
       return res.status(400).json({
@@ -294,10 +335,10 @@ router.post('/api/servers/create', requireAuth, async (req, res) => {
     const payload = {
       name,
       user: pteroUserId,
-      egg: Number(eggConfig.id),
-      docker_image: eggConfig.docker_image,
-      startup: eggConfig.startup,
-      environment: eggConfig.environment,
+      egg: Number(resolvedEggConfig.id),
+      docker_image: resolvedEggConfig.docker_image,
+      startup: resolvedEggConfig.startup,
+      environment: safeEnvironment,
       limits: {
         memory: Number(memory) || 1024,
         swap: 0,

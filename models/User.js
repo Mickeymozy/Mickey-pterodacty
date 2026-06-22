@@ -26,6 +26,15 @@ const UserSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  githubId: {
+    type: String,
+    default: null
+  },
+  authProvider: {
+    type: String,
+    enum: ['local', 'github'],
+    default: 'local'
+  },
   firstName: {
     type: String,
     default: ''
