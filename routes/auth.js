@@ -159,9 +159,14 @@ router.post('/auth/register', async (req, res) => {
     });
 
     await newUser.save();
-    await sendVerificationMessage(newUser);
+    const sent = await sendVerificationMessage(newUser);
 
-    req.flash('success_msg', '✅ Akaunti imeundwa. Angalia email yako kwa msimbo wa uthibitisho.');
+    if (sent) {
+      req.flash('success_msg', '✅ Akaunti imeundwa. Angalia email yako kwa msimbo wa uthibitisho.');
+    } else {
+      req.flash('error_msg', '⚠️ Akaunti imeundwa, lakini email ya uthibitisho haikuweza kutumwa. Tafadhali wasiliana na support.');
+    }
+
     res.redirect('/login.html?tab=login');
   } catch (err) {
     console.error('❌ Registration error:', err.response?.data || err.message);

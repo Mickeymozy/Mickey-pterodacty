@@ -21,6 +21,8 @@ const appApi = hasPteroConfig
 
 const eggConfigs = {
   16: {
+    id: 16,
+    key: 'nodejs',
     name: 'Node.js',
     docker_image: 'ghcr.io/parkervcp/yolks:nodejs_21',
     startup: `if [[ -d .git ]] && [[ "$AUTO_UPDATE" == "1" ]]; then git pull; fi; if [[ ! -z "$NODE_PACKAGES" ]]; then /usr/local/bin/npm install $NODE_PACKAGES; fi; if [[ ! -z "$UNNODE_PACKAGES" ]]; then /usr/local/bin/npm uninstall $UNNODE_PACKAGES; fi; if [ -f /home/container/package.json ]; then /usr/local/bin/npm install; fi; if [[ "$MAIN_FILE" == "*.js" ]]; then /usr/local/bin/node "/home/container/$MAIN_FILE" $NODE_ARGS; else /usr/local/bin/ts-node --esm "/home/container/$MAIN_FILE" $NODE_ARGS; fi`,
@@ -32,6 +34,8 @@ const eggConfigs = {
     }
   },
   27: {
+    id: 27,
+    key: 'python',
     name: 'Python',
     docker_image: 'ghcr.io/parkervcp/yolks:python_3.10',
     startup: `if [[ -d .git ]] && [[ "$AUTO_UPDATE" == "1" ]]; then git pull; fi; if [[ ! -z "$PY_PACKAGES" ]]; then pip install -U --prefix .local $PY_PACKAGES; fi; if [[ -f /home/container/$REQUIREMENTS_FILE ]]; then pip install -U --prefix .local -r $REQUIREMENTS_FILE; fi; /usr/local/bin/python /home/container/$PY_FILE`,
@@ -44,6 +48,8 @@ const eggConfigs = {
     }
   },
   28: {
+    id: 28,
+    key: 'java',
     name: 'Java',
     docker_image: 'ghcr.io/parkervcp/yolks:java_17',
     startup: 'java -Dterminal.jline=false -Dterminal.ansi=true -jar $JARFILE',
@@ -80,6 +86,26 @@ async function getFirstValidLocation() {
     console.error('Failed to fetch locations:', err.message);
     return null;
   }
+}
+
+function resolveEggConfig(rawEgg) {
+  if (rawEgg === null || rawEgg === undefined || rawEgg === '') {
+    return null;
+  }
+
+  const lookup = String(rawEgg).trim().toLowerCase();
+  const aliasMap = {
+    nodejs: '16',
+    node: '16',
+    python: '27',
+    java: '28'
+  };
+
+  const normalized = aliasMap[lookup] || lookup;
+  const numericValue = Number(normalized);
+  const configKey = Number.isFinite(numericValue) ? numericValue : normalized;
+
+  return eggConfigs[configKey] || null;
 }
 
 async function resolveAndSavePteroId(user) {
@@ -176,10 +202,13 @@ router.post('/api/servers/create', requireAuth, async (req, res) => {
 
   try {
     const { name, egg, cpu, memory, disk } = req.body;
-    const eggConfig = eggConfigs[Number(egg)];
+    const eggConfig = resolveEggConfig(egg);
 
     if (!name || !eggConfig) {
-      return res.status(400).json({ success: false, error: 'Invalid server details.' });
+      return res.status(400).json({
+        success: false,
+        error: 'Please select a valid server type before creating the server.'
+      });
     }
 
     const resolvedPteroId = await resolveAndSavePteroId(req.user);
@@ -211,7 +240,7 @@ router.post('/api/servers/create', requireAuth, async (req, res) => {
     const payload = {
       name,
       user: pteroUserId,
-      egg: Number(egg),
+      egg: Number(eggConfig.id),
       docker_image: eggConfig.docker_image,
       startup: eggConfig.startup,
       environment: eggConfig.environment,
