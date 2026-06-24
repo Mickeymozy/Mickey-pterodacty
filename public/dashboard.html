@@ -179,6 +179,9 @@
                 <div id="serverOverview" class="mt-4 rounded-2xl border border-slate-800 bg-slate-900/40 p-4 text-sm text-slate-400">
                     <p>Choose a server to view its current status and limits.</p>
                 </div>
+                <div id="serverAccess" class="mt-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-200">
+                    <p>Use this section to open your server panel or view login details.</p>
+                </div>
             </div>
 
             <div class="glass rounded-2xl p-6 mt-6">
@@ -256,6 +259,7 @@
     const runningServers = document.getElementById('runningServers');
     const stoppedServers = document.getElementById('stoppedServers');
     const serverOverview = document.getElementById('serverOverview');
+    const serverAccess = document.getElementById('serverAccess');
     const eggSelect = document.getElementById('egg');
     const startupFileInput = document.getElementById('startupFile');
     const startupCommandInput = document.getElementById('startupCommand');
@@ -347,22 +351,64 @@
         }
     }
 
+    function renderAccessInfo(server, access = {}) {
+        const panelUrl = access.panelUrl || window.location.origin;
+        const serverIdentifier = server?.identifier || server?.id || server?.uuid || access.serverId || '';
+        const serverName = server?.name || access.serverName || 'your server';
+        const panelLink = panelUrl || window.location.origin;
+        const serverLink = serverIdentifier ? `${panelLink}${panelLink.includes('/server') ? '' : ''}` : panelLink;
+
+        serverAccess.innerHTML = `
+            <div class="space-y-3">
+                <div>
+                    <p class="text-xs uppercase tracking-[0.2em] text-emerald-300/70">Quick Access</p>
+                    <h3 class="mt-1 text-lg font-semibold text-white">${serverName}</h3>
+                </div>
+                <div class="rounded-xl bg-slate-900/50 p-3">
+                    <p class="text-xs text-emerald-200/70">Panel Link</p>
+                    <a href="${panelLink}" target="_blank" rel="noopener noreferrer" class="mt-1 block break-all font-semibold text-emerald-100 hover:text-white">${panelLink}</a>
+                </div>
+                <div class="grid gap-3 sm:grid-cols-2">
+                    <div class="rounded-xl bg-slate-900/50 p-3">
+                        <p class="text-xs text-emerald-200/70">Login Email</p>
+                        <p class="mt-1 break-all font-semibold text-white">${access.email || '—'}</p>
+                    </div>
+                    <div class="rounded-xl bg-slate-900/50 p-3">
+                        <p class="text-xs text-emerald-200/70">Login Username</p>
+                        <p class="mt-1 break-all font-semibold text-white">${access.username || '—'}</p>
+                    </div>
+                </div>
+                <div class="rounded-xl bg-slate-900/50 p-3">
+                    <p class="text-xs text-emerald-200/70">Server Shortcut</p>
+                    <p class="mt-1 break-all font-semibold text-emerald-100">${serverIdentifier || 'No server identifier available yet.'}</p>
+                </div>
+            </div>
+        `;
+    }
+
     async function loadServerDetails(serverId) {
         if (!serverId) {
             serverOverview.innerHTML = '<p>Select a server to view its current status and limits.</p>';
+            serverAccess.innerHTML = '<p>Use this section to open your server panel or view login details.</p>';
             return;
         }
 
         try {
-            const res = await fetch(`/api/servers/${encodeURIComponent(serverId)}/details`);
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok || !data.success) {
-                throw new Error(data.error || 'Unable to load server details');
+            const [detailsRes, accessRes] = await Promise.all([
+                fetch(`/api/servers/${encodeURIComponent(serverId)}/details`),
+                fetch(`/api/servers/${encodeURIComponent(serverId)}/access`)
+            ]);
+            const detailsData = await detailsRes.json().catch(() => ({}));
+            const accessData = await accessRes.json().catch(() => ({}));
+
+            if (!detailsRes.ok || !detailsData.success) {
+                throw new Error(detailsData.error || 'Unable to load server details');
             }
 
-            const server = data.server || {};
+            const server = detailsData.server || {};
             const limits = server.limits || {};
             const resources = server.resources || {};
+            const access = accessData.success ? accessData.access || {} : {};
             serverOverview.innerHTML = `
                 <div class="space-y-3">
                     <div>
@@ -395,8 +441,10 @@
                     </div>
                 </div>
             `;
+            renderAccessInfo(server, access);
         } catch (e) {
             serverOverview.innerHTML = `<p class="text-red-400">${e.message || 'Unable to load server details.'}</p>`;
+            serverAccess.innerHTML = `<p class="text-red-400">${e.message || 'Unable to load server access info.'}</p>`;
         }
     }
 

@@ -448,6 +448,34 @@ router.post('/api/servers/create', requireAuth, async (req, res) => {
   }
 });
 
+// Server access details
+router.get('/api/servers/:id/access', requireAuth, async (req, res) => {
+  if (!appApi) {
+    return res.status(503).json({ success: false, error: 'Pterodactyl API is not configured.' });
+  }
+
+  try {
+    const serverId = encodeURIComponent(req.params.id);
+    const serverResponse = await appApi.get(`/servers/${serverId}`);
+    const attrs = serverResponse.data?.attributes || {};
+
+    res.json({
+      success: true,
+      access: {
+        panelUrl: process.env.PTERODACTYL_URL || '',
+        username: req.user?.username || req.user?.displayName || '',
+        email: req.user?.email || '',
+        serverName: attrs.name || '',
+        serverId: attrs.identifier || attrs.id || ''
+      }
+    });
+  } catch (err) {
+    const status = err.response?.status;
+    const message = err.response?.data?.errors?.[0]?.detail || err.response?.data?.message || err.message || 'Failed to load server access details.';
+    res.status(status && status !== 500 ? status : 500).json({ success: false, error: message });
+  }
+});
+
 // Server details
 router.get('/api/servers/:id/details', requireAuth, async (req, res) => {
   if (!appApi) {
