@@ -182,6 +182,58 @@ async function resolveEggConfig(rawEgg) {
   return panelEggOptions.find((egg) => Number(egg.id) === Number(configKey)) || null;
 }
 
+function getDefaultStartupFile(eggConfig = {}) {
+  const eggId = Number(eggConfig.id);
+  if (eggId === 27) return 'main.py';
+  if (eggId === 28) return 'server.jar';
+  return 'index.js';
+}
+
+function getDefaultStartupCommand(eggConfig = {}) {
+  const eggId = Number(eggConfig.id);
+  if (eggId === 27) return 'python3 main.py';
+  if (eggId === 28) return 'java -jar server.jar';
+  return 'npm start';
+}
+
+function buildServerEnvironment(eggConfig, options = {}) {
+  const resolvedEggConfig = eggConfig || {};
+  const baseEnvironment = {
+    USER_UPLOAD: '0',
+    AUTO_UPDATE: '1',
+    ...(resolvedEggConfig.environment || {})
+  };
+
+  const requestedEnvironment = {
+    ...baseEnvironment,
+    ...(options.environment || {})
+  };
+
+  const eggId = Number(resolvedEggConfig.id);
+  const startupFile = options.startupFile || options.mainFile || options.main_file || getDefaultStartupFile(resolvedEggConfig);
+  const startupCommand = options.startupCommand || getDefaultStartupCommand(resolvedEggConfig);
+
+  if (startupFile) {
+    if (eggId === 16) {
+      requestedEnvironment.MAIN_FILE = startupFile;
+    } else if (eggId === 27) {
+      requestedEnvironment.PY_FILE = startupFile;
+    } else if (eggId === 28) {
+      requestedEnvironment.JARFILE = startupFile;
+    } else if (!requestedEnvironment.MAIN_FILE && !requestedEnvironment.PY_FILE && !requestedEnvironment.JARFILE) {
+      requestedEnvironment.MAIN_FILE = startupFile;
+    }
+  }
+
+  if (startupCommand) {
+    requestedEnvironment.STARTUP_CMD = startupCommand;
+  }
+
+  return Object.fromEntries(
+    Object.entries(requestedEnvironment).filter(([, value]) => value !== undefined && value !== null).map(([key, value]) => [key, String(value)])
+  );
+}
+
 async function resolveAndSavePteroId(user) {
   if (!appApi || !user) return null;
 
@@ -289,7 +341,7 @@ router.post('/api/servers/create', requireAuth, async (req, res) => {
   }
 
   try {
-    const { name, egg, cpu, memory, disk } = req.body;
+    const { name, egg, cpu, memory, disk, startupFile, startupCommand, mainFile, main_file, environment } = req.body;
     const eggConfig = await resolveEggConfig(egg);
 
     if (!name || !eggConfig) {
@@ -300,11 +352,11 @@ router.post('/api/servers/create', requireAuth, async (req, res) => {
     }
 
     const resolvedEggConfig = await fetchEggDetails(eggConfig);
-    const safeEnvironment = {
-      USER_UPLOAD: '0',
-      AUTO_UPDATE: '1',
-      ...(resolvedEggConfig.environment || {})
-    };
+    const safeEnvironment = buildServerEnvironment(resolvedEggConfig, {
+      startupFile: startupFile || mainFile || main_file || '',
+      startupCommand,
+      environment
+    });
 
     const resolvedPteroId = await resolveAndSavePteroId(req.user);
     if (!resolvedPteroId) {
@@ -396,7 +448,7 @@ router.post('/api/servers/:id/power/:action', requireAuth, async (req, res) => {
   }
 
   try {
-    const response = await appApi.post(`/servers/${req.params.id}/power`, { signal: action });
+    const response = await appApi.post(`/servers/${encodeURIComponent(req.params.id)}/power`, { signal: action });
     res.json({ success: true, data: response.data });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message || 'Failed to update server.' });

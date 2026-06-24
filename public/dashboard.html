@@ -190,6 +190,20 @@
                     </select>
                 </div>
 
+                <div class="grid gap-3 sm:grid-cols-2">
+                    <div>
+                        <label for="startupFile" id="startupFileLabel" class="mb-1.5 block text-sm font-medium text-slate-300">Main File</label>
+                        <input id="startupFile" placeholder="index.js"
+                               class="w-full rounded-xl input-glass px-4 py-3 text-sm outline-none text-white">
+                    </div>
+                    <div>
+                        <label for="startupCommand" class="mb-1.5 block text-sm font-medium text-slate-300">Startup Command</label>
+                        <input id="startupCommand" placeholder="npm start"
+                               class="w-full rounded-xl input-glass px-4 py-3 text-sm outline-none text-white">
+                    </div>
+                </div>
+                <p id="eggHint" class="text-xs text-slate-500">The panel needs the startup file for this egg. For Node.js, use something like index.js.</p>
+
                 <div class="grid gap-3 sm:grid-cols-3">
                     <div>
                         <label for="cpu" class="mb-1.5 block text-sm font-medium text-slate-300">CPU</label>
@@ -231,6 +245,10 @@
     const runningServers = document.getElementById('runningServers');
     const stoppedServers = document.getElementById('stoppedServers');
     const eggSelect = document.getElementById('egg');
+    const startupFileInput = document.getElementById('startupFile');
+    const startupCommandInput = document.getElementById('startupCommand');
+    const startupFileLabel = document.getElementById('startupFileLabel');
+    const eggHint = document.getElementById('eggHint');
     let linkedToPtero = false;
 
     function setFormDisabled(disabled) {
@@ -265,6 +283,30 @@
         }
     }
 
+    function updateStartupHints() {
+        const eggId = Number(eggSelect.value);
+        let label = 'Main File';
+        let placeholder = 'index.js';
+        let hint = 'The panel needs the startup file for this egg. For Node.js, use something like index.js.';
+
+        if (eggId === 27) {
+            label = 'Python File';
+            placeholder = 'main.py';
+            hint = 'The panel needs the Python entry file for this egg.';
+        } else if (eggId === 28) {
+            label = 'Jar File';
+            placeholder = 'server.jar';
+            hint = 'The panel needs the Java jar file for this egg.';
+        }
+
+        startupFileLabel.textContent = label;
+        startupFileInput.placeholder = placeholder;
+        if (!startupFileInput.value) {
+            startupFileInput.value = '';
+        }
+        eggHint.textContent = hint;
+    }
+
     async function loadEggOptions() {
         try {
             const res = await fetch('/api/eggs');
@@ -276,16 +318,19 @@
             const eggs = Array.isArray(data.eggs) ? data.eggs : [];
             if (!eggs.length) {
                 eggSelect.innerHTML = '<option value="" class="bg-slate-900">No server types available</option>';
+                updateStartupHints();
                 return;
             }
 
             eggSelect.innerHTML = eggs.map((egg) => `
                 <option value="${egg.id}" class="bg-slate-900">${egg.name}</option>
             `).join('');
+            updateStartupHints();
         } catch (e) {
             eggSelect.innerHTML = `
                 <option value="" class="bg-slate-900">Server types unavailable</option>
             `;
+            updateStartupHints();
         }
     }
 
@@ -342,19 +387,19 @@
                                 <p class="mt-1 text-sm text-slate-400 font-mono">${server.identifier || server.id}</p>
                             </div>
                             <div class="flex gap-2 flex-wrap">
-                                <button data-action="start" data-id="${server.identifier || server.id}" 
+                                <button data-action="start" data-id="${server.uuid || server.id || server.identifier}" 
                                         class="px-3 py-2 rounded-xl bg-emerald-500/10 text-emerald-400 text-sm font-medium hover:bg-emerald-500/20 transition border border-emerald-500/20">
                                     ▶ Start
                                 </button>
-                                <button data-action="stop" data-id="${server.identifier || server.id}" 
+                                <button data-action="stop" data-id="${server.uuid || server.id || server.identifier}" 
                                         class="px-3 py-2 rounded-xl bg-amber-500/10 text-amber-400 text-sm font-medium hover:bg-amber-500/20 transition border border-amber-500/20">
                                     ⏹ Stop
                                 </button>
-                                <button data-action="restart" data-id="${server.identifier || server.id}" 
+                                <button data-action="restart" data-id="${server.uuid || server.id || server.identifier}" 
                                         class="px-3 py-2 rounded-xl bg-blue-500/10 text-blue-400 text-sm font-medium hover:bg-blue-500/20 transition border border-blue-500/20">
                                     🔄 Restart
                                 </button>
-                                <button data-action="delete" data-id="${server.identifier || server.id}" 
+                                <button data-action="delete" data-id="${server.uuid || server.id || server.identifier}" 
                                         class="px-3 py-2 rounded-xl bg-red-500/10 text-red-400 text-sm font-medium hover:bg-red-500/20 transition border border-red-500/20">
                                     🗑 Delete
                                 </button>
@@ -428,7 +473,9 @@
             egg: Number(document.getElementById('egg').value),
             cpu: Math.min(25, Math.max(1, cpuInput)),
             memory: Math.max(512, Number(document.getElementById('memory').value) || 1024),
-            disk: Math.max(1024, Number(document.getElementById('disk').value) || 2048)
+            disk: Math.max(1024, Number(document.getElementById('disk').value) || 2048),
+            startupFile: document.getElementById('startupFile').value.trim(),
+            startupCommand: document.getElementById('startupCommand').value.trim()
         };
 
         if (!payload.name) {
@@ -452,6 +499,8 @@
                 document.getElementById('cpu').value = 25;
                 document.getElementById('memory').value = 1024;
                 document.getElementById('disk').value = 2048;
+                document.getElementById('startupFile').value = '';
+                document.getElementById('startupCommand').value = '';
                 await loadEggOptions();
                 await loadServers();
             } else {
@@ -469,6 +518,8 @@
         loadUser();
         loadServers();
     });
+
+    eggSelect.addEventListener('change', updateStartupHints);
 
     // Initial load
     loadUser();
