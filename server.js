@@ -11,7 +11,7 @@ const path = require('path');
 const connectDB = require('./config/database');
 const authRoutes = require('./routes/auth');
 const apiRoutes = require('./routes/api');
-const { requireAuth, getUserFromSession } = require('./middleware/auth');
+const { requireAuth, requireAdmin, getUserFromSession } = require('./middleware/auth');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -81,6 +81,14 @@ app.use('/', apiRoutes);
 // Dashboard (protected)
 app.get('/dashboard.html', requireAuth, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+});
+
+app.get('/admin.html', requireAuth, requireAdmin, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+});
+
+app.get('/admin', requireAuth, requireAdmin, (req, res) => {
+  res.redirect('/admin.html');
 });
 
 app.get('/', requireAuth, (req, res) => {

@@ -127,6 +127,9 @@
                 <p id="panelStatus" class="mt-1 text-sm text-slate-400">Checking panel connection...</p>
             </div>
             <div class="flex items-center gap-3">
+                <a id="adminLink" href="/admin.html" class="hidden items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800/50 text-sm font-medium text-slate-300 hover:bg-slate-700/50 transition border border-slate-700/50">
+                    ⚙️ Admin
+                </a>
                 <button id="refreshBtn" class="px-4 py-2.5 rounded-xl bg-slate-800/50 text-sm font-medium text-slate-300 hover:bg-slate-700/50 transition border border-slate-700/50">
                     🔄 Refresh
                 </button>
@@ -252,6 +255,7 @@
 <script>
     const serverList = document.getElementById('serverList');
     const userName = document.getElementById('userName');
+    const adminLink = document.getElementById('adminLink');
     const panelStatus = document.getElementById('panelStatus');
     const createForm = document.getElementById('createForm');
     const formMessage = document.getElementById('formMessage');
@@ -285,6 +289,14 @@
             const user = data.user || {};
             userName.textContent = user.displayName || user.username || 'User';
             linkedToPtero = Boolean(user.linkedToPtero);
+
+            if (user.isAdmin) {
+                adminLink.classList.remove('hidden');
+                adminLink.classList.add('inline-flex');
+            } else {
+                adminLink.classList.add('hidden');
+                adminLink.classList.remove('inline-flex');
+            }
 
             if (linkedToPtero) {
                 panelStatus.textContent = '✅ Pterodactyl account linked';

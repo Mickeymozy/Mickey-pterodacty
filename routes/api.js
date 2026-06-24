@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const axios = require('axios');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, isAdminUser } = require('../middleware/auth');
 
 const PTERODACTYL_URL = process.env.PTERODACTYL_URL?.replace(/\/$/, '');
 const PTERODACTYL_APP_API_KEY = process.env.PTERODACTYL_APP_API_KEY;
@@ -303,7 +303,9 @@ router.get('/api/me', requireAuth, (req, res) => {
       email: req.user.email,
       displayName: req.user.displayName || req.user.firstName || req.user.username,
       pterodactylId: req.user.pteroId,
-      linkedToPtero: Boolean(req.user.pteroId && Number(req.user.pteroId) > 0)
+      linkedToPtero: Boolean(req.user.pteroId && Number(req.user.pteroId) > 0),
+      isAdmin: isAdminUser(req.user),
+      role: req.user.role || 'user'
     }
   });
 });
