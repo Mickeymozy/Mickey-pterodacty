@@ -5,13 +5,27 @@ const { requireAuth } = require('../middleware/auth');
 
 const PTERODACTYL_URL = process.env.PTERODACTYL_URL?.replace(/\/$/, '');
 const PTERODACTYL_APP_API_KEY = process.env.PTERODACTYL_APP_API_KEY;
+const PTERODACTYL_CLIENT_API_KEY = process.env.PTERODACTYL_CLIENT_API_KEY || process.env.PTERODACTYL_CLIENT_KEY || process.env.PTERODACTYL_API_KEY || process.env.PTERODACTYL_APP_API_KEY;
 const hasPteroConfig = PTERODACTYL_URL && PTERODACTYL_APP_API_KEY;
+const hasClientConfig = PTERODACTYL_URL && PTERODACTYL_CLIENT_API_KEY;
 
 const appApi = hasPteroConfig
   ? axios.create({
       baseURL: `${PTERODACTYL_URL}/api/application`,
       headers: {
         Authorization: `Bearer ${PTERODACTYL_APP_API_KEY}`,
+        'Content-Type': 'application/json',
+        Accept: 'application/json'
+      },
+      timeout: 10000
+    })
+  : null;
+
+const clientApi = hasClientConfig
+  ? axios.create({
+      baseURL: `${PTERODACTYL_URL}/api/client`,
+      headers: {
+        Authorization: `Bearer ${PTERODACTYL_CLIENT_API_KEY}`,
         'Content-Type': 'application/json',
         Accept: 'application/json'
       },
@@ -434,9 +448,48 @@ router.post('/api/servers/create', requireAuth, async (req, res) => {
   }
 });
 
+// Server details
+router.get('/api/servers/:id/details', requireAuth, async (req, res) => {
+  if (!appApi) {
+    return res.status(503).json({ success: false, error: 'Pterodactyl API is not configured.' });
+  }
+
+  try {
+    const serverId = encodeURIComponent(req.params.id);
+    const [serverResponse, resourcesResponse] = await Promise.allSettled([
+      appApi.get(`/servers/${serverId}`),
+      clientApi ? clientApi.get(`/servers/${serverId}/resources`) : Promise.resolve(null)
+    ]);
+
+    if (serverResponse.status === 'rejected') {
+      throw serverResponse.reason;
+    }
+
+    const attrs = serverResponse.value?.data?.attributes || {};
+    const resourceAttrs = resourcesResponse.status === 'fulfilled' ? resourcesResponse.value?.data?.attributes || {} : {};
+
+    res.json({
+      success: true,
+      server: {
+        id: attrs.id,
+        uuid: attrs.uuid,
+        identifier: attrs.identifier,
+        name: attrs.name,
+        status: attrs.status || resourceAttrs.current_state || 'unknown',
+        limits: attrs.limits || {},
+        resources: resourceAttrs
+      }
+    });
+  } catch (err) {
+    const status = err.response?.status;
+    const message = err.response?.data?.errors?.[0]?.detail || err.response?.data?.message || err.message || 'Failed to load server details.';
+    res.status(status && status !== 500 ? status : 500).json({ success: false, error: message });
+  }
+});
+
 // Power action
 router.post('/api/servers/:id/power/:action', requireAuth, async (req, res) => {
-  if (!appApi) {
+  if (!appApi && !clientApi) {
     return res.status(503).json({ success: false, error: 'Pterodactyl API is not configured.' });
   }
 
@@ -448,10 +501,13 @@ router.post('/api/servers/:id/power/:action', requireAuth, async (req, res) => {
   }
 
   try {
-    const response = await appApi.post(`/servers/${encodeURIComponent(req.params.id)}/power`, { signal: action });
+    const powerApi = clientApi || appApi;
+    const response = await powerApi.post(`/servers/${encodeURIComponent(req.params.id)}/power`, { signal: action });
     res.json({ success: true, data: response.data });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message || 'Failed to update server.' });
+    const status = err.response?.status;
+    const detail = err.response?.data?.errors?.[0]?.detail || err.response?.data?.message || err.message;
+    res.status(status && status !== 500 ? status : 500).json({ success: false, error: detail || 'Failed to update server.' });
   }
 });
 

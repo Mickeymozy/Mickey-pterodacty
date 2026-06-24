@@ -13,8 +13,9 @@ const COMMON_PASSWORDS = new Set([
 ]);
 
 function isAcceptablePassword(password) {
-  const trimmed = String(password || '');
-  return trimmed.length >= 8 && !COMMON_PASSWORDS.has(trimmed.toLowerCase());
+  const trimmed = String(password || '').trim();
+  const digitCount = (trimmed.match(/\d/g) || []).length;
+  return trimmed.length >= 8 && digitCount >= 4 && !COMMON_PASSWORDS.has(trimmed.toLowerCase());
 }
 
 function generateRandomPassword(length = 24) {
@@ -179,7 +180,7 @@ router.post('/auth/register', async (req, res) => {
   }
 
   if (!isAcceptablePassword(password)) {
-    req.flash('error_msg', '❌ Password lazima iwe angalau neno la 8 au zaidi na lisilo la kawaida.');
+    req.flash('error_msg', '❌ Password lazima iwe na angalau herufi 8 na namba 4, na isiwe ya kawaida.');
     return res.redirect('/login.html?tab=register');
   }
 
@@ -280,7 +281,7 @@ router.post('/auth/reset-password/confirm', async (req, res) => {
   const { token, password } = req.body;
 
   if (!token || !password || !isAcceptablePassword(password)) {
-    req.flash('error_msg', '❌ Token au password si sahihi. Password lazima iwe na angalau 8 herufi na isiwe ya kawaida.');
+    req.flash('error_msg', '❌ Token au password si sahihi. Password lazima iwe na angalau herufi 8 na namba 4, na isiwe ya kawaida.');
     return res.redirect('/login.html?tab=reset');
   }
 

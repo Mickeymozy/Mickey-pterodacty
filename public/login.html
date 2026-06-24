@@ -89,7 +89,7 @@
           <label class="block text-slate-300 text-sm font-medium mb-1.5">Password</label>
           <input type="password" id="registerPassword" name="password" required autocomplete="new-password" placeholder="Weka password ngumu"
                  class="input-field w-full px-4 py-3 rounded-xl text-white text-sm outline-none" />
-          <p class="mt-1 text-[11px] text-slate-500">Password lazima iwe na herufi kubwa, ndogo, namba na ishara.</p>
+          <p class="mt-1 text-[11px] text-slate-500">Password lazima iwe na angalau herufi 8 na namba 4.</p>
         </div>
         <button type="submit" class="submit-btn w-full py-3.5 rounded-xl text-white font-semibold text-sm">Fungua Akaunti</button>
       </form>
@@ -130,8 +130,9 @@
     const alertBox = document.getElementById('alert-box');
 
     function validatePasswordStrength(password) {
-      const strong = password.length >= 8 && /[A-Z]/.test(password) && /[a-z]/.test(password) && /\d/.test(password) && /[^A-Za-z0-9]/.test(password);
-      return strong;
+      const trimmed = String(password || '').trim();
+      const digitCount = (trimmed.match(/\d/g) || []).length;
+      return trimmed.length >= 8 && digitCount >= 4;
     }
 
     function switchTab(tab) {
@@ -179,7 +180,7 @@
 
     document.getElementById('registerPassword')?.addEventListener('input', (e) => {
       if (!validatePasswordStrength(e.target.value) && e.target.value.length > 0) {
-        e.target.setAttribute('title', 'Password lazima iwe na herufi kubwa, ndogo, namba na ishara');
+        e.target.setAttribute('title', 'Password lazima iwe na angalau herufi 8 na namba 4');
       } else {
         e.target.removeAttribute('title');
       }
@@ -187,7 +188,7 @@
 
     document.getElementById('resetPassword')?.addEventListener('input', (e) => {
       if (!validatePasswordStrength(e.target.value) && e.target.value.length > 0) {
-        e.target.setAttribute('title', 'Password lazima iwe na herufi kubwa, ndogo, namba na ishara');
+        e.target.setAttribute('title', 'Password lazima iwe na angalau herufi 8 na namba 4');
       } else {
         e.target.removeAttribute('title');
       }
