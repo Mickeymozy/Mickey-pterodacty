@@ -141,7 +141,11 @@
     </header>
 
     <!-- Stats -->
-    <section class="grid gap-4 sm:grid-cols-3 mb-6">
+    <section class="grid gap-4 sm:grid-cols-4 mb-6">
+        <div class="glass rounded-2xl p-5">
+            <p class="text-sm text-slate-400 font-medium">Your Coins</p>
+            <h2 id="userCoins" class="mt-2 text-3xl font-bold text-amber-400">0</h2>
+        </div>
         <div class="glass rounded-2xl p-5">
             <p class="text-sm text-slate-400 font-medium">Total Servers</p>
             <h2 id="totalServers" class="mt-2 text-3xl font-bold text-white">0</h2>
@@ -153,6 +157,25 @@
         <div class="glass rounded-2xl p-5">
             <p class="text-sm text-slate-400 font-medium">Stopped</p>
             <h2 id="stoppedServers" class="mt-2 text-3xl font-bold text-amber-400">0</h2>
+        </div>
+    </section>
+
+    <!-- Packages Section -->
+    <section id="packagesSection" class="mb-6">
+        <div class="glass rounded-2xl p-6">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <p class="text-sm text-slate-400 font-medium">Purchase</p>
+                    <h2 class="text-2xl font-bold text-white">Available Packages</h2>
+                </div>
+                <button onclick="togglePackages()" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition">
+                    🛍️ Browse Packages
+                </button>
+            </div>
+            <div id="packagesGrid" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <!-- Rendered by JavaScript -->
+            </div>
+            <p id="packagesLoading" class="text-sm text-slate-400 text-center py-8">Loading packages...</p>
         </div>
     </section>
 
@@ -269,13 +292,143 @@
     const startupCommandInput = document.getElementById('startupCommand');
     const startupFileLabel = document.getElementById('startupFileLabel');
     const eggHint = document.getElementById('eggHint');
+    const userCoinsEl = document.getElementById('userCoins');
+    const packagesGrid = document.getElementById('packagesGrid');
+    const packagesLoading = document.getElementById('packagesLoading');
+    
     let linkedToPtero = false;
     let selectedServerId = null;
+    let userCoins = 0;
+    let packagesVisible = false;
 
     function setFormDisabled(disabled) {
         createForm.querySelectorAll('input, select, button').forEach((el) => {
             el.disabled = disabled;
         });
+    }
+
+    function togglePackages() {
+        packagesVisible = !packagesVisible;
+        if (packagesVisible) {
+            packagesGrid.style.display = 'grid';
+            loadPackages();
+        } else {
+            packagesGrid.style.display = 'none';
+        }
+    }
+
+    async function loadUserCoins() {
+        try {
+            const res = await fetch('/api/me');
+            if (res.ok) {
+                const data = await res.json();
+                const user = data.user || {};
+                userCoins = user.coins || 0;
+                userCoinsEl.textContent = userCoins;
+            }
+        } catch (e) {
+            console.error('Error loading user coins:', e);
+        }
+    }
+
+    async function loadPackages() {
+        try {
+            packagesLoading.style.display = 'block';
+            const res = await fetch('/api/packages');
+            const data = await res.json();
+            if (data.success) {
+                const packages = Array.isArray(data.data) ? data.data : [];
+                renderPackages(packages);
+                packagesLoading.style.display = 'none';
+            }
+        } catch (e) {
+            packagesLoading.textContent = '❌ Failed to load packages';
+        }
+    }
+
+    function renderPackages(packages) {
+        packagesGrid.innerHTML = packages.map(pkg => {
+            const coinsCost = pkg.pricing?.coinsCost || pkg.coinsCost || 0;
+            const usdCost = pkg.pricing?.usdCost || pkg.usdCost || 0;
+            const specs = pkg.specifications || pkg;
+            const canAfford = userCoins >= coinsCost;
+            const affordClass = canAfford ? 'emerald' : 'red';
+            
+            return `
+                <div class="glass rounded-xl p-4 border border-slate-700/30 hover:border-indigo-500/50 transition">
+                    <div class="flex items-start justify-between mb-3">
+                        <h3 class="text-lg font-semibold text-white">${pkg.name}</h3>
+                        ${pkg.isPopular ? '<span class="text-xs bg-amber-500/20 text-amber-300 px-2 py-1 rounded">⭐ Popular</span>' : ''}
+                    </div>
+                    
+                    <div class="space-y-2 mb-4 text-sm text-slate-300">
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">CPU</span>
+                            <span>${specs.cpu || specs.specifications?.cpu} Core(s)</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">RAM</span>
+                            <span>${specs.ram || specs.specifications?.ram}MB</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">Disk</span>
+                            <span>${specs.disk || specs.specifications?.disk}GB</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">Databases</span>
+                            <span>${specs.databases || specs.specifications?.databases}</span>
+                        </div>
+                    </div>
+
+                    <div class="border-t border-slate-700/30 pt-3 mb-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-slate-400 text-sm">Coins:</span>
+                            <span class="text-lg font-bold text-amber-400">${coinsCost}</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-slate-400 text-sm">USD:</span>
+                            <span class="text-sm text-slate-300">$${usdCost.toFixed(2)}</span>
+                        </div>
+                    </div>
+
+                    <button onclick="purchasePackage('${pkg._id || pkg.id}', '${pkg.name}', ${coinsCost})" 
+                            class="w-full py-2 px-3 rounded-lg text-sm font-semibold transition ${
+                                canAfford 
+                                    ? 'bg-indigo-600 hover:bg-indigo-700 text-white' 
+                                    : 'bg-slate-700/50 text-slate-400 cursor-not-allowed'
+                            }">
+                        ${canAfford ? '💳 Purchase' : `❌ Need ${coinsCost - userCoins} more coins`}
+                    </button>
+                </div>
+            `;
+        }).join('');
+    }
+
+    async function purchasePackage(packageId, packageName, coinsCost) {
+        if (userCoins < coinsCost) {
+            alert(`❌ Not enough coins! You need ${coinsCost - userCoins} more coins.`);
+            return;
+        }
+
+        if (!confirm(`Purchase "${packageName}" for ${coinsCost} coins?`)) return;
+
+        try {
+            const res = await fetch('/api/payment/checkout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ packageId, paymentMethod: 'coins' })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert('✅ ' + (data.message || 'Purchase successful!'));
+                loadUserCoins();
+                loadPackages();
+            } else {
+                alert('❌ ' + (data.message || 'Purchase failed'));
+            }
+        } catch (e) {
+            alert('❌ Error: ' + e.message);
+        }
     }
 
     async function loadUser() {
@@ -288,6 +441,8 @@
             const data = await res.json();
             const user = data.user || {};
             userName.textContent = user.displayName || user.username || 'User';
+            userCoins = user.coins || 0;
+            userCoinsEl.textContent = userCoins;
             linkedToPtero = Boolean(user.linkedToPtero);
 
             if (user.isAdmin) {
@@ -670,11 +825,14 @@
 
     // Initial load
     loadUser();
+    loadUserCoins();
     loadEggOptions();
     loadServers();
+    loadPackages();
 
     // Auto-refresh every 30 seconds
     setInterval(loadServers, 30000);
+    setInterval(loadUserCoins, 20000);
 </script>
 
 </body>
