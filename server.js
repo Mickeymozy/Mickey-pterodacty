@@ -11,6 +11,8 @@ const path = require('path');
 const connectDB = require('./config/database');
 const authRoutes = require('./routes/auth');
 const apiRoutes = require('./routes/api');
+const packagesRouter = require('./routes/packages');
+const paymentRouter = require('./routes/payment');
 const { requireAuth, requireAdmin, getUserFromSession } = require('./middleware/auth');
 
 const app = express();
@@ -77,10 +79,20 @@ app.use((req, res, next) => {
 // ============================================
 app.use('/', authRoutes);
 app.use('/', apiRoutes);
+app.use('/api', packagesRouter);
+app.use('/api/payment', paymentRouter);
 
 // Dashboard (protected)
 app.get('/dashboard.html', requireAuth, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+});
+
+app.get('/dashboard/packages', requireAuth, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'dashboard-packages.html'));
+});
+
+app.get('/admin/packages', requireAuth, requireAdmin, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'admin-packages.html'));
 });
 
 app.get('/admin.html', requireAuth, requireAdmin, (req, res) => {

@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Server Packages</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        header h1 {
+            color: #333;
+            font-size: 28px;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .card h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 20px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            color: #333;
+            font-weight: 500;
+            margin-bottom: 5px;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        input[type="email"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        input[type="text"]:focus,
+        input[type="number"]:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 5px rgba(102, 126, 234, 0.3);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+            width: 100%;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-danger {
+            background: #ff6b6b;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #ee5a52;
+        }
+
+        .packages-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        .packages-table thead {
+            background: #f5f5f5;
+        }
+
+        .packages-table th,
+        .packages-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .packages-table th {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .packages-table tbody tr:hover {
+            background: #f9f9f9;
+        }
+
+        .actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        .action-btn {
+            padding: 5px 10px;
+            font-size: 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .edit-btn {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .delete-btn {
+            background: #ff6b6b;
+            color: white;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            display: none;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+
+        .alert.show {
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+
+            header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-active {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge-popular {
+            background: #cfe2ff;
+            color: #084298;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div>
+                <h1>📦 Admin Dashboard</h1>
+                <p style="color: #666; margin-top: 5px;">Server Package Management</p>
+            </div>
+        </header>
+
+        <div id="alert" class="alert"></div>
+
+        <div class="dashboard">
+            <div class="card">
+                <h2>📝 Create/Edit Package</h2>
+                <form id="packageForm">
+                    <input type="hidden" id="packageId" value="">
+
+                    <div class="form-group">
+                        <label for="name">Package Name *</label>
+                        <input type="text" id="name" placeholder="e.g., Basic Server" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="description">Description</label>
+                        <textarea id="description" placeholder="Package description" rows="2"></textarea>
+                    </div>
+
+                    <h3 style="margin-top: 15px; margin-bottom: 10px; color: #333; font-size: 14px;">Specifications</h3>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="cpu">CPU Cores *</label>
+                            <input type="number" id="cpu" placeholder="e.g., 2" step="0.5" min="0.5" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="ram">RAM (MB) *</label>
+                            <input type="number" id="ram" placeholder="e.g., 2048" min="256" required>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="disk">Disk (GB) *</label>
+                            <input type="number" id="disk" placeholder="e.g., 50" min="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="backups">Backups</label>
+                            <input type="number" id="backups" placeholder="e.g., 3" min="0" value="0">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="databases">Databases</label>
+                            <input type="number" id="databases" placeholder="e.g., 5" min="1" value="1">
+                        </div>
+                        <div class="form-group">
+                            <label for="ports">Ports</label>
+                            <input type="number" id="ports" placeholder="e.g., 5" min="1" value="1">
+                        </div>
+                    </div>
+
+                    <h3 style="margin-top: 15px; margin-bottom: 10px; color: #333; font-size: 14px;">Pricing</h3>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="coinsCost">Coins Cost *</label>
+                            <input type="number" id="coinsCost" placeholder="e.g., 100" min="0" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="usdCost">USD Cost *</label>
+                            <input type="number" id="usdCost" placeholder="e.g., 9.99" min="0" step="0.01" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="billingCycle">Billing Cycle</label>
+                        <select id="billingCycle">
+                            <option value="monthly" selected>Monthly</option>
+                            <option value="yearly">Yearly</option>
+                            <option value="daily">Daily</option>
+                        </select>
+                    </div>
+
+                    <div class="form-row" style="grid-template-columns: 1fr 1fr;">
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="isPopular" style="width: auto; margin-right: 5px;">
+                                Popular
+                            </label>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn-primary" style="margin-top: 15px;">💾 Save Package</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h2>📊 Statistics</h2>
+                <div style="padding: 20px 0;">
+                    <p style="margin-bottom: 10px;"><strong>Total:</strong> <span id="statTotal">0</span></p>
+                    <p style="margin-bottom: 10px;"><strong>Active:</strong> <span id="statActive">0</span></p>
+                    <p style="margin-bottom: 10px;"><strong>Popular:</strong> <span id="statPopular">0</span></p>
+                    <p><strong>Revenue:</strong> $<span id="statRevenue">0.00</span>/month</p>
+                    <button onclick="loadPackages()" class="btn-primary" style="width: 100%; margin-top: 15px;">Refresh</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>📦 Manage Packages</h2>
+            <table class="packages-table" id="packagesTable">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>CPU/RAM/Disk</th>
+                        <th>Coins</th>
+                        <th>USD</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="packagesList"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = '/api';
+
+        async function loadPackages() {
+            try {
+                const response = await fetch(`${API_URL}/packages/admin/stats`);
+                const data = await response.json();
+
+                if (data.success) {
+                    document.getElementById('statTotal').textContent = data.data.totalPackages;
+                    document.getElementById('statActive').textContent = data.data.activePackages;
+                    document.getElementById('statPopular').textContent = data.data.popularPackages;
+                    document.getElementById('statRevenue').textContent = data.data.totalRevenuePotential.toFixed(2);
+
+                    const tbody = document.getElementById('packagesList');
+                    tbody.innerHTML = '';
+                    data.data.packages.forEach(pkg => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td><strong>${pkg.name}</strong></td>
+                            <td>${pkg.cpu}c / ${pkg.ram}MB / ${pkg.disk}GB</td>
+                            <td>${pkg.coinsCost}</td>
+                            <td>$${pkg.usdCost.toFixed(2)}</td>
+                            <td>${pkg.isActive ? '<span class="badge badge-active">Active</span>' : 'Inactive'}</td>
+                            <td>
+                                <div class="actions">
+                                    <button class="action-btn edit-btn" onclick="editPackage('${pkg.id}')">Edit</button>
+                                    <button class="action-btn delete-btn" onclick="deletePackage('${pkg.id}')">Delete</button>
+                                </div>
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                } else {
+                    showAlert(data.message, 'error');
+                }
+            } catch (error) {
+                showAlert('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function editPackage(id) {
+            try {
+                const response = await fetch(`${API_URL}/packages/${id}`);
+                const data = await response.json();
+                if (data.success) {
+                    const pkg = data.data;
+                    document.getElementById('packageId').value = pkg._id;
+                    document.getElementById('name').value = pkg.name;
+                    document.getElementById('description').value = pkg.description;
+                    document.getElementById('cpu').value = pkg.specifications.cpu;
+                    document.getElementById('ram').value = pkg.specifications.ram;
+                    document.getElementById('disk').value = pkg.specifications.disk;
+                    document.getElementById('backups').value = pkg.specifications.backups;
+                    document.getElementById('databases').value = pkg.specifications.databases;
+                    document.getElementById('ports').value = pkg.specifications.ports;
+                    document.getElementById('coinsCost').value = pkg.pricing.coinsCost;
+                    document.getElementById('usdCost').value = pkg.pricing.usdCost;
+                    document.getElementById('billingCycle').value = pkg.pricing.billingCycle;
+                    document.getElementById('isPopular').checked = pkg.isPopular;
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+            } catch (error) {
+                showAlert('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function deletePackage(id) {
+            if (!confirm('Delete this package?')) return;
+            try {
+                const response = await fetch(`${API_URL}/packages/${id}`, { method: 'DELETE' });
+                const data = await response.json();
+                if (data.success) {
+                    showAlert('Deleted!', 'success');
+                    loadPackages();
+                }
+            } catch (error) {
+                showAlert('Error: ' + error.message, 'error');
+            }
+        }
+
+        document.getElementById('packageForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const packageId = document.getElementById('packageId').value;
+            const formData = {
+                name: document.getElementById('name').value,
+                description: document.getElementById('description').value,
+                specifications: {
+                    cpu: parseFloat(document.getElementById('cpu').value),
+                    ram: parseInt(document.getElementById('ram').value),
+                    disk: parseInt(document.getElementById('disk').value),
+                    backups: parseInt(document.getElementById('backups').value),
+                    databases: parseInt(document.getElementById('databases').value),
+                    ports: parseInt(document.getElementById('ports').value)
+                },
+                pricing: {
+                    coinsCost: parseInt(document.getElementById('coinsCost').value),
+                    usdCost: parseFloat(document.getElementById('usdCost').value),
+                    billingCycle: document.getElementById('billingCycle').value
+                },
+                isPopular: document.getElementById('isPopular').checked
+            };
+
+            try {
+                const url = packageId ? `${API_URL}/packages/${packageId}` : `${API_URL}/packages`;
+                const method = packageId ? 'PUT' : 'POST';
+                const response = await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+                const data = await response.json();
+                if (data.success) {
+                    showAlert('Saved!', 'success');
+                    document.getElementById('packageForm').reset();
+                    document.getElementById('packageId').value = '';
+                    loadPackages();
+                }
+            } catch (error) {
+                showAlert('Error: ' + error.message, 'error');
+            }
+        });
+
+        function showAlert(message, type) {
+            const alert = document.getElementById('alert');
+            alert.textContent = message;
+            alert.className = `alert alert-${type} show`;
+            setTimeout(() => alert.classList.remove('show'), 3000);
+        }
+
+        loadPackages();
+    </script>
+</body>
+</html>

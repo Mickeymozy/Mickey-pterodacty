@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Purchase Servers</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        header h1 {
+            color: #333;
+            font-size: 28px;
+            flex: 1;
+        }
+
+        .coin-balance {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .coin-balance .amount {
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .coin-balance .label {
+            font-size: 12px;
+            opacity: 0.9;
+            margin-top: 3px;
+        }
+
+        .section-title {
+            color: white;
+            font-size: 24px;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        .packages-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .package-card {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+
+        .package-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+        }
+
+        .package-card.popular {
+            border-top: 4px solid #ffc107;
+        }
+
+        .package-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .package-header.popular {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .package-name {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .package-specs {
+            padding: 15px;
+        }
+
+        .spec {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            padding: 5px 0;
+            border-bottom: 1px solid #f5f5f5;
+        }
+
+        .spec-label {
+            color: #666;
+            font-weight: 500;
+            font-size: 13px;
+        }
+
+        .spec-value {
+            color: #667eea;
+            font-weight: bold;
+            font-size: 13px;
+        }
+
+        .package-pricing {
+            padding: 15px;
+            background: #f9f9f9;
+            text-align: center;
+            border-top: 1px solid #eee;
+        }
+
+        .price {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 10px;
+        }
+
+        .price-item {
+            text-align: center;
+        }
+
+        .price-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .price-item.coins .price-value {
+            color: #f5576c;
+        }
+
+        .price-label {
+            color: #999;
+            font-size: 11px;
+            margin-top: 3px;
+        }
+
+        .package-actions {
+            padding: 15px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 13px;
+        }
+
+        .btn-buy {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-buy:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .card h2 {
+            color: #333;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .transactions-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .transactions-table thead {
+            background: #f5f5f5;
+        }
+
+        .transactions-table th,
+        .transactions-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .transactions-table th {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .status-completed {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+
+        .alert.show {
+            display: block;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #999;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+        }
+
+        .modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+        }
+
+        .modal-header {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .modal-body {
+            margin-bottom: 20px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 10px;
+        }
+
+        .modal-footer button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .btn-confirm {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-confirm:hover {
+            background: #5568d3;
+        }
+
+        .btn-cancel {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-cancel:hover {
+            background: #e0e0e0;
+        }
+
+        @media (max-width: 768px) {
+            header {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .packages-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .modal-content {
+                width: 95%;
+            }
+        }
+
+        .popular-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #ffc107;
+            color: #333;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div style="flex: 1; text-align: left;">
+                <h1>🖥️ Purchase Servers</h1>
+            </div>
+            <div class="coin-balance">
+                <div class="amount" id="userCoins">0</div>
+                <div class="label">Coins Available</div>
+            </div>
+        </header>
+
+        <div id="alert" class="alert"></div>
+
+        <h2 class="section-title">💎 Available Packages</h2>
+        <div class="packages-grid" id="packagesGrid"></div>
+
+        <div class="card">
+            <h2>📋 Purchase History</h2>
+            <table class="transactions-table" id="transactionsTable" style="display: none;">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Package</th>
+                        <th>Cost</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="transactionsBody"></tbody>
+            </table>
+            <div id="emptyTransactions" class="empty-state">
+                <p>No purchases yet</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="checkoutModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">🛒 Confirm Purchase</div>
+            <div class="modal-body">
+                <p>Package: <strong id="modalPackageName"></strong></p>
+                <p>Cost: <strong id="modalPackageCost"></strong></p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-confirm" onclick="proceedToCheckout()">Proceed</button>
+                <button class="btn-cancel" onclick="closeCheckout()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = '/api';
+        let selectedPackageId = null;
+
+        async function loadPackages() {
+            try {
+                const response = await fetch(`${API_URL}/packages`);
+                const data = await response.json();
+                if (data.success) {
+                    renderPackages(data.data);
+                }
+            } catch (error) {
+                showAlert('Error loading packages: ' + error.message, 'error');
+            }
+        }
+
+        function renderPackages(packages) {
+            const grid = document.getElementById('packagesGrid');
+            grid.innerHTML = '';
+            
+            packages.forEach(pkg => {
+                const card = document.createElement('div');
+                card.className = `package-card ${pkg.isPopular ? 'popular' : ''}`;
+                card.style.position = 'relative';
+                card.innerHTML = `
+                    ${pkg.isPopular ? '<div class="popular-badge">⭐ Popular</div>' : ''}
+                    <div class="package-header ${pkg.isPopular ? 'popular' : ''}">
+                        <div class="package-name">${pkg.name}</div>
+                    </div>
+                    <div class="package-specs">
+                        <div class="spec">
+                            <span class="spec-label">🖥️ CPU</span>
+                            <span class="spec-value">${pkg.specifications.cpu} Core(s)</span>
+                        </div>
+                        <div class="spec">
+                            <span class="spec-label">💾 RAM</span>
+                            <span class="spec-value">${pkg.specifications.ram}MB</span>
+                        </div>
+                        <div class="spec">
+                            <span class="spec-label">💿 Disk</span>
+                            <span class="spec-value">${pkg.specifications.disk}GB</span>
+                        </div>
+                        <div class="spec">
+                            <span class="spec-label">📦 Backups</span>
+                            <span class="spec-value">${pkg.specifications.backups}</span>
+                        </div>
+                        <div class="spec">
+                            <span class="spec-label">🗄️ Databases</span>
+                            <span class="spec-value">${pkg.specifications.databases}</span>
+                        </div>
+                    </div>
+                    <div class="package-pricing">
+                        <div class="price">
+                            <div class="price-item coins">
+                                <div class="price-value">${pkg.pricing.coinsCost}</div>
+                                <div class="price-label">Coins</div>
+                            </div>
+                            <div class="price-item">
+                                <div class="price-value">$${pkg.pricing.usdCost.toFixed(2)}</div>
+                                <div class="price-label">USD</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="package-actions">
+                        <button class="btn btn-buy" onclick="openCheckout('${pkg.id}', '${pkg.name}', ${pkg.pricing.coinsCost}, ${pkg.pricing.usdCost})">
+                            💳 Purchase
+                        </button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        async function loadTransactions() {
+            try {
+                const response = await fetch(`${API_URL}/payment/transactions`);
+                const data = await response.json();
+                if (data.success && data.data.length > 0) {
+                    const tbody = document.getElementById('transactionsBody');
+                    tbody.innerHTML = '';
+                    data.data.forEach(tx => {
+                        const row = document.createElement('tr');
+                        const date = new Date(tx.createdAt).toLocaleDateString();
+                        row.innerHTML = `
+                            <td>${date}</td>
+                            <td>${tx.packageId ? tx.packageId.name : 'N/A'}</td>
+                            <td>${tx.amount} coins</td>
+                            <td><span class="status-badge status-${tx.status}">${tx.status.toUpperCase()}</span></td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                    document.getElementById('transactionsTable').style.display = 'table';
+                    document.getElementById('emptyTransactions').style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Error loading transactions:', error);
+            }
+        }
+
+        async function loadUserCoins() {
+            try {
+                // Assuming you have a user profile endpoint
+                // If not, get from localStorage or session
+                const response = await fetch('/api/user/profile');
+                const data = await response.json();
+                if (data.success) {
+                    document.getElementById('userCoins').textContent = data.data.coins || 0;
+                }
+            } catch (error) {
+                // Fallback - you may need to implement this endpoint
+                document.getElementById('userCoins').textContent = '0';
+            }
+        }
+
+        function openCheckout(packageId, packageName, coins, usd) {
+            selectedPackageId = packageId;
+            document.getElementById('modalPackageName').textContent = packageName;
+            document.getElementById('modalPackageCost').textContent = `${coins} coins / $${usd.toFixed(2)}`;
+            document.getElementById('checkoutModal').classList.add('show');
+        }
+
+        function closeCheckout() {
+            document.getElementById('checkoutModal').classList.remove('show');
+            selectedPackageId = null;
+        }
+
+        async function proceedToCheckout() {
+            if (!selectedPackageId) return;
+            try {
+                const response = await fetch(`${API_URL}/payment/checkout`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        packageId: selectedPackageId,
+                        paymentMethod: 'zenopay'
+                    })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    window.location.href = data.data.paymentUrl;
+                } else {
+                    showAlert(data.message, 'error');
+                }
+            } catch (error) {
+                showAlert('Error: ' + error.message, 'error');
+            }
+        }
+
+        function showAlert(message, type) {
+            const alert = document.getElementById('alert');
+            alert.textContent = message;
+            alert.className = `alert alert-${type} show`;
+            setTimeout(() => alert.classList.remove('show'), 4000);
+        }
+
+        loadPackages();
+        loadUserCoins();
+        loadTransactions();
+    </script>
+</body>
+</html>

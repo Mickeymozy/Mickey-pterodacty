@@ -76,6 +76,23 @@ const UserSchema = new mongoose.Schema({
     type: Date,
     default: null
   },
+  // Payment system fields
+  coins: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  isAdmin: {
+    type: Boolean,
+    default: false
+  },
+  servers: [{
+    packageId: mongoose.Schema.Types.ObjectId,
+    purchasedAt: Date,
+    expiresAt: Date,
+    serverId: String
+  }],
+
   createdAt: {
     type: Date,
     default: Date.now

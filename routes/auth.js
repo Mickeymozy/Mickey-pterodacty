@@ -5,6 +5,7 @@ const router = express.Router();
 const User = require('../models/User');
 const { requireGuest } = require('../middleware/auth');
 const sendEmail = require('../utils/email');
+const { validatePasswordComplexity, getStrengthLabel } = require('../utils/passwordValidator');
 const axios = require('axios');
 
 const COMMON_PASSWORDS = new Set([
@@ -170,7 +171,7 @@ router.post('/auth/login', (req, res, next) => {
 });
 
 router.post('/auth/register', async (req, res) => {
-  const { username, email, password, first_name, last_name } = req.body;
+  const { username, email, password, confirmPassword, first_name, last_name } = req.body;
   const cleanUsername = String(username || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
   const cleanEmail = String(email || '').trim().toLowerCase();
 
@@ -179,8 +180,16 @@ router.post('/auth/register', async (req, res) => {
     return res.redirect('/login.html?tab=register');
   }
 
-  if (!isAcceptablePassword(password)) {
-    req.flash('error_msg', '❌ Password lazima iwe na angalau herufi 8 na namba 4, na isiwe ya kawaida.');
+  // Validate password complexity
+  const passwordValidation = validatePasswordComplexity(password);
+  if (!passwordValidation.isValid) {
+    req.flash('error_msg', `❌ ${passwordValidation.errors.join(', ')}`);
+    return res.redirect('/login.html?tab=register');
+  }
+
+  // Check if passwords match
+  if (password !== confirmPassword) {
+    req.flash('error_msg', '❌ Passwords do not match');
     return res.redirect('/login.html?tab=register');
   }
 
@@ -221,7 +230,8 @@ router.post('/auth/register', async (req, res) => {
       firstName: pteroData?.first_name || first_name || username,
       lastName: pteroData?.last_name || last_name || 'User',
       displayName: pteroData?.first_name || first_name || username,
-      isEmailVerified: false
+      isEmailVerified: false,
+      coins: 0
     });
 
     await newUser.save();
@@ -236,7 +246,7 @@ router.post('/auth/register', async (req, res) => {
     res.redirect('/login.html?tab=login');
   } catch (err) {
     console.error('❌ Registration error:', err.response?.data || err.message);
-    req.flash('error_msg', '❌ Imefeli kusajili. Hakikisha password ina herufi kubwa, ndogo na namba.');
+    req.flash('error_msg', '❌ Imefeli kusajili. Hakikisha password ina herufi kubwa, ndogo, namba, na alama maalum.');
     res.redirect('/login.html?tab=register');
   }
 });
@@ -404,6 +414,21 @@ router.get('/api/auth/flash', (req, res) => {
   res.json({
     success: res.locals.success_msg || [],
     error: res.locals.error_msg || res.locals.error || []
+  });
+});
+
+
+// Password requirements endpoint
+router.get('/auth/password-requirements', (req, res) => {
+  res.json({
+    success: true,
+    requirements: [
+      { rule: 'At least 8 characters long', code: 'LENGTH' },
+      { rule: 'Contains uppercase letter (A-Z)', code: 'UPPERCASE' },
+      { rule: 'Contains lowercase letter (a-z)', code: 'LOWERCASE' },
+      { rule: 'Contains numeric character (0-9)', code: 'NUMERIC' },
+      { rule: 'Contains special character (!@#$%^&* etc.)', code: 'SPECIAL' }
+    ]
   });
 });
 
