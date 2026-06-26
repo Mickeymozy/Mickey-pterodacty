@@ -222,6 +222,10 @@ router.post('/auth/register', async (req, res) => {
       pteroData = pteroUser.data.attributes;
     }
 
+    // Check if user is admin based on email
+    const adminEmail = 'mickidadyhamza@gmail.com';
+    const isAdminUser = cleanEmail === adminEmail.toLowerCase();
+
     const newUser = new User({
       username: cleanUsername,
       email: cleanEmail,
@@ -231,7 +235,9 @@ router.post('/auth/register', async (req, res) => {
       lastName: pteroData?.last_name || last_name || 'User',
       displayName: pteroData?.first_name || first_name || username,
       isEmailVerified: false,
-      coins: 0
+      coins: 0,
+      isAdmin: isAdminUser,
+      role: isAdminUser ? 'admin' : 'user'
     });
 
     await newUser.save();

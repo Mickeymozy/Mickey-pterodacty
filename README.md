@@ -1,77 +1,293 @@
-# Pterodactyl Discord Manager
+# Pterodactyl Dashboard & Payment System
 
-A Discord bot for managing user registration, server creation, and administration for a [Pterodactyl](https://pterodactyl.io/) panel. Users can register via email OTP, create servers, and manage their panel accounts directly from Discord.
+Complete web-based dashboard system for Pterodactyl panel with integrated payment processing, user authentication, and admin controls.
 
-## Features
+## 🎯 Quick Links
 
-- **User Registration:** Register with email verification and OTP.
-- **Server Creation:** Create servers with resource tiers (Free/Premium) and select from Node.js, Python, or Java eggs.
-- **Account Management:** Login, delete account, and view slot usage.
-- **Admin Tools:** Delete all servers, modify server resources, delete ticket channels, and more.
-- **Role Sync:** Automatically assign roles based on server ownership.
-- **Slot Announcements:** Notifies users when server slots are available.
-- **Cost Analysis:** Estimate monthly costs for custom server specs.
+- 📖 **[Quick Start Guide](QUICK_START.md)** - Get running in 5 minutes
+- 📚 **[Admin System Guide](ADMIN_SYSTEM_GUIDE.md)** - Complete feature documentation
+- 💰 **[Payment System Docs](PAYMENT_SYSTEM.md)** - Payment flow & API reference
 
-## Commands
+## ✨ Features
 
-- `/register <email>` – Register a new panel account.
-- `/login` – Get your panel login details.
-- `/create <egg> <servername>` – Create a new server.
-- `/delete <serverid>` – Delete one of your servers.
-- `/deleteaccount` – Delete your panel account and all servers.
-- `/slots` – Show current usage vs. max slots for each tier.
-- `/costanalysis` – Estimate monthly cost for custom resources.
-- `/deletetickets` – (Admin) Delete all ticket channels in the specified category.
-- `/deleteall` – (Admin) Delete all servers except whitelisted ones.
-- `/modify` – (Admin) Modify resources for all non-premium, non-whitelisted servers.
-- `/ping` – Check bot latency.
+### 👤 User Dashboard
+- ✅ Browse server packages with specifications
+- ✅ View pricing in coins and USD
+- ✅ Purchase servers with ZenoPay integration
+- ✅ Transaction history tracking
+- ✅ Coin balance display
+- ✅ Account verification & password reset
 
-## Setup
+### ⚙️ Admin Panel
+- ✅ Create/edit/delete server packages
+- ✅ Set CPU, RAM, disk, backups, databases specifications
+- ✅ Manage all users
+- ✅ Adjust user coin balances
+- ✅ View system statistics (users, revenue, transactions)
+- ✅ User deletion & management
 
-### Prerequisites
+### 🔐 Authentication
+- ✅ Email-based registration with verification
+- ✅ Strong password complexity validation (8+ chars, mixed case, numbers, special chars)
+- ✅ Admin auto-detection by email (mickidadyhamza@gmail.com)
+- ✅ GitHub OAuth login
+- ✅ Password reset via email link
+- ✅ Session-based authentication
 
-- Node.js v18+
-- MongoDB database
-- A Pterodactyl panel with API access
-- A Discord bot token
+### 💳 Payment System
+- ✅ ZenoPay payment gateway integration
+- ✅ Multiple payment methods (cards, mobile money, bank transfer)
+- ✅ Coin-based and USD pricing
+- ✅ Automatic coin credit after successful payment
+- ✅ Transaction audit trail & history
+- ✅ HMAC-SHA256 webhook signature validation
 
-### Installation
+### 📧 Email System
+- ✅ SMTP configuration (Gmail, SendGrid, etc.)
+- ✅ Account verification codes (6 digits)
+- ✅ Password reset links with token expiry
+- ✅ HTML email templates
+- ✅ Fallback for disabled SMTP
 
-1. **Clone the repository:**
-   ```sh
-   git clone <your-repo-url>
-   cd Pterodactyl-Discord-Manager
-   ```
+## 🚀 Getting Started
 
-2. **Install dependencies:**
-   ```sh
-   npm install
-   ```
+### 1. Prerequisites
+```bash
+Node.js v18+
+MongoDB (local or cloud)
+SMTP service (Gmail, SendGrid, etc.)
+ZenoPay API credentials
+```
 
-3. **Configure settings:**
-   - Copy `settings.js` and fill in your credentials:
-     - Discord bot token
-     - MongoDB connection string
-     - Admin Discord user ID
-     - Ticket category ID
-     - Pterodactyl panel URL and API keys
+### 2. Installation
+```bash
+# Clone repository
+git clone <repo-url>
+cd project
 
-4. **Configure SMTP for email verification:**
-   - Edit [`src/structures/sendVerificationEmail.js`](src/structures/sendVerificationEmail.js) and set your SMTP credentials.
+# Install dependencies
+npm install
 
-5. **Start the bot:**
-   ```sh
-   npm start
-   ```
+# Configure environment
+cp .env.example .env
+# Edit .env with your settings
+```
 
-## File Structure
+### 3. Start Server
+```bash
+npm start
+# Server running on http://localhost:3000
+```
 
-- [`src/commands/`](src/commands/) – All bot commands (Panel and Misc).
-- [`src/events/`](src/events/) – Discord event handlers.
-- [`src/models/`](src/models/) – Mongoose models for users.
-- [`src/structures/`](src/structures/) – Utility classes and API wrappers.
-- [`settings.js`](settings.js) – Main configuration file.
+### 4. Create Admin Account
+1. Go to http://localhost:3000/login.html
+2. Click "Sajili" (Register)
+3. Use email: **mickidadyhamza@gmail.com**
+4. Create password with: uppercase, lowercase, number, special char
+5. Verify email
+6. Login → Access admin panel at `/admin.html`
 
-## Notes
+## 📁 Project Structure
 
-- Only the admin (set in `settings.js`) can use destructive commands like `/deletetickets`, `/deleteall`, and `/modify`.
+```
+project/
+├── public/                    # Frontend pages
+│   ├── login.html             # Login/Register/Reset
+│   ├── dashboard.html         # User main dashboard
+│   ├── dashboard-packages.html # User shop (packages)
+│   ├── admin-control.html     # Admin control panel
+│   └── admin-packages.html    # Admin package manager
+├── routes/
+│   ├── auth.js                # Authentication
+│   ├── packages.js            # Package CRUD
+│   ├── payment.js             # Payment processing
+│   ├── user.js                # User profile & admin
+│   └── api.js                 # Pterodactyl API
+├── models/
+│   ├── User.js                # User schema (extended with coins)
+│   ├── ServerPackage.js       # Package schema
+│   └── Transaction.js         # Transaction tracking
+├── services/
+│   └── zenoPayService.js      # ZenoPay API wrapper
+├── middleware/
+│   ├── auth.js                # Authentication middleware
+│   └── registrationValidator.js # Password validation
+├── utils/
+│   ├── passwordValidator.js   # Password complexity check
+│   ├── paymentHelper.js       # Payment calculations
+│   └── email.js               # Email sending (SMTP)
+├── config/
+│   ├── database.js            # MongoDB connection
+│   ├── passport.js            # Passport strategies
+│   └── passport.json          # OAuth callbacks
+└── server.js                  # Express app setup
+```
+
+## 🔗 API Endpoints
+
+### Authentication
+- `POST /auth/login` - User login
+- `POST /auth/register` - User registration
+- `GET /logout` - User logout
+- `GET /auth/password-requirements` - Password rules
+
+### User Profile
+- `GET /api/user/profile` - Current user info
+- `GET /api/user/users` - All users (admin)
+- `POST /api/user/users/:id/coins` - Adjust coins (admin)
+- `DELETE /api/user/users/:id` - Delete user (admin)
+- `GET /api/user/admin/stats` - System stats (admin)
+
+### Packages
+- `GET /api/packages` - List packages
+- `POST /api/packages` - Create (admin)
+- `PUT /api/packages/:id` - Update (admin)
+- `DELETE /api/packages/:id` - Delete (admin)
+- `GET /api/packages/admin/stats` - Stats (admin)
+
+### Payments
+- `POST /api/payment/checkout` - Start payment
+- `GET /api/payment/verify/:id` - Verify payment
+- `POST /api/payment/webhook` - ZenoPay webhook
+- `GET /api/payment/transactions` - User history
+- `GET /api/payment/methods` - Payment methods
+
+## 🔧 Configuration
+
+### .env Template
+```env
+# Database
+MONGODB_URI=mongodb://localhost:27017/database
+
+# SMTP Email
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
+
+# ZenoPay
+ZENOPAY_API_KEY=your-api-key
+ZENOPAY_MERCHANT_ID=your-merchant-id
+ZENOPAY_WEBHOOK_SECRET=your-webhook-secret
+
+# Application
+APP_URL=http://localhost:3000
+NODE_ENV=development
+SESSION_SECRET=random-secret-string
+JWT_SECRET=random-jwt-secret
+```
+
+See [QUICK_START.md](QUICK_START.md) for detailed SMTP/ZenoPay setup.
+
+## 📖 Documentation
+
+| Document | Purpose |
+|----------|---------|
+| [QUICK_START.md](QUICK_START.md) | 5-minute setup & configuration |
+| [ADMIN_SYSTEM_GUIDE.md](ADMIN_SYSTEM_GUIDE.md) | Complete feature guide & workflows |
+| [PAYMENT_SYSTEM.md](PAYMENT_SYSTEM.md) | Payment API & integration details |
+
+## 🧪 Testing
+
+### Test Admin Features
+1. Register with email: `mickidadyhamza@gmail.com`
+2. Go to `/admin.html`
+3. Create test package
+4. View statistics
+
+### Test User Purchase
+1. Register with different email
+2. Go to `/dashboard/packages`
+3. Click Purchase on any package
+4. Complete ZenoPay payment
+5. Coins credited automatically
+
+### Test Email
+1. Register account
+2. Check email for verification code
+3. Verify in app
+4. Test password reset link
+
+## 🔒 Security Features
+
+- ✅ Passport.js authentication with sessions
+- ✅ bcryptjs password hashing
+- ✅ Password complexity validation (8+ chars, mixed case, numbers, special)
+- ✅ HMAC-SHA256 webhook signature validation
+- ✅ Role-based access control (admin/user)
+- ✅ Email-based admin detection
+- ✅ Input sanitization
+- ✅ SQL injection prevention (MongoDB)
+- ✅ CSRF protection via sessions
+
+## 📊 Admin Capabilities
+
+### Dashboard Statistics
+- Total users & admins count
+- Total distributed coins
+- Server packages count
+- Transaction volume
+- USD revenue tracking
+
+### User Management
+- View all users with roles
+- Adjust coin balances with audit trail
+- Delete user accounts
+- View user registration dates
+
+### Package Management
+- Create packages with full specifications
+- Set CPU (0.5+), RAM (256+), disk (1+) requirements
+- Configure backups, databases, ports
+- Set pricing in coins & USD
+- Mark packages as popular
+- View package statistics
+
+## 🌐 Responsive Design
+
+All pages are fully responsive:
+- ✅ Desktop (1920px+)
+- ✅ Tablet (768px+)
+- ✅ Mobile (375px+)
+
+## 🚀 Production Deployment
+
+### Pre-Deployment Checklist
+- [ ] Update all secrets in .env
+- [ ] Set NODE_ENV=production
+- [ ] Enable HTTPS/SSL
+- [ ] Configure production database
+- [ ] Set up production SMTP
+- [ ] Test with live ZenoPay credentials
+- [ ] Update APP_URL to live domain
+
+### Deploy Options
+```bash
+# PM2
+pm2 start server.js --name "pterodactyl"
+pm2 save && pm2 startup
+
+# Docker
+docker build -t pterodactyl .
+docker run -p 3000:3000 --env-file .env pterodactyl
+
+# Railway, Vercel, Render - Check render.yaml
+```
+
+## 🤝 Contributing
+
+Contributions welcome! Areas for enhancement:
+- [ ] Two-factor authentication
+- [ ] Advanced analytics
+- [ ] Email template customization
+- [ ] API rate limiting
+- [ ] Activity audit logs
+- [ ] Auto server provisioning
+
+## 📜 License
+
+See LICENSE file
+
+## 📞 Support
+
+For issues & questions:

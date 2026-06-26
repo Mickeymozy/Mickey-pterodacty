@@ -204,6 +204,51 @@
             display: block;
         }
 
+        .user-badge {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 12px 18px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            font-size: 12px;
+            color: #333;
+            z-index: 1000;
+        }
+
+        .logout-btn {
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 12px;
+            margin-top: 10px;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+
+        .logout-btn:hover {
+            background: #ee5a52;
+        }
+
+        .dashboard-link {
+            color: #667eea;
+            cursor: pointer;
+            text-decoration: underline;
+            font-weight: 600;
+            font-size: 12px;
+            display: inline-block;
+            margin-top: 5px;
+        }
+
+        .dashboard-link:hover {
+            color: #5568d3;
+        }
+
         @media (max-width: 768px) {
             .dashboard {
                 grid-template-columns: 1fr;
@@ -246,6 +291,14 @@
                 <p style="color: #666; margin-top: 5px;">Server Package Management</p>
             </div>
         </header>
+
+        <div class="user-badge" id="userBadge">
+            <div><strong id="userName">Admin</strong></div>
+            <div style="color: #999; font-size: 11px;" id="userEmail">loading...</div>
+            <a href="/admin.html" class="admin-link">📊 Admin Home</a>
+            <a href="/dashboard/packages" class="admin-link">🛒 Shop</a>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
 
         <div id="alert" class="alert"></div>
 
@@ -367,6 +420,30 @@
 
     <script>
         const API_URL = '/api';
+
+        async function loadUserInfo() {
+            try {
+                const response = await fetch('/api/user/profile');
+                const data = await response.json();
+                if (data.success) {
+                    document.getElementById('userName').textContent = data.data.displayName || data.data.username;
+                    document.getElementById('userEmail').textContent = data.data.email;
+                    
+                    // Check if user is actually admin
+                    if (!data.data.isAdmin && data.data.role !== 'admin') {
+                        window.location.href = '/dashboard/packages';
+                    }
+                } else {
+                    window.location.href = '/login.html';
+                }
+            } catch (error) {
+                window.location.href = '/login.html';
+            }
+        }
+
+        function logout() {
+            window.location.href = '/logout';
+        }
 
         async function loadPackages() {
             try {
@@ -495,7 +572,11 @@
             setTimeout(() => alert.classList.remove('show'), 3000);
         }
 
-        loadPackages();
+        // Load on page init
+        window.addEventListener('DOMContentLoaded', () => {
+            loadUserInfo();
+            loadPackages();
+        });
     </script>
 </body>
 </html>
