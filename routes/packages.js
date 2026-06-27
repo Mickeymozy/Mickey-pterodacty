@@ -22,9 +22,11 @@ router.get('/packages', async (req, res) => {
       .lean();
     
     const formattedPackages = packages.map(pkg => ({
+      _id: pkg._id,
       id: pkg._id,
       name: pkg.name,
       description: pkg.description,
+      serverConfig: pkg.serverConfig,
       specifications: pkg.specifications,
       pricing: pkg.pricing,
       isPopular: pkg.isPopular,
@@ -57,7 +59,7 @@ router.get('/packages/:id', async (req, res) => {
 // CREATE new package (admin only)
 router.post('/packages', adminOnly, async (req, res) => {
   try {
-    const { name, description, specifications, pricing, isPopular } = req.body;
+    const { name, description, specifications, pricing, isPopular, serverConfig } = req.body;
 
     if (!name || !specifications || !pricing) {
       return res.status(400).json({
@@ -74,9 +76,23 @@ router.post('/packages', adminOnly, async (req, res) => {
       });
     }
 
+    // Validate serverConfig
+    if (!serverConfig || !serverConfig.eggId || !serverConfig.startupFile || !serverConfig.startupCommand) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing server configuration: eggId, startupFile, startupCommand are required'
+      });
+    }
+
     const newPackage = new ServerPackage({
       name,
       description,
+      serverConfig: {
+        eggId: Number(serverConfig.eggId),
+        eggName: serverConfig.eggName || 'Custom',
+        startupFile: serverConfig.startupFile,
+        startupCommand: serverConfig.startupCommand
+      },
       specifications: {
         cpu: parseFloat(cpu),
         ram: parseInt(ram),
@@ -109,7 +125,7 @@ router.post('/packages', adminOnly, async (req, res) => {
 // UPDATE package (admin only)
 router.put('/packages/:id', adminOnly, async (req, res) => {
   try {
-    const { name, description, specifications, pricing, isActive, isPopular } = req.body;
+    const { name, description, specifications, pricing, isActive, isPopular, serverConfig } = req.body;
 
     const pkg = await ServerPackage.findById(req.params.id);
     if (!pkg) {
@@ -118,6 +134,21 @@ router.put('/packages/:id', adminOnly, async (req, res) => {
 
     if (name) pkg.name = name;
     if (description) pkg.description = description;
+    if (serverConfig) {
+      // Validate serverConfig if updating
+      if (!serverConfig.eggId || !serverConfig.startupFile || !serverConfig.startupCommand) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid server configuration: eggId, startupFile, startupCommand are required'
+        });
+      }
+      pkg.serverConfig = {
+        eggId: Number(serverConfig.eggId),
+        eggName: serverConfig.eggName || 'Custom',
+        startupFile: serverConfig.startupFile,
+        startupCommand: serverConfig.startupCommand
+      };
+    }
     if (specifications) {
       pkg.specifications = {
         ...pkg.specifications,
@@ -182,6 +213,7 @@ router.get('/packages/admin/stats', adminOnly, async (req, res) => {
         packages: packages.map(pkg => ({
           id: pkg._id,
           name: pkg.name,
+          serverType: pkg.serverConfig?.eggName || 'Custom',
           cpu: pkg.specifications.cpu,
           ram: pkg.specifications.ram,
           disk: pkg.specifications.disk,

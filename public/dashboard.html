@@ -351,6 +351,7 @@
             const coinsCost = pkg.pricing?.coinsCost || pkg.coinsCost || 0;
             const usdCost = pkg.pricing?.usdCost || pkg.usdCost || 0;
             const specs = pkg.specifications || pkg;
+            const serverType = pkg.serverConfig?.eggName || 'Custom Server';
             const canAfford = userCoins >= coinsCost;
             const affordClass = canAfford ? 'emerald' : 'red';
             
@@ -360,6 +361,8 @@
                         <h3 class="text-lg font-semibold text-white">${pkg.name}</h3>
                         ${pkg.isPopular ? '<span class="text-xs bg-amber-500/20 text-amber-300 px-2 py-1 rounded">⭐ Popular</span>' : ''}
                     </div>
+                    
+                    <p class="text-xs text-indigo-300 mb-3">🎮 ${serverType}</p>
                     
                     <div class="space-y-2 mb-4 text-sm text-slate-300">
                         <div class="flex justify-between">
@@ -397,7 +400,7 @@
                                     ? 'bg-indigo-600 hover:bg-indigo-700 text-white' 
                                     : 'bg-slate-700/50 text-slate-400 cursor-not-allowed'
                             }">
-                        ${canAfford ? '💳 Purchase' : `❌ Need ${coinsCost - userCoins} more coins`}
+                        ${canAfford ? '💳 Purchase Now' : `❌ Need ${coinsCost - userCoins} more coins`}
                     </button>
                 </div>
             `;
@@ -410,7 +413,7 @@
             return;
         }
 
-        if (!confirm(`Purchase "${packageName}" for ${coinsCost} coins?`)) return;
+        if (!confirm(`Purchase "${packageName}" for ${coinsCost} coins? A server will be created automatically.`)) return;
 
         try {
             const res = await fetch('/api/payment/checkout', {
@@ -420,9 +423,10 @@
             });
             const data = await res.json();
             if (data.success) {
-                alert('✅ ' + (data.message || 'Purchase successful!'));
+                alert('✅ ' + (data.message || 'Purchase successful! Your server is being created...'));
                 loadUserCoins();
                 loadPackages();
+                setTimeout(loadServers, 2000); // Reload servers after delay
             } else {
                 alert('❌ ' + (data.message || 'Purchase failed'));
             }

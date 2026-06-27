@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const axios = require('axios');
 const { requireAuth, isAdminUser } = require('../middleware/auth');
+const { createServerFromPackage } = require('../utils/serverHelper');
 
 const PTERODACTYL_URL = process.env.PTERODACTYL_URL?.replace(/\/$/, '');
 const PTERODACTYL_APP_API_KEY = process.env.PTERODACTYL_APP_API_KEY;
@@ -552,6 +553,38 @@ router.delete('/api/servers/:id', requireAuth, async (req, res) => {
     res.json({ success: true, data: response.data });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message || 'Failed to delete server.' });
+  }
+});
+
+// Create server from package
+router.post('/api/servers/from-package', requireAuth, async (req, res) => {
+  try {
+    const { packageId, serverName } = req.body;
+    
+    if (!packageId) {
+      return res.status(400).json({ success: false, error: 'Package ID is required.' });
+    }
+    
+    const serverData = await createServerFromPackage(req.user, packageId, serverName);
+
+    res.json({
+      success: true,
+      message: 'Server created successfully from package.',
+      server: serverData.server,
+      packageId: packageId
+    });
+  } catch (err) {
+    const status = err.response?.status;
+    const apiError = err.response?.data?.errors?.[0]?.detail || err.response?.data?.message || err.message;
+    const message =
+      status === 401 || status === 403
+        ? 'This action is unauthorized. Please check the Pterodactyl API key permissions or linked account.'
+        : apiError || 'Failed to create server from package.';
+
+    res.status(status && status !== 500 ? status : 500).json({
+      success: false,
+      error: message
+    });
   }
 });
 

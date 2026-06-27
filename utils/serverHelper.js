@@ -1,0 +1,314 @@
+/**
+ * Server Creation Helper - Shared logic for creating servers from packages
+ */
+
+const axios = require('axios');
+const ServerPackage = require('../models/ServerPackage');
+
+const PTERODACTYL_URL = process.env.PTERODACTYL_URL?.replace(/\/$/, '');
+const PTERODACTYL_APP_API_KEY = process.env.PTERODACTYL_APP_API_KEY;
+
+const appApi = PTERODACTYL_URL && PTERODACTYL_APP_API_KEY
+  ? axios.create({
+      baseURL: `${PTERODACTYL_URL}/api/application`,
+      headers: {
+        Authorization: `Bearer ${PTERODACTYL_APP_API_KEY}`,
+        'Content-Type': 'application/json',
+        Accept: 'application/json'
+      },
+      timeout: 10000
+    })
+  : null;
+
+const eggConfigs = {
+  16: {
+    id: 16,
+    key: 'nodejs',
+    name: 'Node.js',
+    docker_image: 'ghcr.io/parkervcp/yolks:nodejs_21',
+    startup: `if [[ -d .git ]] && [[ "$AUTO_UPDATE" == "1" ]]; then git pull; fi; if [[ ! -z "$NODE_PACKAGES" ]]; then /usr/local/bin/npm install $NODE_PACKAGES; fi; if [[ ! -z "$UNNODE_PACKAGES" ]]; then /usr/local/bin/npm uninstall $UNNODE_PACKAGES; fi; if [ -f /home/container/package.json ]; then /usr/local/bin/npm install; fi; if [[ "$MAIN_FILE" == "*.js" ]]; then /usr/local/bin/node "/home/container/$MAIN_FILE" $NODE_ARGS; else /usr/local/bin/ts-node --esm "/home/container/$MAIN_FILE" $NODE_ARGS; fi`,
+    environment: {
+      USER_UPLOAD: '0',
+      MAIN_FILE: 'index.js',
+      AUTO_UPDATE: '1',
+      STARTUP_CMD: 'npm start'
+    }
+  },
+  27: {
+    id: 27,
+    key: 'python',
+    name: 'Python',
+    docker_image: 'ghcr.io/parkervcp/yolks:python_3.10',
+    startup: `if [[ -d .git ]] && [[ "$AUTO_UPDATE" == "1" ]]; then git pull; fi; if [[ ! -z "$PY_PACKAGES" ]]; then pip install -U --prefix .local $PY_PACKAGES; fi; if [[ -f /home/container/$REQUIREMENTS_FILE ]]; then pip install -U --prefix .local -r $REQUIREMENTS_FILE; fi; /usr/local/bin/python /home/container/$PY_FILE`,
+    environment: {
+      USER_UPLOAD: '0',
+      PY_FILE: 'main.py',
+      REQUIREMENTS_FILE: 'requirements.txt',
+      AUTO_UPDATE: '1',
+      STARTUP_CMD: 'python3 main.py'
+    }
+  },
+  28: {
+    id: 28,
+    key: 'java',
+    name: 'Java',
+    docker_image: 'ghcr.io/parkervcp/yolks:java_17',
+    startup: 'java -Dterminal.jline=false -Dterminal.ansi=true -jar $JARFILE',
+    environment: {
+      USER_UPLOAD: '0',
+      JARFILE: 'server.jar',
+      AUTO_UPDATE: '1',
+      STARTUP_CMD: 'java -jar server.jar'
+    }
+  }
+};
+
+function buildServerEnvironment(eggConfig, options = {}) {
+  const resolvedEggConfig = eggConfig || {};
+  const baseEnvironment = {
+    USER_UPLOAD: '0',
+    AUTO_UPDATE: '1',
+    ...(resolvedEggConfig.environment || {})
+  };
+
+  const requestedEnvironment = {
+    ...baseEnvironment,
+    ...(options.environment || {})
+  };
+
+  const eggId = Number(resolvedEggConfig.id);
+  const startupFile = options.startupFile || options.mainFile || options.main_file;
+  const startupCommand = options.startupCommand;
+
+  if (startupFile) {
+    if (eggId === 16) {
+      requestedEnvironment.MAIN_FILE = startupFile;
+    } else if (eggId === 27) {
+      requestedEnvironment.PY_FILE = startupFile;
+    } else if (eggId === 28) {
+      requestedEnvironment.JARFILE = startupFile;
+    } else if (!requestedEnvironment.MAIN_FILE && !requestedEnvironment.PY_FILE && !requestedEnvironment.JARFILE) {
+      requestedEnvironment.MAIN_FILE = startupFile;
+    }
+  }
+
+  if (startupCommand) {
+    requestedEnvironment.STARTUP_CMD = startupCommand;
+  }
+
+  return Object.fromEntries(
+    Object.entries(requestedEnvironment).filter(([, value]) => value !== undefined && value !== null).map(([key, value]) => [key, String(value)])
+  );
+}
+
+async function getFirstValidLocation() {
+  if (!appApi) return null;
+  try {
+    const response = await appApi.get('/locations?per_page=100');
+    const locations = response.data?.data || [];
+    const firstLocation = locations.find((loc) => loc?.attributes?.id);
+    return firstLocation?.attributes?.id || null;
+  } catch (err) {
+    console.error('Failed to fetch locations:', err.message);
+    return null;
+  }
+}
+
+async function fetchPanelEggOptions() {
+  if (!appApi) return [];
+
+  try {
+    const nestsResponse = await appApi.get('/nests?per_page=1000');
+    const nests = nestsResponse.data?.data || [];
+    const eggs = [];
+
+    for (const nest of nests) {
+      const nestId = nest?.attributes?.id;
+      if (!nestId) continue;
+
+      const eggsResponse = await appApi.get(`/nests/${nestId}/eggs?per_page=1000`);
+      const eggEntries = eggsResponse.data?.data || [];
+
+      for (const entry of eggEntries) {
+        const attrs = entry?.attributes || {};
+        eggs.push({
+          id: Number(attrs.id),
+          name: attrs.name || `Egg ${attrs.id}`,
+          docker_image: attrs.docker_image || '',
+          startup: attrs.startup || '',
+          environment: attrs.environment || {},
+          nestId
+        });
+      }
+    }
+
+    return eggs.filter((egg) => Number.isFinite(egg.id));
+  } catch (err) {
+    console.error('Failed to fetch panel eggs:', err.message);
+    return [];
+  }
+}
+
+async function resolvePteroUser(user) {
+  if (!appApi || !user) return null;
+
+  const currentId = Number(user.pteroId);
+  if (currentId > 0) {
+    try {
+      const response = await appApi.get(`/users/${currentId}`);
+      if (response?.data?.attributes?.id) {
+        return currentId;
+      }
+    } catch (err) {
+      // continue
+    }
+  }
+
+  try {
+    let page = 1;
+    while (true) {
+      const response = await appApi.get(`/users?page=${page}&per_page=100`);
+      const users = response.data?.data || [];
+      if (!users.length) break;
+
+      const matched = users.find((entry) => {
+        const attrs = entry?.attributes || {};
+        return (
+          attrs.username === String(user.username || '').toLowerCase() ||
+          attrs.email === String(user.email || '').toLowerCase()
+        );
+      });
+
+      if (matched?.attributes?.id) {
+        user.pteroId = matched.attributes.id;
+        await user.save();
+        return Number(matched.attributes.id);
+      }
+
+      if (users.length < 100) break;
+      page += 1;
+    }
+  } catch (err) {
+    console.error('Failed to resolve Pterodactyl user:', err.message);
+  }
+
+  return null;
+}
+
+function sanitizeServer(server) {
+  const attrs = server?.attributes || {};
+  return {
+    id: attrs.id,
+    uuid: attrs.uuid,
+    identifier: attrs.identifier,
+    name: attrs.name,
+    status: attrs.status,
+    user: attrs.user,
+    limits: attrs.limits || {}
+  };
+}
+
+/**
+ * Create a server from a package configuration
+ * @param {Object} user - The user object
+ * @param {String} packageId - The package ID
+ * @param {String} serverName - Optional custom server name
+ * @returns {Promise<Object>} Created server data
+ */
+async function createServerFromPackage(user, packageId, serverName) {
+  if (!appApi) {
+    throw new Error('Pterodactyl API is not configured.');
+  }
+
+  if (!packageId) {
+    throw new Error('Package ID is required.');
+  }
+
+  const pkg = await ServerPackage.findById(packageId);
+  if (!pkg) {
+    throw new Error('Package not found.');
+  }
+
+  if (!pkg.serverConfig || !pkg.serverConfig.eggId) {
+    throw new Error('Package does not have valid server configuration.');
+  }
+
+  const pteroUserId = await resolvePteroUser(user);
+  if (!pteroUserId) {
+    throw new Error('Your Pterodactyl account is not linked yet. Please register or log in again.');
+  }
+
+  const locationId = await getFirstValidLocation();
+  if (!locationId) {
+    throw new Error('No valid locations available.');
+  }
+
+  // Fetch egg details
+  let resolvedEggConfig = eggConfigs[pkg.serverConfig.eggId];
+  if (!resolvedEggConfig) {
+    try {
+      const eggsList = await fetchPanelEggOptions();
+      resolvedEggConfig = eggsList.find((e) => e.id === pkg.serverConfig.eggId);
+      if (!resolvedEggConfig) {
+        throw new Error('Egg configuration not found.');
+      }
+    } catch (err) {
+      throw new Error('Failed to fetch egg configuration.');
+    }
+  }
+
+  const name = serverName || pkg.name + '-' + Date.now();
+  const memory = pkg.specifications.ram;
+  const disk = pkg.specifications.disk * 1024; // Convert GB to MB
+  const cpu = pkg.specifications.cpu * 100; // Convert cores to percentage
+
+  const safeEnvironment = buildServerEnvironment(resolvedEggConfig, {
+    startupFile: pkg.serverConfig.startupFile,
+    startupCommand: pkg.serverConfig.startupCommand
+  });
+
+  const payload = {
+    name,
+    user: pteroUserId,
+    egg: Number(resolvedEggConfig.id),
+    docker_image: resolvedEggConfig.docker_image,
+    startup: resolvedEggConfig.startup,
+    environment: safeEnvironment,
+    limits: {
+      memory: Number(memory) || 1024,
+      swap: 0,
+      disk: Number(disk) || 2048,
+      io: 500,
+      cpu: cpu,
+      oom_disabled: false
+    },
+    feature_limits: {
+      databases: pkg.specifications.databases || 0,
+      backups: pkg.specifications.backups || 1,
+      allocations: 1
+    },
+    deploy: {
+      locations: [locationId],
+      dedicated_ip: false,
+      port_range: []
+    },
+    start_on_completion: true
+  };
+
+  const response = await appApi.post('/servers', payload);
+
+  return {
+    success: true,
+    server: sanitizeServer(response.data),
+    packageId: packageId
+  };
+}
+
+module.exports = {
+  createServerFromPackage,
+  resolvePteroUser,
+  getFirstValidLocation,
+  fetchPanelEggOptions,
+  buildServerEnvironment,
+  sanitizeServer
+};

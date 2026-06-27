@@ -8,6 +8,7 @@ const zenoPayService = require('../services/zenoPayService');
 const ServerPackage = require('../models/ServerPackage');
 const Transaction = require('../models/Transaction');
 const User = require('../models/User');
+const { createServerFromPackage } = require('../utils/serverHelper');
 
 const authenticate = (req, res, next) => {
   if (!req.user) {
@@ -21,7 +22,7 @@ const authenticate = (req, res, next) => {
  */
 router.post('/checkout', authenticate, async (req, res) => {
   try {
-    const { packageId, paymentMethod } = req.body;
+    const { packageId, paymentMethod, serverName } = req.body;
     const userId = req.user._id;
 
     if (!packageId) {
@@ -41,63 +42,122 @@ router.post('/checkout', authenticate, async (req, res) => {
     const coinsCost = pkg.pricing.coinsCost;
     const usdCost = pkg.pricing.usdCost;
 
-    const transaction = new Transaction({
-      userId,
-      type: 'purchase',
-      amount: coinsCost,
-      currency: 'coins',
-      packageId,
-      paymentMethod: paymentMethod || 'zenopay',
-      status: 'pending',
-      description: `Purchase of ${pkg.name} package`
-    });
-
-    await transaction.save();
-
-    const paymentData = {
-      amount: Math.ceil(usdCost * 100),
-      currency: 'USD',
-      reference: transaction._id.toString(),
-      description: `${pkg.name} Package - ${user.email}`,
-      customerEmail: user.email,
-      customerName: user.username,
-      coinsAmount: coinsCost,
-      metadata: {
-        transactionId: transaction._id.toString(),
-        packageId: packageId,
-        userId: userId.toString()
+    // Handle coin payment separately
+    if (paymentMethod === 'coins') {
+      if ((user.coins || 0) < coinsCost) {
+        return res.status(400).json({
+          success: false,
+          message: `Insufficient coins. You need ${coinsCost} coins but have ${user.coins || 0}.`
+        });
       }
-    };
 
-    const paymentResult = await zenoPayService.createPayment(paymentData);
+      try {
+        // Deduct coins
+        user.coins = (user.coins || 0) - coinsCost;
+        await user.save();
 
-    if (paymentResult.success) {
-      transaction.zenopayTransactionId = paymentResult.transactionId;
-      transaction.zenopayReference = paymentResult.reference;
-      await transaction.save();
+        // Create server from package
+        const serverData = await createServerFromPackage(user, packageId, serverName);
 
-      res.json({
-        success: true,
-        message: 'Payment initialized',
-        data: {
-          paymentUrl: paymentResult.paymentUrl,
-          transactionId: transaction._id,
-          package: {
-            name: pkg.name,
-            coins: coinsCost,
-            usd: usdCost
+        // Record transaction
+        const transaction = new Transaction({
+          userId,
+          type: 'purchase',
+          amount: coinsCost,
+          currency: 'coins',
+          packageId,
+          paymentMethod: 'coins',
+          status: 'completed',
+          description: `Purchase of ${pkg.name} package`,
+          completedAt: new Date()
+        });
+        await transaction.save();
+
+        res.json({
+          success: true,
+          message: 'Package purchased and server created successfully!',
+          data: {
+            transactionId: transaction._id,
+            coinsDeducted: coinsCost,
+            remainingCoins: user.coins,
+            package: {
+              name: pkg.name,
+              coins: coinsCost
+            },
+            server: serverData.server
           }
-        }
-      });
+        });
+      } catch (error) {
+        // Refund coins if server creation fails
+        user.coins = (user.coins || 0) + coinsCost;
+        await user.save();
+
+        console.error('Server creation error:', error.message);
+        return res.status(500).json({
+          success: false,
+          message: error.message || 'Failed to create server. Coins refunded.'
+        });
+      }
     } else {
-      transaction.status = 'failed';
-      transaction.notes = paymentResult.error;
+      // Handle USD payment via ZenoPay
+      const transaction = new Transaction({
+        userId,
+        type: 'purchase',
+        amount: coinsCost,
+        currency: 'coins',
+        packageId,
+        paymentMethod: paymentMethod || 'zenopay',
+        status: 'pending',
+        description: `Purchase of ${pkg.name} package`
+      });
+
       await transaction.save();
 
-      res.status(400).json({
-        success: false,
-        message: paymentResult.error
-      });
+      const paymentData = {
+        amount: Math.ceil(usdCost * 100),
+        currency: 'USD',
+        reference: transaction._id.toString(),
+        description: `${pkg.name} Package - ${user.email}`,
+        customerEmail: user.email,
+        customerName: user.username,
+        coinsAmount: coinsCost,
+        metadata: {
+          transactionId: transaction._id.toString(),
+          packageId: packageId,
+          userId: userId.toString()
+        }
+      };
+
+      const paymentResult = await zenoPayService.createPayment(paymentData);
+
+      if (paymentResult.success) {
+        transaction.zenopayTransactionId = paymentResult.transactionId;
+        transaction.zenopayReference = paymentResult.reference;
+        await transaction.save();
+
+        res.json({
+          success: true,
+          message: 'Payment initialized',
+          data: {
+            paymentUrl: paymentResult.paymentUrl,
+            transactionId: transaction._id,
+            package: {
+              name: pkg.name,
+              coins: coinsCost,
+              usd: usdCost
+            }
+          }
+        });
+      } else {
+        transaction.status = 'failed';
+        transaction.notes = paymentResult.error;
+        await transaction.save();
+
+        res.status(400).json({
+          success: false,
+          message: paymentResult.error
+        });
+      }
     }
   } catch (error) {
     console.error('Checkout Error:', error);

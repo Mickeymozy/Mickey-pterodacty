@@ -128,13 +128,13 @@
       <div class="grid gap-6 lg:grid-cols-2">
         <!-- Create/Edit Form -->
         <div class="glass rounded-2xl p-6">
-          <h2 class="text-xl font-semibold text-white mb-4">📝 Create/Edit Package</h2>
+          <h2 class="text-xl font-semibold text-white mb-4">📝 Create Server Package</h2>
           <form id="packageForm" class="space-y-4">
             <input type="hidden" id="packageId" value="">
             
             <div>
               <label class="block text-sm font-medium text-slate-300 mb-1.5">Package Name *</label>
-              <input type="text" id="pkgName" placeholder="e.g., Basic Server" class="w-full rounded-xl bg-slate-950/50 border border-slate-700/50 px-3 py-2 text-sm text-white outline-none focus:border-indigo-500" required>
+              <input type="text" id="pkgName" placeholder="e.g., Minecraft Pro" class="w-full rounded-xl bg-slate-950/50 border border-slate-700/50 px-3 py-2 text-sm text-white outline-none focus:border-indigo-500" required>
             </div>
 
             <div>
@@ -143,7 +143,30 @@
             </div>
 
             <div class="pt-2 pb-2 border-t border-slate-700/30">
-              <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Specifications</p>
+              <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Server Configuration</p>
+              
+              <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">Server Type *</label>
+                <select id="pkgEgg" class="w-full rounded-xl bg-slate-950/50 border border-slate-700/50 px-3 py-2 text-sm text-white outline-none focus:border-indigo-500" required onchange="updateEggHint()">
+                  <option value="">Loading server types...</option>
+                </select>
+              </div>
+
+              <div class="grid grid-cols-2 gap-3 mt-3">
+                <div>
+                  <label class="block text-xs font-medium text-slate-300 mb-1">Main File *</label>
+                  <input type="text" id="pkgStartupFile" placeholder="e.g., server.jar" class="w-full rounded-xl bg-slate-950/50 border border-slate-700/50 px-3 py-2 text-sm text-white outline-none focus:border-indigo-500" required>
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-300 mb-1">Startup Command *</label>
+                  <input type="text" id="pkgStartupCommand" placeholder="e.g., java -Xmx1G -Xms1G" class="w-full rounded-xl bg-slate-950/50 border border-slate-700/50 px-3 py-2 text-sm text-white outline-none focus:border-indigo-500" required>
+                </div>
+              </div>
+              <p id="eggHint" class="text-xs text-slate-500 mt-2">Select server type to see requirements</p>
+            </div>
+
+            <div class="pt-2 pb-2 border-t border-slate-700/30">
+              <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Resource Limits</p>
               <div class="grid grid-cols-2 gap-3">
                 <div>
                   <label class="block text-xs font-medium text-slate-300 mb-1">CPU Cores *</label>
@@ -251,6 +274,8 @@
 
   <script>
     const API_URL = '/api';
+    const eggSelect = document.getElementById('pkgEgg');
+    let availableEggs = [];
 
     function switchTab(tabName) {
       // Hide all tabs
@@ -265,6 +290,42 @@
       document.getElementById(tabName).classList.add('active');
       // Add active state to clicked button
       event.target.classList.add('active');
+    }
+
+    async function loadEggs() {
+      try {
+        const res = await fetch(`${API_URL}/eggs`);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.success) {
+          eggSelect.innerHTML = '<option value="">Unable to load server types</option>';
+          return;
+        }
+
+        availableEggs = Array.isArray(data.eggs) ? data.eggs : [];
+        if (!availableEggs.length) {
+          eggSelect.innerHTML = '<option value="">No server types available</option>';
+          return;
+        }
+
+        eggSelect.innerHTML = availableEggs.map((egg) => `
+          <option value="${egg.id}" data-name="${egg.name}">${egg.name}</option>
+        `).join('');
+      } catch (e) {
+        console.error('Error loading eggs:', e);
+        eggSelect.innerHTML = '<option value="">Error loading server types</option>';
+      }
+    }
+
+    function updateEggHint() {
+      const eggId = Number(eggSelect.value);
+      if (!eggId) {
+        document.getElementById('eggHint').textContent = 'Select server type to see requirements';
+        return;
+      }
+      const selected = availableEggs.find(e => e.id === eggId);
+      if (selected) {
+        document.getElementById('eggHint').textContent = `Requirements for ${selected.name}`;
+      }
     }
 
     async function loadStats() {
@@ -312,6 +373,7 @@
                     <h3 class="font-semibold text-white">${pkg.name}</h3>
                     ${pkg.isPopular ? '<span class="text-xs bg-amber-500/20 text-amber-300 px-2 py-1 rounded">⭐ Popular</span>' : ''}
                   </div>
+                  <p class="text-xs text-indigo-300 mb-2">🎮 ${pkg.serverConfig?.eggName || 'Custom'}</p>
                   <div class="grid grid-cols-2 gap-2 text-xs text-slate-400">
                     <div>💾 ${pkg.specifications?.cpu || pkg.cpu} CPU</div>
                     <div>🔌 ${pkg.specifications?.ram || pkg.ram}MB RAM</div>
@@ -341,6 +403,9 @@
           document.getElementById('packageId').value = pkg._id || pkg.id;
           document.getElementById('pkgName').value = pkg.name;
           document.getElementById('pkgDesc').value = pkg.description || '';
+          document.getElementById('pkgEgg').value = pkg.serverConfig?.eggId || '';
+          document.getElementById('pkgStartupFile').value = pkg.serverConfig?.startupFile || '';
+          document.getElementById('pkgStartupCommand').value = pkg.serverConfig?.startupCommand || '';
           document.getElementById('pkgCpu').value = pkg.specifications?.cpu || pkg.cpu;
           document.getElementById('pkgRam').value = pkg.specifications?.ram || pkg.ram;
           document.getElementById('pkgDisk').value = pkg.specifications?.disk || pkg.disk;
@@ -351,6 +416,7 @@
           document.getElementById('pkgUsd').value = pkg.pricing?.usdCost || pkg.usdCost;
           document.getElementById('pkgBilling').value = pkg.pricing?.billingCycle || 'monthly';
           document.getElementById('pkgPopular').checked = pkg.isPopular || false;
+          updateEggHint();
           document.querySelector('#packages').scrollIntoView({ behavior: 'smooth' });
         }
       } catch (e) {
@@ -380,9 +446,18 @@
     document.getElementById('packageForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const id = document.getElementById('packageId').value;
+      const eggId = Number(document.getElementById('pkgEgg').value);
+      const selectedEgg = availableEggs.find(e => e.id === eggId);
+      
       const formData = {
         name: document.getElementById('pkgName').value,
         description: document.getElementById('pkgDesc').value,
+        serverConfig: {
+          eggId: eggId,
+          eggName: selectedEgg?.name || 'Custom',
+          startupFile: document.getElementById('pkgStartupFile').value,
+          startupCommand: document.getElementById('pkgStartupCommand').value
+        },
         specifications: {
           cpu: parseFloat(document.getElementById('pkgCpu').value),
           ram: parseInt(document.getElementById('pkgRam').value),
@@ -432,6 +507,7 @@
     // Initialize
     loadStats();
     loadPackages();
+    loadEggs();
     setInterval(loadStats, 30000);
   </script>
 </body>

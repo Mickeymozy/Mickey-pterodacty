@@ -49,6 +49,28 @@ const serverPackageSchema = new mongoose.Schema({
     }
   },
 
+  // Server Configuration
+  serverConfig: {
+    eggId: {
+      type: Number,
+      required: [true, 'Server type (egg) is required']
+    },
+    eggName: {
+      type: String,
+      required: [true, 'Server type name is required']
+    },
+    startupFile: {
+      type: String,
+      required: [true, 'Startup file is required'],
+      trim: true
+    },
+    startupCommand: {
+      type: String,
+      required: [true, 'Startup command is required'],
+      trim: true
+    }
+  },
+
   pricing: {
     coinsCost: {
       type: Number,
