@@ -34,7 +34,9 @@ require('./config/passport')(passport);
 // ============================================
 // 3. MIDDLEWARE
 // ============================================
-app.set('trust proxy', 1);
+// IMEREKEBISHWA: 'trust proxy' imewekwa kuwa true ili kuruhusu Cloudflare/Nginx kupitisha secure cookies vizuri
+app.set('trust proxy', true);
+
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -48,16 +50,19 @@ const sessionStore = process.env.MONGODB_URI
     })
   : null;
 
+// IMEREKEBISHWA: Mipangilio thabiti ya session kwa ajili ya Live Domain (HTTPS)
+const isProduction = process.env.NODE_ENV === 'production';
+
 app.use(session({
   secret: process.env.SESSION_SECRET || 'default-secret-change-this',
-  resave: false,
+  resave: true, // Imewekwa true ili kuzuia session kufutika mapema kwenye baadhi ya hosting
   saveUninitialized: false,
   store: sessionStore || undefined,
   cookie: {
-    secure: process.env.NODE_ENV === 'production',
+    secure: isProduction, // Itakuwa true kama ipo production na inatumia HTTPS
     httpOnly: true,
-    sameSite: 'lax',
-    maxAge: 24 * 60 * 60 * 1000
+    sameSite: isProduction ? 'none' : 'lax', // 'none' inasaidia kama unavuka subdomains
+    maxAge: 24 * 60 * 60 * 1000 // Saa 24
   }
 }));
 
