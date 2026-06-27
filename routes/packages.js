@@ -76,23 +76,17 @@ router.post('/packages', adminOnly, async (req, res) => {
       });
     }
 
-    // Validate serverConfig
-    if (!serverConfig || !serverConfig.eggId || !serverConfig.startupFile || !serverConfig.startupCommand) {
-      return res.status(400).json({
-        success: false,
-        message: 'Missing server configuration: eggId, startupFile, startupCommand are required'
-      });
-    }
+    const safeServerConfig = {
+      eggId: Number(serverConfig?.eggId || 16),
+      eggName: serverConfig?.eggName || 'Node.js',
+      startupFile: serverConfig?.startupFile || 'index.js',
+      startupCommand: serverConfig?.startupCommand || 'npm start'
+    };
 
     const newPackage = new ServerPackage({
       name,
       description,
-      serverConfig: {
-        eggId: Number(serverConfig.eggId),
-        eggName: serverConfig.eggName || 'Custom',
-        startupFile: serverConfig.startupFile,
-        startupCommand: serverConfig.startupCommand
-      },
+      serverConfig: safeServerConfig,
       specifications: {
         cpu: parseFloat(cpu),
         ram: parseInt(ram),
@@ -135,18 +129,11 @@ router.put('/packages/:id', adminOnly, async (req, res) => {
     if (name) pkg.name = name;
     if (description) pkg.description = description;
     if (serverConfig) {
-      // Validate serverConfig if updating
-      if (!serverConfig.eggId || !serverConfig.startupFile || !serverConfig.startupCommand) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid server configuration: eggId, startupFile, startupCommand are required'
-        });
-      }
       pkg.serverConfig = {
-        eggId: Number(serverConfig.eggId),
-        eggName: serverConfig.eggName || 'Custom',
-        startupFile: serverConfig.startupFile,
-        startupCommand: serverConfig.startupCommand
+        eggId: Number(serverConfig.eggId || pkg.serverConfig?.eggId || 16),
+        eggName: serverConfig.eggName || pkg.serverConfig?.eggName || 'Node.js',
+        startupFile: serverConfig.startupFile || pkg.serverConfig?.startupFile || 'index.js',
+        startupCommand: serverConfig.startupCommand || pkg.serverConfig?.startupCommand || 'npm start'
       };
     }
     if (specifications) {

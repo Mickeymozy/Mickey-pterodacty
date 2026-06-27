@@ -215,8 +215,11 @@
 
         serverList.innerHTML = servers.map(server => {
           // Kuzuia neno NULL, kama hali haijulikani weka 'Inasindika...'
-          const currentStatus = server.status ? server.status.toLowerCase() : 'offline';
-          const isOnline = currentStatus === 'running' || currentStatus === 'online';
+          const rawStatus = String(server.status || 'offline').toLowerCase();
+          const isOnline = ['running', 'online', 'active'].includes(rawStatus);
+          const isInstalling = rawStatus.includes('install');
+          const statusLabel = isInstalling ? 'Installing' : (isOnline ? 'Online' : 'Offline');
+          const statusClass = isInstalling ? 'bg-amber-500/15 text-amber-300 border border-amber-500/20' : (isOnline ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/20' : 'bg-red-500/15 text-red-300 border border-red-500/20');
           
           return `
             <div class="rounded-2xl border border-slate-800 bg-slate-900/40 p-5 space-y-4">
@@ -224,8 +227,8 @@
                 <div>
                   <div class="flex items-center gap-2">
                     <h3 class="text-sm font-semibold text-white">${server.name}</h3>
-                    <span class="rounded px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider ${isOnline ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/20' : 'bg-red-500/15 text-red-300 border border-red-500/20'}">
-                      ● ${currentStatus}
+                    <span class="rounded px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider ${statusClass}">
+                      ● ${statusLabel}
                     </span>
                   </div>
                   <p class="text-[11px] text-slate-500 font-mono mt-1">UUID: ${server.identifier}</p>
@@ -243,12 +246,12 @@
 
               <div class="pt-3 border-t border-slate-800/60 grid gap-2 sm:grid-cols-2 text-xs text-slate-400">
                 <div class="bg-slate-950/60 p-2.5 rounded-lg font-mono border border-slate-800/30">
-                  <span class="text-indigo-400 block font-bold text-[9px] uppercase tracking-wider mb-1">🔗 DOMAIN CONNECTION IP</span>
-                  <span class="text-slate-100 text-xs select-all font-semibold">${server.ipAddress || 'node1.leonomodes.com'}:${server.port || '25565'}</span>
+                  <span class="text-indigo-400 block font-bold text-[9px] uppercase tracking-wider mb-1">🔗 CONNECTION INFO</span>
+                  <span class="text-slate-100 text-xs select-all font-semibold">${server.ipAddress ? `${server.ipAddress}:${server.port || '25565'}` : 'IP haijapatikana bado'}</span>
                 </div>
                 <div class="bg-slate-950/60 p-2.5 rounded-lg font-mono border border-slate-800/30">
-                  <span class="text-cyan-400 block font-bold text-[9px] uppercase tracking-wider mb-1">📁 SFTP LIVE ACCESS</span>
-                  <span class="text-slate-300 text-[11px]">Host: <span class="text-slate-100 select-all font-bold">${server.sftpHost || 'sftp.leonomodes.com'}</span> | User: <span class="text-slate-100 select-all">${server.sftpUser || 'u'+server.identifier}</span></span>
+                  <span class="text-cyan-400 block font-bold text-[9px] uppercase tracking-wider mb-1">📁 SFTP / PANEL ACCESS</span>
+                  <span class="text-slate-300 text-[11px]">Host: <span class="text-slate-100 select-all font-bold">${server.sftpHost || 'N/A'}</span> | User: <span class="text-slate-100 select-all">${server.sftpUser || 'N/A'}</span></span>
                 </div>
               </div>
             </div>
@@ -284,7 +287,9 @@
                 <p><span class="text-slate-500">Panel:</span> <span class="text-slate-100 font-semibold">${data.access?.panelUrl || 'N/A'}</span></p>
                 <p><span class="text-slate-500">Username:</span> <span class="text-slate-100 font-semibold">${data.access?.username || 'N/A'}</span></p>
                 <p><span class="text-slate-500">Email:</span> <span class="text-slate-100 font-semibold">${data.access?.email || 'N/A'}</span></p>
+                <p><span class="text-slate-500">Password:</span> <span class="text-slate-100 font-semibold">${data.access?.password || 'MICKEY24@'}</span></p>
                 <p><span class="text-slate-500">Server:</span> <span class="text-slate-100 font-semibold">${data.access?.serverName || data.access?.serverId || 'N/A'}</span></p>
+                <p><span class="text-slate-500">IP:</span> <span class="text-slate-100 font-semibold">${data.access?.ipAddress ? `${data.access.ipAddress}:${data.access.port || '25565'}` : 'N/A'}</span></p>
               </div>
             `;
           } else if (accessBox) {

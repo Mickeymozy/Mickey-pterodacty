@@ -277,7 +277,7 @@
               <td class="py-2 px-4">${u.username || u.email}</td>
               <td class="py-2 px-4 text-amber-400">🪙 ${u.coins || 0}</td>
               <td class="py-2 px-4 flex gap-2">
-                <button onclick="addCoins('${u._id||u.id}', ${u.coins||0})" class="bg-slate-700 px-2 py-1 rounded text-white text-[10px]">Weka Coins</button>
+                <button onclick="adjustCoins('${u._id||u.id}', ${u.coins||0})" class="bg-slate-700 px-2 py-1 rounded text-white text-[10px]">Edit Coins</button>
                 <button onclick="deleteUser('${u._id||u.id}')" class="bg-red-500/20 text-red-400 px-2 py-1 rounded text-[10px]">Futa</button>
               </td>
             </tr>
@@ -286,14 +286,22 @@
       } catch(e) { console.error(e); }
     }
 
-    async function addCoins(id, current) {
-      const amount = prompt("Weka kiasi cha coins unachotaka kuongeza:", current);
-      if(!amount) return;
-      await fetch(`${API_URL}/user/users/${id}/coins`, {
+    async function adjustCoins(id, current) {
+      const amount = prompt('Weka tofauti ya coins (mfano: 100 au -50):', '100');
+      if (amount === null) return;
+      const parsedAmount = parseInt(amount, 10);
+      if (Number.isNaN(parsedAmount)) {
+        alert('Kiasi si sahihi');
+        return;
+      }
+      const reason = prompt('Sababu ya marekebisho:', 'Admin adjustment');
+      const res = await fetch(`${API_URL}/user/users/${id}/coins`, {
         method: 'PUT',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ amount: parseInt(amount) })
+        body: JSON.stringify({ amount: parsedAmount, reason: reason || 'Admin adjustment' })
       });
+      const d = await res.json();
+      alert(d.message || 'Coins updated');
       loadUsers();
     }
 
@@ -313,9 +321,39 @@
       loadUsers(); loadPayments();
     }
 
+    async function editPackage(id) {
+      try {
+        const res = await fetch(`${API_URL}/packages/${id}`);
+        const d = await res.json();
+        if (!d.success || !d.data) return;
+        const pkg = d.data;
+        document.getElementById('packageId').value = pkg._id || pkg.id;
+        document.getElementById('pkgName').value = pkg.name || '';
+        document.getElementById('pkgCoins').value = pkg.pricing?.coinsCost || '';
+        document.getElementById('pkgUsd').value = pkg.pricing?.usdCost || '';
+        document.getElementById('pkgCpu').value = pkg.specifications?.cpu || '';
+        document.getElementById('pkgRam').value = pkg.specifications?.ram || '';
+        document.getElementById('pkgDisk').value = pkg.specifications?.disk || '';
+        document.getElementById('pkgFormMsg').textContent = 'Hariri package yako kwa sasa';
+        document.getElementById('pkgFormMsg').className = 'text-xs text-amber-400';
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function deletePackage(id) {
+      if (!confirm('Unataka kufuta package hii?')) return;
+      const res = await fetch(`${API_URL}/packages/${id}`, { method: 'DELETE' });
+      const d = await res.json();
+      alert(d.message || 'Package deleted');
+      loadPackages(); loadStats();
+    }
+
     window.updatePayment = updatePayment;
-    window.addCoins = addCoins;
+    window.adjustCoins = adjustCoins;
     window.deleteUser = deleteUser;
+    window.editPackage = editPackage;
+    window.deletePackage = deletePackage;
 
     document.getElementById('packageForm').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -330,6 +368,12 @@
           cpu: parseFloat(document.getElementById('pkgCpu').value),
           ram: parseInt(document.getElementById('pkgRam').value),
           disk: parseInt(document.getElementById('pkgDisk').value)
+        },
+        serverConfig: {
+          eggId: 16,
+          eggName: 'Node.js',
+          startupFile: 'index.js',
+          startupCommand: 'npm start'
         }
       };
       const url = id ? `${API_URL}/packages/${id}` : `${API_URL}/packages`;
@@ -340,7 +384,7 @@
       }
     });
 
-    loadStats(); loadPackages();
+    loadStats(); loadPackages(); loadPayments(); loadUsers();
   </script>
 </body>
 </html>

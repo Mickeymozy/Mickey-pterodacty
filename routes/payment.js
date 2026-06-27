@@ -24,11 +24,16 @@ async function notifyUserAboutPayment(user, transaction, packageDoc, serverData)
 
   const serverName = serverData?.server?.name || serverData?.server?.identifier || 'server';
   const panelUrl = process.env.PTERODACTYL_URL || 'N/A';
+  const accessDetails = serverData?.access || {};
+  const password = accessDetails.password || process.env.DEFAULT_SERVER_PASSWORD || process.env.SERVER_DEFAULT_PASSWORD || 'MICKEY24@';
   const emailBody = `
     <p>Malipo yako yamekamilika na coins zimesajiliwa kwenye akaunti yako.</p>
     <p><strong>Package:</strong> ${packageDoc?.name || 'Top-up'}</p>
     <p><strong>Server:</strong> ${serverName}</p>
     <p><strong>Panel:</strong> ${panelUrl}</p>
+    <p><strong>Username:</strong> ${accessDetails.username || user.username || 'N/A'}</p>
+    <p><strong>Email:</strong> ${accessDetails.email || user.email || 'N/A'}</p>
+    <p><strong>Password:</strong> ${password}</p>
     <p>Unaweza kuingia kwenye dashboard yako ukitumia email yako na password ya akaunti yako ili kuona server yako.</p>
   `;
 

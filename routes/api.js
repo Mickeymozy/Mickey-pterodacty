@@ -34,6 +34,8 @@ const clientApi = hasClientConfig
     })
   : null;
 
+const DEFAULT_SERVER_PASSWORD = process.env.DEFAULT_SERVER_PASSWORD || process.env.SERVER_DEFAULT_PASSWORD || 'MICKEY24@';
+
 const eggConfigs = {
   16: {
     id: 16,
@@ -77,9 +79,54 @@ const eggConfigs = {
   }
 };
 
-const sanitizeServer = (server, resourceAttrs = {}) => {
+const normalizeServerStatus = (value) => {
+  const raw = String(value || 'offline').trim().toLowerCase();
+  if (['running', 'online', 'active'].includes(raw)) return 'online';
+  if (['installing', 'installing...'].includes(raw)) return 'installing';
+  if (['offline', 'stopped', 'stopping', 'suspended', 'disabled'].includes(raw)) return 'offline';
+  return raw || 'offline';
+};
+
+const extractConnectionDetails = (serverData = {}) => {
+  const attrs = serverData?.attributes || {};
+  const allocations = attrs?.relationships?.allocations || attrs?.allocations || [];
+  const primaryAllocation = Array.isArray(allocations) ? allocations[0] : null;
+  const allocationAttrs = primaryAllocation?.attributes || primaryAllocation || {};
+  const ipAddress = allocationAttrs.ip || allocationAttrs.address || allocationAttrs.ipv4 || allocationAttrs.ip_address || '';
+  const port = allocationAttrs.port || allocationAttrs.public_port || allocationAttrs.port_number || '';
+  const host = allocationAttrs.alias || allocationAttrs.hostname || ipAddress || '';
+
+  return {
+    ipAddress: ipAddress || '',
+    port: port ? String(port) : '',
+    sftpHost: host || process.env.PTERODACTYL_URL || '',
+    sftpUser: attrs?.identifier || attrs?.uuid || attrs?.id || ''
+  };
+};
+
+async function getServerConnectionDetails(serverId) {
+  if (!appApi || !serverId) return extractConnectionDetails({});
+
+  try {
+    const response = await appApi.get(`/servers/${encodeURIComponent(serverId)}/network/allocations`);
+    const allocations = response.data?.data || [];
+    const allocation = allocations.find((item) => item?.attributes?.is_primary) || allocations[0];
+    const attrs = allocation?.attributes || {};
+    return {
+      ipAddress: attrs.ip || attrs.address || attrs.ipv4 || attrs.ip_address || '',
+      port: attrs.port ? String(attrs.port) : '',
+      sftpHost: attrs.alias || attrs.hostname || attrs.ip || process.env.PTERODACTYL_URL || '',
+      sftpUser: String(serverId)
+    };
+  } catch (err) {
+    return extractConnectionDetails({});
+  }
+}
+
+const sanitizeServer = (server, resourceAttrs = {}, user = null) => {
   const attrs = server?.attributes || {};
-  const status = String(resourceAttrs?.current_state || attrs.status || 'offline').toLowerCase();
+  const connectionDetails = extractConnectionDetails(server);
+  const status = normalizeServerStatus(resourceAttrs?.current_state || attrs.status || 'offline');
   return {
     id: attrs.id,
     uuid: attrs.uuid,
@@ -88,7 +135,11 @@ const sanitizeServer = (server, resourceAttrs = {}) => {
     status,
     user: attrs.user,
     limits: attrs.limits || {},
-    resources: resourceAttrs || {}
+    resources: resourceAttrs || {},
+    ipAddress: connectionDetails.ipAddress,
+    port: connectionDetails.port,
+    sftpHost: connectionDetails.sftpHost,
+    sftpUser: user?.username || user?.displayName || connectionDetails.sftpUser || ''
   };
 };
 
@@ -98,14 +149,18 @@ async function resolveServerId(serverIdentifier) {
   const rawValue = String(serverIdentifier).trim();
   if (!rawValue) return rawValue;
 
-  try {
-    const response = await appApi.get(`/servers/${encodeURIComponent(rawValue)}`);
-    if (response?.data?.attributes?.id) {
-      return String(response.data.attributes.id);
-    }
-  } catch (err) {
-    if (err.response?.status !== 404) {
-      throw err;
+  const candidates = [rawValue, rawValue.toLowerCase(), rawValue.toUpperCase()];
+
+  for (const candidate of candidates) {
+    try {
+      const response = await appApi.get(`/servers/${encodeURIComponent(candidate)}`);
+      if (response?.data?.attributes?.id) {
+        return String(response.data.attributes.id);
+      }
+    } catch (err) {
+      if (err.response?.status !== 404) {
+        throw err;
+      }
     }
   }
 
@@ -365,15 +420,27 @@ router.get('/api/servers', requireAuth, async (req, res) => {
     const servers = await Promise.all(
       ownedServers.map(async (server) => {
         const attrs = server?.attributes || {};
-        if (!clientApi || !attrs.id) {
-          return sanitizeServer(server);
+        const serverId = attrs.id || attrs.identifier || attrs.uuid;
+        if (!serverId) {
+          return sanitizeServer(server, {}, req.user);
         }
 
         try {
-          const resourcesResponse = await clientApi.get(`/servers/${encodeURIComponent(attrs.id)}/resources`);
-          return sanitizeServer(server, resourcesResponse.data?.attributes || {});
+          const [resourcesResponse, connectionDetails] = await Promise.all([
+            clientApi ? clientApi.get(`/servers/${encodeURIComponent(serverId)}/resources`) : Promise.resolve(null),
+            getServerConnectionDetails(serverId)
+          ]);
+
+          const resourceAttrs = resourcesResponse?.data?.attributes || {};
+          return {
+            ...sanitizeServer(server, resourceAttrs, req.user),
+            ipAddress: connectionDetails.ipAddress,
+            port: connectionDetails.port,
+            sftpHost: connectionDetails.sftpHost,
+            sftpUser: req.user?.username || req.user?.displayName || connectionDetails.sftpUser || ''
+          };
         } catch (resourceErr) {
-          return sanitizeServer(server);
+          return sanitizeServer(server, {}, req.user);
         }
       })
     );
@@ -509,14 +576,22 @@ router.get('/api/servers/:id/access', requireAuth, async (req, res) => {
     const serverResponse = await appApi.get(`/servers/${encodeURIComponent(resolvedServerId)}`);
     const attrs = serverResponse.data?.attributes || {};
 
+    const connectionDetails = extractConnectionDetails(serverResponse.data);
+    const panelUrl = process.env.PTERODACTYL_URL || '';
+
     res.json({
       success: true,
       access: {
-        panelUrl: process.env.PTERODACTYL_URL || '',
+        panelUrl,
         username: req.user?.username || req.user?.displayName || '',
         email: req.user?.email || '',
+        password: DEFAULT_SERVER_PASSWORD,
         serverName: attrs.name || '',
-        serverId: attrs.identifier || attrs.id || ''
+        serverId: attrs.identifier || attrs.id || '',
+        ipAddress: connectionDetails.ipAddress,
+        port: connectionDetails.port,
+        sftpHost: connectionDetails.sftpHost || panelUrl,
+        sftpUser: req.user?.username || req.user?.displayName || ''
       }
     });
   } catch (err) {
@@ -554,9 +629,11 @@ router.get('/api/servers/:id/details', requireAuth, async (req, res) => {
         uuid: attrs.uuid,
         identifier: attrs.identifier,
         name: attrs.name,
-        status: attrs.status || resourceAttrs.current_state || 'unknown',
+        status: normalizeServerStatus(resourceAttrs.current_state || attrs.status || 'unknown'),
         limits: attrs.limits || {},
-        resources: resourceAttrs
+        resources: resourceAttrs,
+        ipAddress: extractConnectionDetails(serverResponse.value?.data || {}).ipAddress,
+        port: extractConnectionDetails(serverResponse.value?.data || {}).port
       }
     });
   } catch (err) {
