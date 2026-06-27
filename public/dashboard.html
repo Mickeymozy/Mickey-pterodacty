@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>User Dashboard</title>
+  <title>User Dashboard - Pterodactyl Integrated</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body { font-family: Inter, sans-serif; }
@@ -12,19 +12,10 @@
       backdrop-filter: blur(20px);
       border: 1px solid rgba(255, 255, 255, 0.05);
     }
-    .tab-button {
-      transition: all 0.3s ease;
-    }
-    .tab-button.active {
-      background: #6366f1;
-      border-color: #6366f1;
-    }
-    .tab-content {
-      display: none;
-    }
-    .tab-content.active {
-      display: block;
-    }
+    .tab-button { transition: all 0.3s ease; }
+    .tab-button.active { background: #6366f1; border-color: #6366f1; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
   </style>
 </head>
 <body class="min-h-screen bg-[#0a0a14] text-slate-50">
@@ -37,17 +28,18 @@
     <header class="glass rounded-2xl p-6 mb-6">
       <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p class="text-sm text-slate-400 font-medium font-semibold">Mteja Area</p>
+          <div class="flex items-center gap-2">
+            <p class="text-sm text-slate-400 font-semibold">Mteja Area</p>
+            <span id="nodeStatus" class="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 animate-pulse">Checking Pterodactyl...</span>
+          </div>
           <h1 class="mt-1 text-2xl font-bold text-white">Dashboard ya Huduma</h1>
-          <p class="mt-1 text-sm text-slate-400">Simamia Server zako & Salio lako</p>
+          <p class="mt-1 text-sm text-slate-400">Simamia mifumo ya server kutoka Pterodactyl Panel</p>
         </div>
         <div class="flex items-center gap-3">
           <div class="px-4 py-2.5 rounded-xl bg-indigo-600/10 text-sm font-bold text-indigo-400 border border-indigo-500/20">
             🪙 Salio: <span id="userCoins">0</span> Coins
           </div>
-          <a href="/logout" class="px-4 py-2.5 rounded-xl bg-red-500/10 text-sm font-medium text-red-400 hover:bg-red-500/20 transition border border-red-500/20">
-            Ondoka
-          </a>
+          <a href="/logout" class="px-4 py-2.5 rounded-xl bg-red-500/10 text-sm font-medium text-red-400 hover:bg-red-500/20 transition border border-red-500/20">Ondoka</a>
         </div>
       </div>
     </header>
@@ -55,7 +47,7 @@
     <div class="glass rounded-2xl p-4 mb-6">
       <div class="flex gap-2 flex-wrap">
         <button class="tab-button active px-4 py-2 rounded-lg border border-slate-700/50 text-sm font-medium transition" onclick="switchDashTab(event, 'my-servers')">🎮 Server Zangu</button>
-        <button class="tab-button px-4 py-2 rounded-lg border border-slate-700/50 text-sm font-medium transition" onclick="switchDashTab(event, 'packages')">📦 Nunua Server (Packages)</button>
+        <button class="tab-button px-4 py-2 rounded-lg border border-slate-700/50 text-sm font-medium transition" onclick="switchDashTab(event, 'deploy-panel')">🚀 Unda Server (Eggs Panel)</button>
         <button class="tab-button px-4 py-2 rounded-lg border border-slate-700/50 text-sm font-medium transition" onclick="switchDashTab(event, 'buy-coins')">🪙 Nunua Coins (Tsh)</button>
       </div>
     </div>
@@ -63,25 +55,73 @@
     <div class="grid gap-6">
 
       <div id="my-servers" class="tab-content active space-y-4">
+        <div class="bg-gradient-to-r from-indigo-900/40 to-purple-900/40 rounded-2xl p-5 border border-indigo-500/30 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <span class="bg-indigo-500 text-white text-[10px] uppercase px-2 py-0.5 rounded font-bold tracking-wider">PROMO</span>
+            <h3 class="text-base font-bold text-white mt-1">Saa 6 Free Trial Server (Jaribio)</h3>
+            <p class="text-xs text-slate-300">Unda server ya haraka kwa **Tsh 500** tu. Server itajifuta yenyewe baada ya masaa 6 kukamilika.</p>
+          </div>
+          <button onclick="deployTrialServer()" class="bg-white text-indigo-950 font-bold text-xs px-4 py-2.5 rounded-xl hover:bg-slate-200 transition whitespace-nowrap shadow-lg">⚡ Unda kwa Tsh 500</button>
+        </div>
+
         <div class="glass rounded-2xl p-6">
           <div class="flex items-center justify-between mb-4">
-            <h2 class="text-xl font-semibold text-white">🎮 Udhibiti wa Server Mseto</h2>
-            <button onclick="loadUserServers()" class="px-3 py-1.5 bg-slate-800/50 hover:bg-slate-700/50 text-xs font-medium text-slate-300 rounded-lg transition border border-slate-700/50">
-              🔄 Refresh Status
-            </button>
+            <h2 class="text-xl font-semibold text-white">🎮 Server Zako Amilifu</h2>
+            <button onclick="loadUserServers()" class="px-3 py-1.5 bg-slate-800/50 hover:bg-slate-700/50 text-xs font-medium text-slate-300 rounded-lg transition border border-slate-700/50">🔄 Refresh Status</button>
           </div>
-          
           <div id="serversContainer" class="grid gap-4 md:grid-cols-2">
-            <p class="text-xs text-slate-400 col-span-2">Inapakia mifumo ya server kutoka Pterodactyl...</p>
+            <p class="text-xs text-slate-400 col-span-2">Inasoma server kutoka kwenye API ya kwanza...</p>
           </div>
         </div>
       </div>
 
-      <div id="packages" class="tab-content space-y-4">
-        <div class="glass rounded-2xl p-6">
-          <h2 class="text-xl font-semibold text-white mb-4">📦 Package Zilizopo (Mifumo ya Servers)</h2>
-          <div id="dashboardPackagesList" class="grid gap-4 md:grid-cols-3">
-            <p class="text-xs text-slate-400">Inapakia package za server...</p>
+      <div id="deploy-panel" class="tab-content space-y-4">
+        <div class="grid gap-6 lg:grid-cols-3">
+          <div class="glass rounded-2xl p-6 lg:col-span-2">
+            <h2 class="text-xl font-semibold text-white mb-4">📝 Fomu ya Kuunda Server (Pterodactyl Configuration)</h2>
+            <form id="deployServerForm" class="space-y-4" onsubmit="handleServerCreation(event)">
+              <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">Jina la Server (Server Name) *</label>
+                <input type="text" id="srvFormName" placeholder="My Awesome Server" class="w-full rounded-xl bg-slate-950/50 border border-slate-700/50 px-3 py-2 text-sm text-white outline-none focus:border-indigo-500" required>
+              </div>
+
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-xs font-medium text-slate-300 mb-1">Chagua Kifurushi (Package Plan) *</label>
+                  <select id="srvFormPackage" class="w-full rounded-xl bg-slate-950/50 border border-slate-700/50 px-3 py-2 text-sm text-white outline-none focus:border-indigo-500" onchange="updateSelectedPackageSpecs()" required>
+                    </select>
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-300 mb-1">Chagua Mfumo (Server Eggs) *</label>
+                  <select id="srvFormEgg" class="w-full rounded-xl bg-slate-950/50 border border-slate-700/50 px-3 py-2 text-sm text-white outline-none focus:border-indigo-500" required>
+                    <option value="minecraft_paper">Minecraft (Paper/Purpur)</option>
+                    <option value="minecraft_forge">Minecraft (Forge Modded)</option>
+                    <option value="minecraft_bedrock">Minecraft (Bedrock PE)</option>
+                    <option value="nodejs">Node.js Web App</option>
+                    <option value="python">Python Bot / App</option>
+                    <option value="gtav_fivem">GTA V (FiveM Server)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="bg-slate-950/40 rounded-xl p-4 border border-slate-800 text-xs text-slate-400 space-y-2">
+                <p class="font-bold text-white">Sifa za Package Iliyochaguliwa (Specs):</p>
+                <div class="grid grid-cols-3 gap-2 font-mono text-slate-300">
+                  <div>💾 RAM: <span id="previewRam">--</span> MB</div>
+                  <div>⚙️ CPU: <span id="previewCpu">--</span> vCore</div>
+                  <div>📀 DISK: <span id="previewDisk">--</span> GB</div>
+                </div>
+                <div class="pt-2 text-amber-400 font-bold">Gharama: <span id="previewCost">0</span> Coins / Mwezi</div>
+              </div>
+
+              <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl transition shadow-lg">🚀 Deploy Server Mubashara</button>
+            </form>
+          </div>
+
+          <div class="glass rounded-2xl p-6">
+            <h3 class="text-md font-bold text-white mb-3">💡 Bei za Package zetu</h3>
+            <div id="sidePackagesList" class="space-y-3">
+              </div>
           </div>
         </div>
       </div>
@@ -108,22 +148,17 @@
                 <p class="text-2xl font-black text-amber-400 mb-3">Tsh 12,000</p>
                 <p class="text-xs text-slate-400">Utapokea: <strong>50 Coins</strong></p>
               </div>
-              <button onclick="orderCoins(12,000, 50)" class="mt-4 w-full bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold py-2 rounded-lg transition">Agiza Sasa</button>
+              <button onclick="orderCoins(12000, 50)" class="mt-4 w-full bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold py-2 rounded-lg transition">Agiza Sasa</button>
             </div>
 
             <div class="glass rounded-xl p-5 border border-slate-800 flex flex-col justify-between">
               <div>
                 <h3 class="text-lg font-bold text-white mb-1">🪙 Kifurushi Kikubwa</h3>
                 <p class="text-2xl font-black text-emerald-400 mb-3">Tsh 25,000</p>
-                <p class="text-xs text-slate-400">Utapokea: <strong>110 Coins</strong> <span class="text-emerald-400 text-[10px] font-bold">(+10 Bonus)</span></p>
+                <p class="text-xs text-slate-400">Utapokea: <strong>110 Coins</strong></p>
               </div>
               <button onclick="orderCoins(25000, 110)" class="mt-4 w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold py-2 rounded-lg transition">Agiza Sasa</button>
             </div>
-          </div>
-
-          <div class="mt-6 bg-slate-950/40 rounded-xl p-4 border border-slate-800 text-sm text-slate-300">
-            <h4 class="font-bold text-white mb-1">💡 Maelekezo ya Kukamilisha Malipo:</h4>
-            <p class="text-xs text-slate-400">Baada ya kubonyeza "Agiza", tuma kiasi husika kwenda namba ya Lipa: <strong>+255 000 000 000</strong>. Kisha subiri ma-admin wathibitishe muamala wako kwenye mfumo wa Admin Control Panel.</p>
           </div>
         </div>
       </div>
@@ -133,33 +168,44 @@
 
   <script>
     const API_URL = '/api';
+    let globalPackages = [];
 
-    // Switch Tabs
     function switchDashTab(event, tabName) {
       document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
       document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-      
       document.getElementById(tabName).classList.add('active');
-      event.currentTarget.classList.add('active');
+      if(event) event.currentTarget.classList.add('active');
 
-      if (tabName === 'packages') loadDashboardPackages();
+      if (tabName === 'deploy-panel') loadSetupFormContext();
       if (tabName === 'my-servers') loadUserServers();
     }
 
-    // Load User Base Profile & Coins
-    async function loadUserProfile() {
+    // Kusoma Profile na Kuangalia Pterodactyl Link Node Status
+    async function initDashboard() {
       try {
-        const res = await fetch(`${API_URL}/user/profile`);
-        const data = await res.json().catch(() => ({}));
-        if (data.success) {
-          document.getElementById('userCoins').textContent = data.data.coins || 0;
+        // Fetch profile
+        const profileRes = await fetch(`${API_URL}/user/profile`);
+        const pData = await profileRes.json().catch(() => ({}));
+        if (pData.success) document.getElementById('userCoins').textContent = pData.data.coins || 0;
+
+        // Angalia kama node ya Pterodactyl ipo hewani au la (Original Status check)
+        const healthRes = await fetch(`${API_URL}/servers/health-check`);
+        const hData = await healthRes.json().catch(() => ({ success: false }));
+        const indicator = document.getElementById('nodeStatus');
+        if(hData.success && hData.pterodactylConnected) {
+          indicator.className = "text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+          indicator.textContent = "● PTERODACTYL CONNECTED ✅";
+        } else {
+          indicator.className = "text-[10px] px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/30";
+          indicator.textContent = "● PTERODACTYL OFFLINE ❌";
         }
-      } catch (e) {
-        console.error('Error loading profile:', e);
+      } catch(e) {
+        document.getElementById('nodeStatus').className = "text-[10px] px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/30";
+        document.getElementById('nodeStatus').textContent = "● API ERROR ❌";
       }
     }
 
-    // LOAD SERVERS NA CONTROL ACTIONS (ZINAZOONDOA "UNABLE TO FETCH")
+    // KUSOMA SERVER NA KUZIDHIBITI (Mifumo ya kwanza)
     async function loadUserServers() {
       const container = document.getElementById('serversContainer');
       try {
@@ -167,161 +213,141 @@
         const data = await res.json().catch(() => ({}));
         
         if (!data.success || !data.data || data.data.length === 0) {
-          container.innerHTML = `
-            <div class="glass p-6 rounded-xl col-span-2 text-center text-slate-400">
-              ❌ Hauna server yoyote iliyosajiliwa kwenye akaunti yako kwa sasa.
-            </div>`;
+          container.innerHTML = `<div class="glass p-6 rounded-xl col-span-2 text-center text-slate-400">❌ Hauna server yoyote kwa sasa.</div>`;
           return;
         }
 
         container.innerHTML = data.data.map(srv => {
           const isOnline = srv.status === 'running' || srv.status === 'online';
-          const statusIndicatorColor = isOnline ? 'bg-emerald-400 text-emerald-400' : 'bg-red-400 text-red-400';
+          const indicatorStyle = isOnline ? 'bg-emerald-400 text-emerald-400' : 'bg-red-400 text-red-400';
           
           return `
             <div class="glass rounded-xl p-5 border border-slate-700/30 flex flex-col justify-between space-y-4">
               <div>
                 <div class="flex items-center justify-between mb-1">
                   <h3 class="font-bold text-white text-base">${srv.name}</h3>
-                  <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium bg-slate-900/80 uppercase">
-                    <span class="h-2 w-2 rounded-full ${statusIndicatorColor}"></span>
+                  <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-slate-900 uppercase">
+                    <span class="h-1.5 w-1.5 rounded-full ${indicatorStyle} animate-pulse"></span>
                     ${srv.status || 'offline'}
                   </span>
                 </div>
-                <p class="text-xs font-mono text-indigo-300 mb-3">🔗 IP: ${srv.ipAddress || '127.0.0.1'}:${srv.port || '25565'}</p>
-                
-                <div class="grid grid-cols-2 gap-2 bg-slate-950/40 rounded-lg p-3 text-xs text-slate-400">
-                  <div>⚙️ CPU Cores: <span class="text-slate-200 font-semibold">${srv.cpuUsage || 0}%</span></div>
-                  <div>🔌 RAM: <span class="text-slate-200 font-semibold">${srv.ramUsage || 0} / ${srv.ramLimit || 2048}MB</span></div>
-                  <div>📀 Disk Space: <span class="text-slate-200 font-semibold">${srv.diskUsage || 0}GB</span></div>
-                  <div>🎮 Aina: <span class="text-indigo-400 font-semibold">${srv.eggName || 'Custom'}</span></div>
+                <p class="text-xs font-mono text-indigo-300 mb-2">🔗 IP: ${srv.ipAddress || '127.0.0.1'}:${srv.port || '25565'}</p>
+                <div class="grid grid-cols-2 gap-2 bg-slate-950/40 rounded-lg p-2.5 text-[11px] text-slate-400">
+                  <div>⚙️ CPU: <span class="text-slate-200">${srv.cpuUsage || 0}%</span></div>
+                  <div>🔌 RAM: <span class="text-slate-200">${srv.ramUsage || 0}/${srv.ramLimit || 1024}MB</span></div>
                 </div>
               </div>
-
               <div class="grid grid-cols-3 gap-2 pt-2 border-t border-slate-800/40">
-                <button onclick="sendPowerAction('${srv._id || srv.id}', 'start')" class="py-1.5 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white font-bold text-xs rounded transition uppercase tracking-wider">Start</button>
-                <button onclick="sendPowerAction('${srv._id || srv.id}', 'restart')" class="py-1.5 bg-amber-600/20 hover:bg-amber-600 text-amber-300 hover:text-white font-bold text-xs rounded transition uppercase tracking-wider">Restart</button>
-                <button onclick="sendPowerAction('${srv._id || srv.id}', 'stop')" class="py-1.5 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white font-bold text-xs rounded transition uppercase tracking-wider">Stop</button>
+                <button onclick="executePower('${srv._id || srv.id}', 'start')" class="py-1 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white font-bold text-[11px] rounded transition">START</button>
+                <button onclick="executePower('${srv._id || srv.id}', 'restart')" class="py-1 bg-amber-600/20 hover:bg-amber-600 text-amber-300 hover:text-white font-bold text-[11px] rounded transition">RESTART</button>
+                <button onclick="executePower('${srv._id || srv.id}', 'stop')" class="py-1 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white font-bold text-[11px] rounded transition">STOP</button>
               </div>
             </div>
           `;
         }).join('');
       } catch (e) {
-        console.error(e);
-        container.innerHTML = `
-          <div class="glass p-6 rounded-xl col-span-2 text-center text-red-400 text-xs">
-            ⚠️ Hitilafu: Imeshindwa kuunganisha kwenye nodi za server kuu. Tafadhali subiri au wasiliana na admin.
-          </div>`;
+        container.innerHTML = `<div class="glass p-4 rounded-xl col-span-2 text-xs text-center text-red-400">⚠️ Imeshindwa kuwasiliana na mfumo wa muunganisho mkuu.</div>`;
       }
     }
 
-    // Action ya kuwasha/kuzima/kurestart server
-    async function sendPowerAction(serverId, action) {
+    async function executePower(id, action) {
       try {
-        const res = await fetch(`${API_URL}/servers/${serverId}/power`, {
+        const res = await fetch(`${API_URL}/servers/${id}/power`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: action })
+          body: JSON.stringify({ action })
         });
-        const data = await res.json();
-        if (data.success) {
-          alert(`Ombi la ku-${action.toUpperCase()} server limetumwa kwa mafanikio!`);
-          loadUserServers();
-        } else {
-          alert(`Amri imeshindikana: ` + (data.message || 'Mawasiliano yamefeli'));
-        }
-      } catch (e) {
-        alert('Hitilafu: API ya kudhibiti server haipatikani kwa sasa.');
-      }
+        if((await res.json()).success) { loadUserServers(); }
+      } catch(e) { alert('Mawasiliano na Pterodactyl yamefeli.'); }
     }
 
-    // Load available server packages
-    async function loadDashboardPackages() {
-      const container = document.getElementById('dashboardPackagesList');
+    // MFUMO WA FOMU YA KWANZA (Load Packages into Dropdown)
+    async function loadSetupFormContext() {
       try {
         const res = await fetch(`${API_URL}/packages`);
-        const data = await res.json();
-        if (data.success && data.data.length > 0) {
-          container.innerHTML = data.data.map(pkg => `
-            <div class="glass rounded-xl p-5 border border-slate-700/30 flex flex-col justify-between">
-              <div>
-                <div class="flex justify-between items-start mb-2">
-                  <h3 class="font-bold text-white text-md">${pkg.name}</h3>
-                  ${pkg.isPopular ? '<span class="text-[9px] bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded">⭐ Hot</span>' : ''}
-                </div>
-                <p class="text-xs text-slate-400 mb-3">${pkg.description || 'Hakuna maelezo.'}</p>
-                <div class="space-y-1 text-xs text-slate-300 mb-4 bg-black/20 p-2.5 rounded-lg font-mono">
-                  <div>💾 CPU: ${pkg.specifications?.cpu || pkg.cpu} vCore</div>
-                  <div>🔌 RAM: ${pkg.specifications?.ram || pkg.ram} MB</div>
-                  <div>📀 DISK: ${pkg.specifications?.disk || pkg.disk} GB</div>
-                </div>
-              </div>
-              <div>
-                <div class="text-sm font-bold text-amber-400 mb-3">🪙 ${pkg.pricing?.coinsCost || pkg.coinsCost} Coins / mwezi</div>
-                <button onclick="deployPackage('${pkg._id || pkg.id}')" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs py-2 rounded-lg transition">
-                  🚀 Deploy Server
-                </button>
-              </div>
+        const d = await res.json();
+        if(d.success && d.data.length > 0) {
+          globalPackages = d.data;
+          
+          // Weka kwenye select dropdown
+          const select = document.getElementById('srvFormPackage');
+          select.innerHTML = d.data.map(p => `<option value="${p._id || p.id}">${p.name}</option>`).join('');
+          
+          // Weka kwenye sidebar layout
+          const sidebar = document.getElementById('sidePackagesList');
+          sidebar.innerHTML = d.data.map(p => `
+            <div class="bg-slate-950/40 p-3 rounded-xl border border-slate-800 text-xs">
+              <p class="font-bold text-white">${p.name}</p>
+              <p class="text-[11px] text-amber-400 font-bold">🪙 ${p.pricing?.coinsCost || p.coinsCost} Coins / Mwezi</p>
             </div>
           `).join('');
-        } else {
-          container.innerHTML = `<p class="text-xs text-slate-500 col-span-3">Hakuna package zilizopo kwa sasa.</p>`;
+          
+          updateSelectedPackageSpecs();
         }
-      } catch (e) {
-        container.innerHTML = `<p class="text-xs text-red-400 col-span-3">Mawasiliano yamefeli kupata package.</p>`;
+      } catch(e) { console.error(e); }
+    }
+
+    function updateSelectedPackageSpecs() {
+      const selectedId = document.getElementById('srvFormPackage').value;
+      const pkg = globalPackages.find(p => (p._id || p.id) === selectedId);
+      if(pkg) {
+        document.getElementById('previewRam').textContent = pkg.specifications?.ram || pkg.ram || 1024;
+        document.getElementById('previewCpu').textContent = pkg.specifications?.cpu || pkg.cpu || 1;
+        document.getElementById('previewDisk').textContent = pkg.specifications?.disk || pkg.disk || 10;
+        document.getElementById('previewCost').textContent = pkg.pricing?.coinsCost || pkg.coinsCost || 0;
       }
     }
 
-    // Deploy / Nunua server kwa kutumia coins
-    async function deployPackage(packageId) {
-      if (!confirm('Je, unataka kuunda server mpya kwa kutumia kifurushi hiki?')) return;
+    // Deploy Regular Server kutoka kwenye Fomu
+    async function handleServerCreation(e) {
+      e.preventDefault();
+      const payload = {
+        name: document.getElementById('srvFormName').value,
+        packageId: document.getElementById('srvFormPackage').value,
+        egg: document.getElementById('srvFormEgg').value
+      };
       try {
         const res = await fetch(`${API_URL}/servers/deploy`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ packageId })
+          body: JSON.stringify(payload)
         });
         const data = await res.json();
-        if (data.success) {
-          alert('✅ Server yako inaundwa! Angalia kichupo cha Server Zangu sasa.');
-          loadUserProfile();
-          switchDashTab(null, 'my-servers');
-        } else {
-          alert('❌ Imeshindikana: ' + (data.message || 'Mawasiliano yalifeli au Salio halitoshi'));
-        }
-      } catch (e) {
-        alert('Hitilafu wakati wa kuunda server.');
-      }
+        if(data.success) {
+          alert('✅ Server imetengenezwa vizuri kwenye Pterodactyl Node!');
+          initDashboard(); switchDashTab(null, 'my-servers');
+        } else { alert('❌ Kosa: ' + data.message); }
+      } catch(e) { alert('Mfumo haujajibu.'); }
     }
 
-    // Ombi la kununua Coins (Tsh)
-    async function orderCoins(amountTsh, coinsToGet) {
+    // DEPLOY 6-HOURS TRIAL SERVER (TSH 500 Promo)
+    async function deployTrialServer() {
+      if(!confirm("Je, unataka kuunda Server ya Jaribio (Masaa 6) kwa Tsh 500 au Coins sawa na hizo?")) return;
       try {
-        const res = await fetch(`${API_URL}/payments/request`, {
+        const res = await fetch(`${API_URL}/servers/deploy-trial`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ amount: amountTsh, coins: coinsToGet, method: 'Manual Mobile Money' })
+          body: JSON.stringify({ hours: 6, costTsh: 500 })
         });
         const data = await res.json();
-        if (data.success) {
-          alert(`✅ Ombi la Coins ${coinsToGet} kwa Tsh ${amountTsh.toLocaleString()} limetumwa kwa admin!\n\nTafadhali tuma pesa na usubiri uhakiki.`);
+        if(data.success) {
+          alert('⚡ Server yako ya Jaribio (Trial) imeundwa! Itajifuta baada ya masaa 6.');
+          initDashboard(); loadUserServers();
         } else {
-          alert('Imeshindwa kutengeneza ombi: ' + data.message);
+          alert('❌ Imeshindikana: ' + (data.message || 'Salio halitoshi. Hakikisha una salio la kutosha la Tsh 500 kwenye akaunti yako au Coins.'));
         }
-      } catch (e) {
-        alert(`Ujumbe: Ombi lako la kununua Coins ${coinsToGet} kwa Tsh ${amountTsh.toLocaleString()} limeandikishwa! Tuma pesa kwa admin sasa.`);
+      } catch(e) {
+        alert('Mawasiliano na endpoint ya jaribio yamefeli.');
       }
     }
 
-    // Initialize layout setup
-    loadUserProfile();
+    async function orderCoins(amountTsh, coinsToGet) {
+      alert(`Ombi limepokelewa! Tuma Tsh ${amountTsh.toLocaleString()} kwenda namba ya Lipa na uandikishe muamala wako.`);
+    }
+
+    // Run setup on startup
+    initDashboard();
     loadUserServers();
-    
-    // Live updater kila baada ya sekunde 12
-    setInterval(() => {
-      const activeTab = document.querySelector('.tab-content.active').id;
-      if (activeTab === 'my-servers') loadUserServers();
-    }, 12000);
   </script>
 </body>
 </html>
