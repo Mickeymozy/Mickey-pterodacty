@@ -180,98 +180,46 @@
     </section>
 
     <!-- Main Content -->
-    <section class="grid gap-6 lg:grid-cols-[1.8fr_1fr]">
+    <section class="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
         
         <!-- Server List -->
         <div class="glass rounded-2xl p-6">
             <div class="flex items-center justify-between mb-6">
                 <div>
-                    <p class="text-sm text-slate-400 font-medium">Manage</p>
+                    <p class="text-sm text-slate-400 font-medium">MANAGE</p>
                     <h2 class="text-2xl font-bold text-white">Your Servers</h2>
                 </div>
+                <div class="text-sm text-slate-400">📋</div>
             </div>
-            <div id="serverList" class="space-y-4 max-h-[500px] overflow-y-auto scrollbar-thin pr-2">
-                <!-- Rendered by JavaScript -->
+            <div id="serverList" class="space-y-3">
+                <div class="rounded-lg border border-slate-700/30 bg-slate-800/20 p-3 text-center text-sm text-slate-400">
+                    Loading servers...
+                </div>
             </div>
         </div>
 
-        <!-- Create Server -->
-        <div>
+        <!-- Server Details & Info -->
+        <div class="space-y-6">
             <div class="glass rounded-2xl p-6">
                 <div>
-                    <p class="text-sm text-slate-400 font-medium">Overview</p>
+                    <p class="text-sm text-slate-400 font-medium">STATUS</p>
                     <h2 class="text-2xl font-bold text-white">Server Info</h2>
                 </div>
-                <div id="serverOverview" class="mt-4 rounded-2xl border border-slate-800 bg-slate-900/40 p-4 text-sm text-slate-400">
-                    <p>Choose a server to view its current status and limits.</p>
-                </div>
-                <div id="serverAccess" class="mt-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-200">
-                    <p>Use this section to open your server panel or view login details.</p>
+                <div id="serverOverview" class="mt-4 rounded-xl border border-slate-700/30 bg-slate-800/20 p-4 text-sm text-slate-400">
+                    <p>✨ Select a server to view its details</p>
                 </div>
             </div>
 
-            <div class="glass rounded-2xl p-6 mt-6">
+            <div class="glass rounded-2xl p-6">
                 <div>
-                    <p class="text-sm text-slate-400 font-medium">Create</p>
-                    <h2 class="text-2xl font-bold text-white">New Server</h2>
+                    <p class="text-sm text-slate-400 font-medium">ACCESS</p>
+                    <h2 class="text-lg font-bold text-white">Panel & Console</h2>
                 </div>
-                
-                <form id="createForm" class="mt-5 space-y-4">
-                <div>
-                    <label for="serverName" class="mb-1.5 block text-sm font-medium text-slate-300">Server Name</label>
-                    <input id="serverName" required placeholder="e.g. My App" 
-                           class="w-full rounded-xl input-glass px-4 py-3 text-sm outline-none text-white">
+                <div id="serverAccess" class="mt-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 text-sm text-emerald-200">
+                    <p>🔗 Server access options will appear here</p>
                 </div>
-
-                <div>
-                    <label for="egg" class="mb-1.5 block text-sm font-medium text-slate-300">Server Type</label>
-                    <select id="egg" class="w-full rounded-xl input-glass px-4 py-3 text-sm outline-none text-white">
-                        <option value="" class="bg-slate-900">Loading server types...</option>
-                    </select>
-                </div>
-
-                <div class="grid gap-3 sm:grid-cols-2">
-                    <div>
-                        <label for="startupFile" id="startupFileLabel" class="mb-1.5 block text-sm font-medium text-slate-300">Main File</label>
-                        <input id="startupFile" placeholder="index.js"
-                               class="w-full rounded-xl input-glass px-4 py-3 text-sm outline-none text-white">
-                    </div>
-                    <div>
-                        <label for="startupCommand" class="mb-1.5 block text-sm font-medium text-slate-300">Startup Command</label>
-                        <input id="startupCommand" placeholder="npm start"
-                               class="w-full rounded-xl input-glass px-4 py-3 text-sm outline-none text-white">
-                    </div>
-                </div>
-                <p id="eggHint" class="text-xs text-slate-500">The panel needs the startup file for this egg. For Node.js, use something like index.js.</p>
-
-                <div class="grid gap-3 sm:grid-cols-3">
-                    <div>
-                        <label for="cpu" class="mb-1.5 block text-sm font-medium text-slate-300">CPU</label>
-                        <input id="cpu" type="number" min="1" max="25" value="25" 
-                               class="w-full rounded-xl input-glass px-4 py-3 text-sm outline-none text-white">
-                        <p class="mt-1 text-xs text-slate-500">vCores</p>
-                    </div>
-                    <div>
-                        <label for="memory" class="mb-1.5 block text-sm font-medium text-slate-300">RAM</label>
-                        <input id="memory" type="number" min="512" value="1024" 
-                               class="w-full rounded-xl input-glass px-4 py-3 text-sm outline-none text-white">
-                        <p class="mt-1 text-xs text-slate-500">MB</p>
-                    </div>
-                    <div>
-                        <label for="disk" class="mb-1.5 block text-sm font-medium text-slate-300">Disk</label>
-                        <input id="disk" type="number" min="1024" value="2048" 
-                               class="w-full rounded-xl input-glass px-4 py-3 text-sm outline-none text-white">
-                        <p class="mt-1 text-xs text-slate-500">MB</p>
-                    </div>
-                </div>
-
-                <button type="submit" class="w-full btn-primary rounded-xl px-4 py-3 text-sm font-semibold text-white">
-                    🚀 Create Server
-                </button>
-                <p id="formMessage" class="mt-3 text-sm text-slate-400"></p>
-            </form>
+            </div>
         </div>
-        
     </section>
 </div>
 
@@ -280,18 +228,11 @@
     const userName = document.getElementById('userName');
     const adminLink = document.getElementById('adminLink');
     const panelStatus = document.getElementById('panelStatus');
-    const createForm = document.getElementById('createForm');
-    const formMessage = document.getElementById('formMessage');
     const totalServers = document.getElementById('totalServers');
     const runningServers = document.getElementById('runningServers');
     const stoppedServers = document.getElementById('stoppedServers');
     const serverOverview = document.getElementById('serverOverview');
     const serverAccess = document.getElementById('serverAccess');
-    const eggSelect = document.getElementById('egg');
-    const startupFileInput = document.getElementById('startupFile');
-    const startupCommandInput = document.getElementById('startupCommand');
-    const startupFileLabel = document.getElementById('startupFileLabel');
-    const eggHint = document.getElementById('eggHint');
     const userCoinsEl = document.getElementById('userCoins');
     const packagesGrid = document.getElementById('packagesGrid');
     const packagesLoading = document.getElementById('packagesLoading');
@@ -300,12 +241,6 @@
     let selectedServerId = null;
     let userCoins = 0;
     let packagesVisible = false;
-
-    function setFormDisabled(disabled) {
-        createForm.querySelectorAll('input, select, button').forEach((el) => {
-            el.disabled = disabled;
-        });
-    }
 
     function togglePackages() {
         packagesVisible = !packagesVisible;
@@ -559,8 +494,8 @@
 
     async function loadServerDetails(serverId) {
         if (!serverId) {
-            serverOverview.innerHTML = '<p>Select a server to view its current status and limits.</p>';
-            serverAccess.innerHTML = '<p>Use this section to open your server panel or view login details.</p>';
+            serverOverview.innerHTML = '<p class="text-slate-400 text-sm">✨ Select a server to view details</p>';
+            serverAccess.innerHTML = '<p class="text-slate-400 text-sm">🔗 Server access will appear here</p>';
             return;
         }
 
@@ -578,44 +513,47 @@
 
             const server = detailsData.server || {};
             const limits = server.limits || {};
-            const resources = server.resources || {};
             const access = accessData.success ? accessData.access || {} : {};
+            
             serverOverview.innerHTML = `
-                <div class="space-y-3">
-                    <div>
-                        <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Current Server</p>
-                        <h3 class="mt-1 text-lg font-semibold text-white">${server.name || 'Unnamed server'}</h3>
+                <div class="space-y-2 text-sm">
+                    <div class="flex justify-between items-center pb-2 border-b border-slate-700/30">
+                        <span class="text-slate-500">💻 Name</span>
+                        <span class="font-medium text-white">${server.name || 'Unnamed'}</span>
                     </div>
-                    <div class="grid gap-3 sm:grid-cols-2">
-                        <div class="rounded-xl bg-slate-800/50 p-3">
-                            <p class="text-xs text-slate-500">Status</p>
-                            <p class="mt-1 font-semibold text-white">${server.status || 'unknown'}</p>
-                        </div>
-                        <div class="rounded-xl bg-slate-800/50 p-3">
-                            <p class="text-xs text-slate-500">Identifier</p>
-                            <p class="mt-1 font-semibold text-white break-all">${server.identifier || server.id || '—'}</p>
-                        </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-slate-500">⚙️ Status</span>
+                        <span class="px-2 py-0.5 rounded text-xs font-medium text-emerald-300 bg-emerald-500/10">● ${server.status || '?'}</span>
                     </div>
-                    <div class="grid gap-3 sm:grid-cols-3">
-                        <div class="rounded-xl bg-slate-800/50 p-3">
-                            <p class="text-xs text-slate-500">CPU</p>
-                            <p class="mt-1 font-semibold text-white">${limits.cpu || resources.cpu_limit || '—'}</p>
-                        </div>
-                        <div class="rounded-xl bg-slate-800/50 p-3">
-                            <p class="text-xs text-slate-500">RAM</p>
-                            <p class="mt-1 font-semibold text-white">${limits.memory ? `${limits.memory} MB` : '—'}</p>
-                        </div>
-                        <div class="rounded-xl bg-slate-800/50 p-3">
-                            <p class="text-xs text-slate-500">Disk</p>
-                            <p class="mt-1 font-semibold text-white">${limits.disk ? `${limits.disk} MB` : '—'}</p>
-                        </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-slate-500">🔧 CPU</span>
+                        <span class="font-medium text-white">${limits.cpu || 'N/A'}</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-slate-500">🔌 RAM</span>
+                        <span class="font-medium text-white">${limits.memory ? limits.memory + 'MB' : 'N/A'}</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-slate-500">📀 Disk</span>
+                        <span class="font-medium text-white">${limits.disk ? limits.disk + 'MB' : 'N/A'}</span>
                     </div>
                 </div>
             `;
-            renderAccessInfo(server, access);
+            
+            if (access.panelUrl) {
+                serverAccess.innerHTML = `
+                    <div class="space-y-2">
+                        <a href="${access.panelUrl}" target="_blank" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-sm transition">
+                            🔗 Open Console
+                        </a>
+                    </div>
+                `;
+            } else {
+                serverAccess.innerHTML = '<p class="text-slate-400 text-sm">Access options not available</p>';
+            }
         } catch (e) {
-            serverOverview.innerHTML = `<p class="text-red-400">${e.message || 'Unable to load server details.'}</p>`;
-            serverAccess.innerHTML = `<p class="text-red-400">${e.message || 'Unable to load server access info.'}</p>`;
+            serverOverview.innerHTML = `<p class="text-slate-400 text-xs">Unable to load details</p>`;
+            serverAccess.innerHTML = `<p class="text-slate-400 text-xs">Unable to load access</p>`;
         }
     }
 
@@ -762,62 +700,7 @@
     });
 
     // Create server
-    createForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        if (!linkedToPtero) {
-            formMessage.textContent = '❌ Your panel account is not linked yet. Please fix the account setup first.';
-            formMessage.className = 'mt-3 text-sm text-red-400';
-            return;
-        }
-
-        formMessage.textContent = '⏳ Creating server...';
-        formMessage.className = 'mt-3 text-sm text-slate-400';
-        
-        const cpuInput = Number(document.getElementById('cpu').value) || 25;
-        const payload = {
-            name: document.getElementById('serverName').value.trim(),
-            egg: Number(document.getElementById('egg').value),
-            cpu: Math.min(25, Math.max(1, cpuInput)),
-            memory: Math.max(512, Number(document.getElementById('memory').value) || 1024),
-            disk: Math.max(1024, Number(document.getElementById('disk').value) || 2048),
-            startupFile: document.getElementById('startupFile').value.trim(),
-            startupCommand: document.getElementById('startupCommand').value.trim()
-        };
-
-        if (!payload.name) {
-            formMessage.textContent = '⚠️ Please enter a server name.';
-            formMessage.className = 'mt-3 text-sm text-amber-400';
-            return;
-        }
-
-        try {
-            const res = await fetch('/api/servers/create', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            const data = await res.json().catch(() => ({}));
-            
-            if (data.success) {
-                formMessage.textContent = '✅ ' + (data.message || 'Server created successfully!');
-                formMessage.className = 'mt-3 text-sm text-emerald-400';
-                createForm.reset();
-                document.getElementById('cpu').value = 25;
-                document.getElementById('memory').value = 1024;
-                document.getElementById('disk').value = 2048;
-                document.getElementById('startupFile').value = '';
-                document.getElementById('startupCommand').value = '';
-                await loadEggOptions();
-                await loadServers();
-            } else {
-                formMessage.textContent = '❌ ' + (data.error || 'Failed to create server.');
-                formMessage.className = 'mt-3 text-sm text-red-400';
-            }
-        } catch (err) {
-            formMessage.textContent = '❌ Error: ' + err.message;
-            formMessage.className = 'mt-3 text-sm text-red-400';
-        }
-    });
+    // REMOVED - Users now create servers by purchasing packages
 
     // Refresh button
     document.getElementById('refreshBtn').addEventListener('click', () => {
@@ -825,12 +708,9 @@
         loadServers();
     });
 
-    eggSelect.addEventListener('change', updateStartupHints);
-
     // Initial load
     loadUser();
     loadUserCoins();
-    loadEggOptions();
     loadServers();
     loadPackages();
 
