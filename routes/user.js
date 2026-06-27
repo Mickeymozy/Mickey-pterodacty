@@ -57,17 +57,28 @@ router.get('/users/:id', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-// Admin: Update user coins
+// Admin: Update user coins (IMEREKEBISHWA)
 router.post('/users/:id/coins', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const { amount, reason } = req.body;
-    if (!amount) {
-      return res.status(400).json({ success: false, message: 'Amount required' });
+    let { amount, reason } = req.body;
+    
+    // Hakikisha amount ipo na ni namba halali
+    amount = Number(amount);
+    if (isNaN(amount) || amount === 0) {
+      return res.status(400).json({ success: false, message: 'Weka kiasi halali cha coins (Kisio kisichokuwa 0)' });
     }
 
     const user = await User.findById(req.params.id);
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // Kuzuia coins zisiende kuwa hasi (Negative)
+    if (user.coins + amount < 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: `Huwezi kupunguza coins kufikia hasi. Salio la sasa ni coins ${user.coins}` 
+      });
     }
 
     const oldCoins = user.coins;
@@ -94,6 +105,7 @@ router.post('/users/:id/coins', requireAuth, requireAdmin, async (req, res) => {
       data: { coins: user.coins }
     });
   } catch (error) {
+    console.error('Error updating coins:', error);
     res.status(500).json({ success: false, message: 'Error updating coins' });
   }
 });
