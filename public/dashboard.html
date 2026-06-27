@@ -230,8 +230,11 @@
                   <button data-action="start" data-id="${server.identifier}" class="rounded-lg bg-emerald-600/90 hover:bg-emerald-500 px-3 py-1.5 text-xs text-white font-medium transition shadow-sm">Start</button>
                   <button data-action="stop" data-id="${server.identifier}" class="rounded-lg bg-amber-600/90 hover:bg-amber-500 px-3 py-1.5 text-xs text-white font-medium transition shadow-sm">Stop</button>
                   <button data-action="restart" data-id="${server.identifier}" class="rounded-lg bg-sky-600/90 hover:bg-sky-500 px-3 py-1.5 text-xs text-white font-medium transition shadow-sm">Restart</button>
+                  <button data-action="access" data-id="${server.identifier}" class="rounded-lg bg-slate-700/90 hover:bg-slate-600 px-3 py-1.5 text-xs text-white font-medium transition shadow-sm">Access</button>
                 </div>
               </div>
+
+              <div id="access-${server.identifier}" class="hidden rounded-lg border border-slate-800/60 bg-slate-950/60 p-3 text-[11px] text-slate-400"></div>
 
               <div class="pt-3 border-t border-slate-800/60 grid gap-2 sm:grid-cols-2 text-xs text-slate-400">
                 <div class="bg-slate-950/60 p-2.5 rounded-lg font-mono border border-slate-800/30">
@@ -259,6 +262,36 @@
       const signal = btn.dataset.action;
       const id = btn.dataset.id;
       const originalText = btn.innerText;
+      
+      if (signal === 'access') {
+        const accessBox = document.getElementById(`access-${id}`);
+        if (accessBox) {
+          accessBox.classList.remove('hidden');
+          accessBox.innerHTML = '<span class="text-indigo-400">Inatafuta taarifa za ufikiaji...</span>';
+        }
+
+        try {
+          const res = await fetch(`/api/servers/${id}/access`);
+          const data = await res.json().catch(() => ({ success: false }));
+          if (data.success && accessBox) {
+            accessBox.innerHTML = `
+              <div class="space-y-1">
+                <p><span class="text-slate-500">Panel:</span> <span class="text-slate-100 font-semibold">${data.access?.panelUrl || 'N/A'}</span></p>
+                <p><span class="text-slate-500">Username:</span> <span class="text-slate-100 font-semibold">${data.access?.username || 'N/A'}</span></p>
+                <p><span class="text-slate-500">Email:</span> <span class="text-slate-100 font-semibold">${data.access?.email || 'N/A'}</span></p>
+                <p><span class="text-slate-500">Server:</span> <span class="text-slate-100 font-semibold">${data.access?.serverName || data.access?.serverId || 'N/A'}</span></p>
+              </div>
+            `;
+          } else if (accessBox) {
+            accessBox.innerHTML = `<span class="text-red-400">${data.error || 'Imeshindwa kupata taarifa za ufikiaji.'}</span>`;
+          }
+        } catch (err) {
+          if (accessBox) {
+            accessBox.innerHTML = '<span class="text-red-400">Hitilafu ya mtandao wakati wa kupata taarifa za ufikiaji.</span>';
+          }
+        }
+        return;
+      }
       
       btn.innerText = '⚙️...';
       btn.disabled = true;
