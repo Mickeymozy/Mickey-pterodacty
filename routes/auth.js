@@ -12,7 +12,6 @@ const COMMON_PASSWORDS = new Set([
   'changeme', 'letmein', 'secret', 'test1234', 'iloveyou', 'sunshine', 'monkey'
 ]);
 
-// IMEREKEBISHWA: Inaruhusu password rahisi kuanzia herufi 4, lakini isiwe kwenye list ya kawaida
 function isAcceptablePassword(password) {
   const trimmed = String(password || '').trim();
   return trimmed.length >= 4 && !COMMON_PASSWORDS.has(trimmed.toLowerCase());
@@ -108,7 +107,6 @@ async function getPteroUser(identifier) {
   return null;
 }
 
-// Helper methods
 function generateCode(length = 6) {
   return crypto.randomInt(0, 10 ** length).toString().padStart(length, '0');
 }
@@ -144,7 +142,7 @@ router.get('/login', requireGuest, (req, res) => {
 });
 
 router.post('/auth/login', (req, res, next) => {
-  passport.authenticate('local', (err, user, info) => {
+  passport.authenticate('local', async (err, user, info) => {
     if (err) {
       console.error('❌ Login error:', err);
       return next(err);
@@ -170,6 +168,7 @@ router.post('/auth/login', (req, res, next) => {
   })(req, res, next);
 });
 
+// IMEREKEBISHWA LOGIC YA USAJILI HAPA
 router.post('/auth/register', async (req, res) => {
   const { username, email, password, confirmPassword, first_name, last_name } = req.body;
   const cleanUsername = String(username || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -180,55 +179,64 @@ router.post('/auth/register', async (req, res) => {
     return res.redirect('/login.html?tab=register');
   }
 
-  // IMEREKEBISHWA: Sasa inatumia isAcceptablePassword kukagua herufi 4 na isiwe ya kawaida
   if (!isAcceptablePassword(password)) {
-    req.flash('error_msg', '❌ Password lazima iwe na angalau herufi 4 na isiwe password ya kawaida.');
+    req.flash('error_msg', '❌ Password lazima iwe na angalau herufi 4 na isiwe ya kawaida.');
     return res.redirect('/login.html?tab=register');
   }
 
-  // Check if passwords match
   if (password !== confirmPassword) {
     req.flash('error_msg', '❌ Passwords do not match');
     return res.redirect('/login.html?tab=register');
   }
 
   try {
+    // 1. Angalia kama yupo kwenye Local Database ya Node kwanza
     const existingUser = await User.findOne({
       $or: [{ username: cleanUsername }, { email: cleanEmail }]
     });
 
     if (existingUser) {
-      req.flash('error_msg', '❌ Username au Email tayari imesajiliwa.');
+      req.flash('error_msg', '❌ Username au Email tayari imesajiliwa kwenye mfumo.');
       return res.redirect('/login.html?tab=register');
     }
 
     let pteroData = null;
-    if (hasPteroConfig) {
-      const pteroCheck = await getPteroUser(cleanUsername);
-      if (pteroCheck) {
-        req.flash('error_msg', '❌ Username au Email tayari ipo kwenye panel.');
-        return res.redirect('/login.html?tab=register');
-      }
 
-      // IMEREKEBISHWA: Kama unatumia Pterodactyl, inazalisha password ngumu ya siri kule panel ili isikatae password yako rahisi
-      const pteroUser = await appApi.post('/users', {
-        username: cleanUsername,
-        email: cleanEmail,
-        first_name: first_name || username,
-        last_name: last_name || 'User',
-        password: generateRandomPassword(), 
-        language: 'en'
-      });
-      pteroData = pteroUser.data.attributes;
+    if (hasPteroConfig) {
+      // 2. Angalia kama mtumiaji tayari yupo kule Pterodactyl Panel
+      pteroData = await getPteroUser(cleanUsername) || await getPteroUser(cleanEmail);
+
+      if (pteroData) {
+        // Kama yupo Pterodactyl, hatumuundii upya, tunachukua data zake tu za sasa hivi
+        console.log(`ℹ️ User found on Pterodactyl: ${pteroData.username}. Syncing to local DB.`);
+      } else {
+        // Kama hayupo kabisa Pterodactyl, basi mtengenezee akaunti mpya Pterodactyl kwa kutumia password hii hii ya sasa hivi
+        try {
+          const pteroUser = await appApi.post('/users', {
+            username: cleanUsername,
+            email: cleanEmail,
+            first_name: first_name || username,
+            last_name: last_name || 'User',
+            password: password, // Inatumia ile ile aliyoweka mtumiaji
+            language: 'en'
+          });
+          pteroData = pteroUser.data.attributes;
+        } catch (pteroErr) {
+          console.error('❌ Pterodactyl User Creation Failed:', pteroErr.response?.data || pteroErr.message);
+          req.flash('error_msg', '❌ Pterodactyl imekataa kuunda user. Hakikisha password inakidhi vigezo vya panel.');
+          return res.redirect('/login.html?tab=register');
+        }
+      }
     }
 
     const adminEmail = 'mickidadyhamza@gmail.com';
     const isAdminUser = cleanEmail === adminEmail.toLowerCase();
 
+    // 3. Msajili huku kwenye Local Database ya Node (Awe ametoka Pterodactyl au amebuniwa upya)
     const newUser = new User({
-      username: cleanUsername,
-      email: cleanEmail,
-      password, // Kwenye database yako inatunza password yako rahisi
+      username: pteroData?.username || cleanUsername,
+      email: pteroData?.email || cleanEmail,
+      password: password, // Inahifadhi password ile ile ya Pterodactyl
       pteroId: pteroData?.id || 0,
       firstName: pteroData?.first_name || first_name || username,
       lastName: pteroData?.last_name || last_name || 'User',
@@ -243,14 +251,14 @@ router.post('/auth/register', async (req, res) => {
     const sent = await sendVerificationMessage(newUser);
 
     if (sent) {
-      req.flash('success_msg', '✅ Akaunti imeundwa. Angalia email yako kwa msimbo wa uthibitisho.');
+      req.flash('success_msg', '✅ Akaunti imesawazishwa! Angalia email yako kwa msimbo wa uthibitisho.');
     } else {
-      req.flash('error_msg', '⚠️ Akaunti imeundwa, lakini email ya uthibitisho haikuweza kutumwa. Tafadhali wasiliana na support.');
+      req.flash('error_msg', '⚠️ Akaunti imekamilika, lakini email ya uthibitisho haikutumwa.');
     }
 
     res.redirect('/login.html?tab=login');
   } catch (err) {
-    console.error('❌ Registration error:', err.response?.data || err.message);
+    console.error('❌ Registration error:', err.message);
     req.flash('error_msg', '❌ Imefeli kusajili akaunti.');
     res.redirect('/login.html?tab=register');
   }
