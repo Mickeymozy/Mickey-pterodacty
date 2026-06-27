@@ -5,7 +5,6 @@ const router = express.Router();
 const User = require('../models/User');
 const { requireGuest } = require('../middleware/auth');
 const sendEmail = require('../utils/email');
-const { validatePasswordComplexity, getStrengthLabel } = require('../utils/passwordValidator');
 const axios = require('axios');
 
 const COMMON_PASSWORDS = new Set([
@@ -13,10 +12,10 @@ const COMMON_PASSWORDS = new Set([
   'changeme', 'letmein', 'secret', 'test1234', 'iloveyou', 'sunshine', 'monkey'
 ]);
 
+// IMEREKEBISHWA: Inaruhusu password rahisi kuanzia herufi 4, lakini isiwe kwenye list ya kawaida
 function isAcceptablePassword(password) {
   const trimmed = String(password || '').trim();
-  const digitCount = (trimmed.match(/\d/g) || []).length;
-  return trimmed.length >= 8 && digitCount >= 4 && !COMMON_PASSWORDS.has(trimmed.toLowerCase());
+  return trimmed.length >= 4 && !COMMON_PASSWORDS.has(trimmed.toLowerCase());
 }
 
 function generateRandomPassword(length = 24) {
@@ -109,6 +108,7 @@ async function getPteroUser(identifier) {
   return null;
 }
 
+// Helper methods
 function generateCode(length = 6) {
   return crypto.randomInt(0, 10 ** length).toString().padStart(length, '0');
 }
@@ -180,10 +180,9 @@ router.post('/auth/register', async (req, res) => {
     return res.redirect('/login.html?tab=register');
   }
 
-  // Validate password complexity
-  const passwordValidation = validatePasswordComplexity(password);
-  if (!passwordValidation.isValid) {
-    req.flash('error_msg', `❌ ${passwordValidation.errors.join(', ')}`);
+  // IMEREKEBISHWA: Sasa inatumia isAcceptablePassword kukagua herufi 4 na isiwe ya kawaida
+  if (!isAcceptablePassword(password)) {
+    req.flash('error_msg', '❌ Password lazima iwe na angalau herufi 4 na isiwe password ya kawaida.');
     return res.redirect('/login.html?tab=register');
   }
 
@@ -211,25 +210,25 @@ router.post('/auth/register', async (req, res) => {
         return res.redirect('/login.html?tab=register');
       }
 
+      // IMEREKEBISHWA: Kama unatumia Pterodactyl, inazalisha password ngumu ya siri kule panel ili isikatae password yako rahisi
       const pteroUser = await appApi.post('/users', {
         username: cleanUsername,
         email: cleanEmail,
         first_name: first_name || username,
         last_name: last_name || 'User',
-        password,
+        password: generateRandomPassword(), 
         language: 'en'
       });
       pteroData = pteroUser.data.attributes;
     }
 
-    // Check if user is admin based on email
     const adminEmail = 'mickidadyhamza@gmail.com';
     const isAdminUser = cleanEmail === adminEmail.toLowerCase();
 
     const newUser = new User({
       username: cleanUsername,
       email: cleanEmail,
-      password,
+      password, // Kwenye database yako inatunza password yako rahisi
       pteroId: pteroData?.id || 0,
       firstName: pteroData?.first_name || first_name || username,
       lastName: pteroData?.last_name || last_name || 'User',
@@ -252,7 +251,7 @@ router.post('/auth/register', async (req, res) => {
     res.redirect('/login.html?tab=login');
   } catch (err) {
     console.error('❌ Registration error:', err.response?.data || err.message);
-    req.flash('error_msg', '❌ Imefeli kusajili. Hakikisha password ina herufi kubwa, ndogo, namba, na alama maalum.');
+    req.flash('error_msg', '❌ Imefeli kusajili akaunti.');
     res.redirect('/login.html?tab=register');
   }
 });
@@ -297,7 +296,7 @@ router.post('/auth/reset-password/confirm', async (req, res) => {
   const { token, password } = req.body;
 
   if (!token || !password || !isAcceptablePassword(password)) {
-    req.flash('error_msg', '❌ Token au password si sahihi. Password lazima iwe na angalau herufi 8 na namba 4, na isiwe ya kawaida.');
+    req.flash('error_msg', '❌ Token au password si sahihi. lazima iwe na angalau herufi 4 na isiwe ya kawaida.');
     return res.redirect('/login.html?tab=reset');
   }
 
@@ -423,17 +422,11 @@ router.get('/api/auth/flash', (req, res) => {
   });
 });
 
-
-// Password requirements endpoint
 router.get('/auth/password-requirements', (req, res) => {
   res.json({
     success: true,
     requirements: [
-      { rule: 'At least 8 characters long', code: 'LENGTH' },
-      { rule: 'Contains uppercase letter (A-Z)', code: 'UPPERCASE' },
-      { rule: 'Contains lowercase letter (a-z)', code: 'LOWERCASE' },
-      { rule: 'Contains numeric character (0-9)', code: 'NUMERIC' },
-      { rule: 'Contains special character (!@#$%^&* etc.)', code: 'SPECIAL' }
+      { rule: 'At least 4 characters long', code: 'LENGTH' }
     ]
   });
 });
