@@ -76,6 +76,11 @@
               </div>
 
               <div>
+                <label for="serverPhone" class="mb-1 block text-xs font-medium text-slate-300">Namba ya simu ya malipo (SonicPesa) *</label>
+                <input id="serverPhone" required placeholder="255682812345" class="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-4 py-2.5 text-sm text-white outline-none focus:border-indigo-500" />
+              </div>
+
+              <div>
                 <label for="eggSelect" class="mb-1 block text-xs font-medium text-slate-300">Chagua Server Egg (Engine) *</label>
                 <select id="eggSelect" class="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-4 py-2.5 text-sm text-white outline-none focus:border-indigo-500"></select>
               </div>
@@ -356,24 +361,28 @@
       formMessage.innerHTML = '<span class="text-indigo-400 animate-pulse">Inatengeneza container na kuunganisha live kwenye Pterodactyl daemon...</span>';
       
       const payload = {
-        name: document.getElementById('serverName').value,
-        egg: Number(document.getElementById('eggSelect').value),
-        packageId: document.getElementById('packageSelect').value
+        packageId: document.getElementById('packageSelect').value,
+        serverName: document.getElementById('serverName').value,
+        paymentMethod: 'sonicpesa',
+        phone: document.getElementById('serverPhone').value.trim()
       };
 
       try {
-        const res = await fetch('/api/servers/create', {
+        const res = await fetch('/api/payment/checkout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
         const data = await res.json();
-        if (data.success) {
+        if (data.success && data.data?.paymentUrl) {
+          formMessage.innerHTML = '<span class="text-emerald-400 font-bold">✅ Malipo yameanzishwa. Fungua link ya SonicPesa ili kukamilisha.</span>';
+          window.open(data.data.paymentUrl, '_blank', 'noopener,noreferrer');
+        } else if (data.success && data.data?.server) {
           formMessage.innerHTML = '<span class="text-emerald-400 font-bold">✅ Server imeundwa kikamilifu kwenye Pterodactyl!</span>';
           createForm.reset();
           setTimeout(() => { loadServers(); switchDashTab(null, 'my-servers'); }, 1500);
         } else {
-          formMessage.innerHTML = `<span class="text-red-400">❌ Kosa: ${data.error || 'Imeshindwa kuunda.'}</span>`;
+          formMessage.innerHTML = `<span class="text-red-400">❌ Kosa: ${data.message || data.error || 'Imeshindwa kuunda.'}</span>`;
         }
       } catch (err) {
         formMessage.innerHTML = '<span class="text-red-400">❌ Hitilafu wakati wa kutuma amri ya deploy.</span>';

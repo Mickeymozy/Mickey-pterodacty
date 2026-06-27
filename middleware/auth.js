@@ -13,9 +13,17 @@ const isAdminUser = (user) => {
 };
 
 // Check if user is authenticated
+const isApiRequest = (req) => {
+  const path = req.originalUrl || req.url || '';
+  return path.startsWith('/api') || req.headers.accept?.includes('application/json') || req.xhr;
+};
+
 const requireAuth = (req, res, next) => {
   if (req.isAuthenticated()) return next();
   req.flash('error_msg', '⚠️ Tafadhali ingia kwanza.');
+  if (isApiRequest(req)) {
+    return res.status(401).json({ success: false, message: 'Authentication required' });
+  }
   res.redirect('/login.html');
 };
 
@@ -31,6 +39,9 @@ const requireGuest = (req, res, next) => {
 const requireAdmin = (req, res, next) => {
   if (req.isAuthenticated() && isAdminUser(req.user)) return next();
   req.flash('error_msg', '⚠️ Hii sehemu ni ya Admin tu.');
+  if (isApiRequest(req)) {
+    return res.status(403).json({ success: false, message: 'Admin access required' });
+  }
   res.redirect('/dashboard.html');
 };
 

@@ -10,7 +10,7 @@ class SonicPesaService {
     this.apiKey = process.env.SONICPESA_API_KEY || '';
     this.baseUrl = (process.env.SONICPESA_BASE_URL || 'https://api.sonicpesa.com/api/v1').replace(/\/$/, '');
     this.webhookSecret = process.env.SONICPESA_WEBHOOK_SECRET || '';
-    this.redirectUrl = process.env.SONICPESA_REDIRECT_URL || process.env.APP_URL || 'http://localhost:3000';
+    this.redirectUrl = process.env.SONICPESA_REDIRECT_URL || process.env.APP_URL || 'https://mickey-pterodacty.vercel.app';
     this.webhookUrl = process.env.SONICPESA_WEBHOOK_URL || `${this.redirectUrl}/api/payment/webhook`;
   }
 

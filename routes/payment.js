@@ -45,7 +45,7 @@ async function notifyUserAboutPayment(user, transaction, packageDoc, serverData)
  */
 router.post('/checkout', authenticate, async (req, res) => {
   try {
-    const { packageId, paymentMethod, serverName } = req.body;
+    const { packageId, paymentMethod, serverName, phone } = req.body;
     const userId = req.user._id;
 
     if (!packageId) {
@@ -143,7 +143,7 @@ router.post('/checkout', authenticate, async (req, res) => {
         description: `${pkg.name} Package - ${user.email}`,
         customerEmail: user.email,
         customerName: user.username,
-        customerPhone: user.phone || '',
+        customerPhone: phone || user.phone || '',
         coinsAmount: coinsCost,
         metadata: {
           transactionId: transaction._id.toString(),
