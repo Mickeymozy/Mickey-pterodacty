@@ -138,7 +138,12 @@
                 <div id="calculatedTsh" class="text-xl font-black text-cyan-400 font-mono">Tsh 2,500</div>
               </div>
             </div>
+            <div class="mt-4">
+              <label class="block text-xs font-medium text-slate-400 mb-1">Namba ya simu (hiari):</label>
+              <input id="topupPhone" type="tel" placeholder="255682812345" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none" />
+            </div>
             <button onclick="payProcessor()" class="w-full mt-4 bg-indigo-600 text-white font-bold py-2 rounded-lg text-xs transition uppercase">Anzisha Malipo</button>
+            <p id="topupMessage" class="mt-3 text-xs text-slate-400"></p>
           </div>
         </div>
       </div>
@@ -347,7 +352,30 @@
       document.getElementById('calculatedTsh').textContent = `Tsh ${(coins * 250).toLocaleString()}`;
     }
 
-    function payProcessor() { alert('Inafungua payment gateway ya simu...'); }
+    async function payProcessor() {
+      const coins = parseInt(document.getElementById('manualCoinsInput').value) || 0;
+      const phone = document.getElementById('topupPhone').value.trim();
+      const messageBox = document.getElementById('topupMessage');
+      messageBox.textContent = 'Inatuma ombi la malipo...';
+
+      try {
+        const res = await fetch('/api/payment/topup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ coins, phone })
+        });
+        const data = await res.json();
+
+        if (data.success && data.data?.paymentUrl) {
+          messageBox.innerHTML = '<span class="text-emerald-400">✅ Malipo yameanzishwa. Fungua ukurasa wa malipo.</span>';
+          window.open(data.data.paymentUrl, '_blank', 'noopener,noreferrer');
+        } else {
+          messageBox.innerHTML = `<span class="text-red-400">❌ ${data.message || 'Imeshindwa kuanzisha malipo.'}</span>`;
+        }
+      } catch (err) {
+        messageBox.innerHTML = '<span class="text-red-400">❌ Hitilafu ya mtandao wakati wa kuanzisha malipo.</span>';
+      }
+    }
 
     document.getElementById('refreshBtn').addEventListener('click', () => { loadUser(); loadServers(); syncPterodactylStatus(); });
 

@@ -44,6 +44,15 @@ router.get('/users', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
+router.get('/users/admin/all', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const users = await User.find().select('-password').sort({ createdAt: -1 }).limit(200);
+    res.json({ success: true, data: users });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error fetching users' });
+  }
+});
+
 // Admin: Get user by ID
 router.get('/users/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
@@ -58,7 +67,7 @@ router.get('/users/:id', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // Admin: Update user coins (IMEREKEBISHWA)
-router.post('/users/:id/coins', requireAuth, requireAdmin, async (req, res) => {
+router.put('/users/:id/coins', requireAuth, requireAdmin, async (req, res) => {
   try {
     let { amount, reason } = req.body;
     

@@ -99,11 +99,11 @@ app.get('/dashboard/packages', requireAuth, (req, res) => {
 });
 
 app.get('/admin/packages', requireAuth, requireAdmin, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'admin-packages.html'));
+  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
 app.get('/admin.html', requireAuth, requireAdmin, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'admin-control.html'));
+  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
 app.get('/admin', requireAuth, requireAdmin, (req, res) => {

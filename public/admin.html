@@ -247,17 +247,18 @@
 
     async function loadPayments() {
       try {
-        const res = await fetch(`${API_URL}/payments/admin/all`);
+        const res = await fetch(`${API_URL}/payment/admin/all`);
         const d = await res.json();
         const tbody = document.getElementById('paymentsList');
         if(d.success && d.data.length > 0) {
           tbody.innerHTML = d.data.map(p => `
             <tr class="border-b border-slate-800/40 text-xs">
-              <td class="py-2 px-4">${p.user?.username || 'User'}</td>
-              <td class="py-2 px-4 text-emerald-400">Tsh ${Number(p.amount || 0).toLocaleString()}</td>
+              <td class="py-2 px-4">${p.userId?.username || p.userId?.email || 'User'}</td>
+              <td class="py-2 px-4 text-emerald-400">${p.metadata?.type === 'topup' ? `${Number(p.amount || 0).toLocaleString()} Coins` : `Tsh ${Number(p.amount || 0).toLocaleString()}`}</td>
               <td class="py-2 px-4 uppercase">${p.status}</td>
-              <td class="py-2 px-4">
-                ${p.status === 'pending' ? `<button onclick="updatePay('${p._id||p.id}', 'approve')" class="bg-emerald-600 px-2 py-0.5 rounded text-white">Approve</button>` : '—'}
+              <td class="py-2 px-4 flex gap-2">
+                ${p.status === 'pending' ? `<button onclick="updatePayment('${p._id||p.id}', 'approve')" class="bg-emerald-600 px-2 py-0.5 rounded text-white">Approve</button>` : '—'}
+                <button onclick="deleteUser('${p.userId?._id || p.userId || ''}')" class="bg-red-500/20 text-red-400 px-2 py-0.5 rounded">Delete User</button>
               </td>
             </tr>
           `).join('');
@@ -267,7 +268,7 @@
 
     async function loadUsers() {
       try {
-        const res = await fetch(`${API_URL}/users/admin/all`);
+        const res = await fetch(`${API_URL}/user/users/admin/all`);
         const d = await res.json();
         const tbody = document.getElementById('usersList');
         if(d.success) {
@@ -275,7 +276,10 @@
             <tr class="border-b border-slate-800/40 text-xs">
               <td class="py-2 px-4">${u.username || u.email}</td>
               <td class="py-2 px-4 text-amber-400">🪙 ${u.coins || 0}</td>
-              <td class="py-2 px-4"><button onclick="addCoins('${u._id||u.id}', ${u.coins||0})" class="bg-slate-700 px-2 py-1 rounded text-white text-[10px]">Weka Coins</button></td>
+              <td class="py-2 px-4 flex gap-2">
+                <button onclick="addCoins('${u._id||u.id}', ${u.coins||0})" class="bg-slate-700 px-2 py-1 rounded text-white text-[10px]">Weka Coins</button>
+                <button onclick="deleteUser('${u._id||u.id}')" class="bg-red-500/20 text-red-400 px-2 py-1 rounded text-[10px]">Futa</button>
+              </td>
             </tr>
           `).join('');
         }
@@ -285,13 +289,33 @@
     async function addCoins(id, current) {
       const amount = prompt("Weka kiasi cha coins unachotaka kuongeza:", current);
       if(!amount) return;
-      await fetch(`${API_URL}/users/admin/${id}/coins`, {
+      await fetch(`${API_URL}/user/users/${id}/coins`, {
         method: 'PUT',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ coins: parseInt(amount) })
+        body: JSON.stringify({ amount: parseInt(amount) })
       });
       loadUsers();
     }
+
+    async function updatePayment(id) {
+      const res = await fetch(`${API_URL}/payment/admin/${id}/approve`, { method: 'POST' });
+      const d = await res.json();
+      alert(d.message || 'Payment updated');
+      loadPayments();
+    }
+
+    async function deleteUser(id) {
+      if(!id) return;
+      if(!confirm('Uko karibu kufuta mtumiaji huyu?')) return;
+      const res = await fetch(`${API_URL}/user/users/${id}`, { method: 'DELETE' });
+      const d = await res.json();
+      alert(d.message || 'User deleted');
+      loadUsers(); loadPayments();
+    }
+
+    window.updatePayment = updatePayment;
+    window.addCoins = addCoins;
+    window.deleteUser = deleteUser;
 
     document.getElementById('packageForm').addEventListener('submit', async (e) => {
       e.preventDefault();
