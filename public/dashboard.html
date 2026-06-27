@@ -232,14 +232,14 @@
                 </div>
                 
                 <div class="flex gap-1.5 flex-wrap">
-                  <button data-action="start" data-id="${server.identifier}" class="rounded-lg bg-emerald-600/90 hover:bg-emerald-500 px-3 py-1.5 text-xs text-white font-medium transition shadow-sm">Start</button>
-                  <button data-action="stop" data-id="${server.identifier}" class="rounded-lg bg-amber-600/90 hover:bg-amber-500 px-3 py-1.5 text-xs text-white font-medium transition shadow-sm">Stop</button>
-                  <button data-action="restart" data-id="${server.identifier}" class="rounded-lg bg-sky-600/90 hover:bg-sky-500 px-3 py-1.5 text-xs text-white font-medium transition shadow-sm">Restart</button>
-                  <button data-action="access" data-id="${server.identifier}" class="rounded-lg bg-slate-700/90 hover:bg-slate-600 px-3 py-1.5 text-xs text-white font-medium transition shadow-sm">Access</button>
+                  <button data-action="start" data-id="${server.id || server.identifier || server.uuid}" class="rounded-lg bg-emerald-600/90 hover:bg-emerald-500 px-3 py-1.5 text-xs text-white font-medium transition shadow-sm">Start</button>
+                  <button data-action="stop" data-id="${server.id || server.identifier || server.uuid}" class="rounded-lg bg-amber-600/90 hover:bg-amber-500 px-3 py-1.5 text-xs text-white font-medium transition shadow-sm">Stop</button>
+                  <button data-action="restart" data-id="${server.id || server.identifier || server.uuid}" class="rounded-lg bg-sky-600/90 hover:bg-sky-500 px-3 py-1.5 text-xs text-white font-medium transition shadow-sm">Restart</button>
+                  <button data-action="access" data-id="${server.id || server.identifier || server.uuid}" class="rounded-lg bg-slate-700/90 hover:bg-slate-600 px-3 py-1.5 text-xs text-white font-medium transition shadow-sm">Access</button>
                 </div>
               </div>
 
-              <div id="access-${server.identifier}" class="hidden rounded-lg border border-slate-800/60 bg-slate-950/60 p-3 text-[11px] text-slate-400"></div>
+              <div id="access-${server.id || server.identifier || server.uuid}" class="hidden rounded-lg border border-slate-800/60 bg-slate-950/60 p-3 text-[11px] text-slate-400"></div>
 
               <div class="pt-3 border-t border-slate-800/60 grid gap-2 sm:grid-cols-2 text-xs text-slate-400">
                 <div class="bg-slate-950/60 p-2.5 rounded-lg font-mono border border-slate-800/30">

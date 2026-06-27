@@ -77,18 +77,51 @@ const eggConfigs = {
   }
 };
 
-const sanitizeServer = (server) => {
+const sanitizeServer = (server, resourceAttrs = {}) => {
   const attrs = server?.attributes || {};
+  const status = String(resourceAttrs?.current_state || attrs.status || 'offline').toLowerCase();
   return {
     id: attrs.id,
     uuid: attrs.uuid,
     identifier: attrs.identifier,
     name: attrs.name,
-    status: attrs.status,
+    status,
     user: attrs.user,
-    limits: attrs.limits || {}
+    limits: attrs.limits || {},
+    resources: resourceAttrs || {}
   };
 };
+
+async function resolveServerId(serverIdentifier) {
+  if (!serverIdentifier || !appApi) return serverIdentifier;
+
+  const rawValue = String(serverIdentifier).trim();
+  if (!rawValue) return rawValue;
+
+  try {
+    const response = await appApi.get(`/servers/${encodeURIComponent(rawValue)}`);
+    if (response?.data?.attributes?.id) {
+      return String(response.data.attributes.id);
+    }
+  } catch (err) {
+    if (err.response?.status !== 404) {
+      throw err;
+    }
+  }
+
+  try {
+    const listResponse = await appApi.get('/servers?per_page=1000');
+    const match = (listResponse.data?.data || []).find((server) => {
+      const attrs = server?.attributes || {};
+      const candidates = [attrs.id, attrs.uuid, attrs.identifier, attrs.external_id];
+      return candidates.some((value) => String(value) === rawValue);
+    });
+
+    return match?.attributes?.id ? String(match.attributes.id) : rawValue;
+  } catch (err) {
+    return rawValue;
+  }
+}
 
 async function getFirstValidLocation() {
   if (!appApi) return null;
@@ -327,9 +360,23 @@ router.get('/api/servers', requireAuth, async (req, res) => {
     }
 
     const response = await appApi.get('/servers?per_page=1000');
-    const servers = (response.data?.data || [])
-      .filter((server) => Number(server?.attributes?.user) === Number(resolvedPteroId))
-      .map(sanitizeServer);
+    const ownedServers = (response.data?.data || []).filter((server) => Number(server?.attributes?.user) === Number(resolvedPteroId));
+
+    const servers = await Promise.all(
+      ownedServers.map(async (server) => {
+        const attrs = server?.attributes || {};
+        if (!clientApi || !attrs.id) {
+          return sanitizeServer(server);
+        }
+
+        try {
+          const resourcesResponse = await clientApi.get(`/servers/${encodeURIComponent(attrs.id)}/resources`);
+          return sanitizeServer(server, resourcesResponse.data?.attributes || {});
+        } catch (resourceErr) {
+          return sanitizeServer(server);
+        }
+      })
+    );
 
     res.json({ success: true, servers });
   } catch (err) {
@@ -458,8 +505,8 @@ router.get('/api/servers/:id/access', requireAuth, async (req, res) => {
   }
 
   try {
-    const serverId = encodeURIComponent(req.params.id);
-    const serverResponse = await appApi.get(`/servers/${serverId}`);
+    const resolvedServerId = await resolveServerId(req.params.id);
+    const serverResponse = await appApi.get(`/servers/${encodeURIComponent(resolvedServerId)}`);
     const attrs = serverResponse.data?.attributes || {};
 
     res.json({
@@ -486,7 +533,8 @@ router.get('/api/servers/:id/details', requireAuth, async (req, res) => {
   }
 
   try {
-    const serverId = encodeURIComponent(req.params.id);
+    const resolvedServerId = await resolveServerId(req.params.id);
+    const serverId = encodeURIComponent(resolvedServerId);
     const [serverResponse, resourcesResponse] = await Promise.allSettled([
       appApi.get(`/servers/${serverId}`),
       clientApi ? clientApi.get(`/servers/${serverId}/resources`) : Promise.resolve(null)
@@ -532,8 +580,9 @@ router.post('/api/servers/:id/power/:action', requireAuth, async (req, res) => {
   }
 
   try {
+    const resolvedServerId = await resolveServerId(req.params.id);
     const powerApi = clientApi || appApi;
-    const response = await powerApi.post(`/servers/${encodeURIComponent(req.params.id)}/power`, { signal: action });
+    const response = await powerApi.post(`/servers/${encodeURIComponent(resolvedServerId)}/power`, { signal: action });
     res.json({ success: true, data: response.data });
   } catch (err) {
     const status = err.response?.status;
@@ -549,7 +598,8 @@ router.delete('/api/servers/:id', requireAuth, async (req, res) => {
   }
 
   try {
-    const response = await appApi.delete(`/servers/${req.params.id}`);
+    const resolvedServerId = await resolveServerId(req.params.id);
+    const response = await appApi.delete(`/servers/${encodeURIComponent(resolvedServerId)}`);
     res.json({ success: true, data: response.data });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message || 'Failed to delete server.' });

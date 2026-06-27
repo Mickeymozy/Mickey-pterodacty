@@ -16,6 +16,16 @@ const connectDB = async () => {
     });
 
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
+
+    try {
+      await conn.connection.db.collection('transactions').dropIndex('transactionRef_1');
+      console.log('✅ Removed legacy transactionRef index from MongoDB');
+    } catch (indexErr) {
+      if (indexErr?.code !== 26) {
+        console.warn('⚠️ Could not remove legacy transaction index:', indexErr.message);
+      }
+    }
+
     return conn;
   } catch (err) {
     console.error(`❌ MongoDB Error: ${err.message}`);
