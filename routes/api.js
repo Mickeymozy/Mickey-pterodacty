@@ -94,7 +94,7 @@ const extractConnectionDetails = (serverData = {}) => {
   const allocationAttrs = primaryAllocation?.attributes || primaryAllocation || {};
   const ipAddress = allocationAttrs.ip || allocationAttrs.address || allocationAttrs.ipv4 || allocationAttrs.ip_address || '';
   const port = allocationAttrs.port || allocationAttrs.public_port || allocationAttrs.port_number || '';
-  const host = allocationAttrs.alias || allocationAttrs.hostname || ipAddress || '';
+  const host = allocationAttrs.alias || allocationAttrs.hostname || allocationAttrs.domain || ipAddress || '';
 
   return {
     ipAddress: ipAddress || '',
@@ -105,27 +105,46 @@ const extractConnectionDetails = (serverData = {}) => {
 };
 
 async function getServerConnectionDetails(serverId) {
-  if (!appApi || !serverId) return extractConnectionDetails({});
+  if (!serverId) return extractConnectionDetails({});
 
   try {
-    const response = await appApi.get(`/servers/${encodeURIComponent(serverId)}/network/allocations`);
-    const allocations = response.data?.data || [];
-    const allocation = allocations.find((item) => item?.attributes?.is_primary) || allocations[0];
-    const attrs = allocation?.attributes || {};
-    return {
-      ipAddress: attrs.ip || attrs.address || attrs.ipv4 || attrs.ip_address || '',
-      port: attrs.port ? String(attrs.port) : '',
-      sftpHost: attrs.alias || attrs.hostname || attrs.ip || process.env.PTERODACTYL_URL || '',
-      sftpUser: String(serverId)
-    };
+    if (clientApi) {
+      const response = await clientApi.get(`/servers/${encodeURIComponent(serverId)}/network/allocations`);
+      const allocations = response.data?.data || [];
+      const allocation = allocations.find((item) => item?.attributes?.is_primary) || allocations[0];
+      const attrs = allocation?.attributes || {};
+      const resolvedHost = attrs.alias || attrs.hostname || attrs.domain || attrs.ip || attrs.address || '';
+      return {
+        ipAddress: attrs.ip || attrs.address || attrs.ipv4 || attrs.ip_address || '',
+        port: attrs.port ? String(attrs.port) : '',
+        sftpHost: resolvedHost || process.env.PTERODACTYL_URL || '',
+        sftpUser: String(serverId)
+      };
+    }
+
+    if (appApi) {
+      const response = await appApi.get(`/servers/${encodeURIComponent(serverId)}/network/allocations`);
+      const allocations = response.data?.data || [];
+      const allocation = allocations.find((item) => item?.attributes?.is_primary) || allocations[0];
+      const attrs = allocation?.attributes || {};
+      const resolvedHost = attrs.alias || attrs.hostname || attrs.domain || attrs.ip || attrs.address || '';
+      return {
+        ipAddress: attrs.ip || attrs.address || attrs.ipv4 || attrs.ip_address || '',
+        port: attrs.port ? String(attrs.port) : '',
+        sftpHost: resolvedHost || process.env.PTERODACTYL_URL || '',
+        sftpUser: String(serverId)
+      };
+    }
   } catch (err) {
-    return extractConnectionDetails({});
+    // fall back to the application-level attributes if the client endpoint is unavailable
   }
+
+  return extractConnectionDetails({});
 }
 
-const sanitizeServer = (server, resourceAttrs = {}, user = null) => {
+const sanitizeServer = (server, resourceAttrs = {}, user = null, connectionDetails = null) => {
   const attrs = server?.attributes || {};
-  const connectionDetails = extractConnectionDetails(server);
+  const resolvedConnection = connectionDetails || extractConnectionDetails(server);
   const status = normalizeServerStatus(resourceAttrs?.current_state || attrs.status || 'offline');
   return {
     id: attrs.id,
@@ -136,10 +155,10 @@ const sanitizeServer = (server, resourceAttrs = {}, user = null) => {
     user: attrs.user,
     limits: attrs.limits || {},
     resources: resourceAttrs || {},
-    ipAddress: connectionDetails.ipAddress,
-    port: connectionDetails.port,
-    sftpHost: connectionDetails.sftpHost,
-    sftpUser: user?.username || user?.displayName || connectionDetails.sftpUser || ''
+    ipAddress: resolvedConnection.ipAddress || '',
+    port: resolvedConnection.port || '',
+    sftpHost: resolvedConnection.sftpHost || '',
+    sftpUser: user?.username || user?.displayName || resolvedConnection.sftpUser || ''
   };
 };
 
@@ -432,13 +451,7 @@ router.get('/api/servers', requireAuth, async (req, res) => {
           ]);
 
           const resourceAttrs = resourcesResponse?.data?.attributes || {};
-          return {
-            ...sanitizeServer(server, resourceAttrs, req.user),
-            ipAddress: connectionDetails.ipAddress,
-            port: connectionDetails.port,
-            sftpHost: connectionDetails.sftpHost,
-            sftpUser: req.user?.username || req.user?.displayName || connectionDetails.sftpUser || ''
-          };
+          return sanitizeServer(server, resourceAttrs, req.user, connectionDetails);
         } catch (resourceErr) {
           return sanitizeServer(server, {}, req.user);
         }
@@ -576,7 +589,7 @@ router.get('/api/servers/:id/access', requireAuth, async (req, res) => {
     const serverResponse = await appApi.get(`/servers/${encodeURIComponent(resolvedServerId)}`);
     const attrs = serverResponse.data?.attributes || {};
 
-    const connectionDetails = extractConnectionDetails(serverResponse.data);
+    const connectionDetails = await getServerConnectionDetails(resolvedServerId);
     const panelUrl = process.env.PTERODACTYL_URL || '';
 
     res.json({
@@ -621,6 +634,7 @@ router.get('/api/servers/:id/details', requireAuth, async (req, res) => {
 
     const attrs = serverResponse.value?.data?.attributes || {};
     const resourceAttrs = resourcesResponse.status === 'fulfilled' ? resourcesResponse.value?.data?.attributes || {} : {};
+    const connectionDetails = await getServerConnectionDetails(resolvedServerId);
 
     res.json({
       success: true,
@@ -632,8 +646,9 @@ router.get('/api/servers/:id/details', requireAuth, async (req, res) => {
         status: normalizeServerStatus(resourceAttrs.current_state || attrs.status || 'unknown'),
         limits: attrs.limits || {},
         resources: resourceAttrs,
-        ipAddress: extractConnectionDetails(serverResponse.value?.data || {}).ipAddress,
-        port: extractConnectionDetails(serverResponse.value?.data || {}).port
+        ipAddress: connectionDetails.ipAddress,
+        port: connectionDetails.port,
+        sftpHost: connectionDetails.sftpHost
       }
     });
   } catch (err) {
