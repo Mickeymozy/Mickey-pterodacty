@@ -136,7 +136,7 @@ router.delete('/users/:id', requireAuth, requireAdmin, async (req, res) => {
 router.get('/admin/stats', requireAuth, requireAdmin, async (req, res) => {
   try {
     const totalUsers = await User.countDocuments();
-    const totalAdmins = await User.countDocuments({ isAdmin: true });
+    const totalAdmins = await User.countDocuments({ $or: [{ role: 'admin' }, { isAdmin: true }] });
     const totalCoinsDistributed = await User.aggregate([{ $group: { _id: null, total: { $sum: '$coins' } } }]);
     const totalTransactions = await Transaction.countDocuments();
     const totalPackages = await ServerPackage.countDocuments();

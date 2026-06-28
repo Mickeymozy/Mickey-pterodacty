@@ -3,7 +3,7 @@ const passport = require('passport');
 const crypto = require('crypto');
 const router = express.Router();
 const User = require('../models/User');
-const { requireGuest } = require('../middleware/auth');
+const { requireGuest, ADMIN_EMAILS } = require('../middleware/auth');
 const sendEmail = require('../utils/email');
 const axios = require('axios');
 
@@ -229,8 +229,7 @@ router.post('/auth/register', async (req, res) => {
       }
     }
 
-    const adminEmail = 'mickidadyhamza@gmail.com';
-    const isAdminUser = cleanEmail === adminEmail.toLowerCase();
+    const isAdminUser = ADMIN_EMAILS.includes(cleanEmail);
 
     // 3. Msajili huku kwenye Local Database ya Node (Awe ametoka Pterodactyl au amebuniwa upya)
     const newUser = new User({

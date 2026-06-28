@@ -1,6 +1,7 @@
 const passport = require('passport');
 const LocalStrategy = require('passport-local').Strategy;
 const User = require('../models/User');
+const { isAdminUser } = require('../middleware/auth');
 
 module.exports = function(passport) {
   // Serialize user
@@ -45,8 +46,15 @@ module.exports = function(passport) {
           });
         }
 
-        // Update last login
+        // Update last login and admin status
         user.lastLogin = new Date();
+        if (isAdminUser(user) && user.role !== 'admin') {
+          user.role = 'admin';
+          user.isAdmin = true;
+        } else if (!isAdminUser(user) && user.role === 'admin') {
+          user.role = 'user';
+          user.isAdmin = false;
+        }
         await user.save();
 
         return done(null, user);

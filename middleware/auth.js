@@ -7,9 +7,36 @@ const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || 'mickidadyhamza@gmail.com')
 
 const isAdminUser = (user) => {
   if (!user) return false;
-  if (user.role === 'admin') return true;
+  if (user.role === 'admin' || user.isAdmin) return true;
   const email = String(user.email || '').trim().toLowerCase();
   return ADMIN_EMAILS.includes(email);
+};
+
+const syncAdminStatus = async (user) => {
+  if (!user) return null;
+  const shouldBeAdmin = isAdminUser(user);
+
+  if (shouldBeAdmin && user.role !== 'admin') {
+    user.role = 'admin';
+  }
+
+  if (shouldBeAdmin && !user.isAdmin) {
+    user.isAdmin = true;
+  }
+
+  if (!shouldBeAdmin && user.role === 'admin') {
+    user.role = 'user';
+  }
+
+  if (!shouldBeAdmin && user.isAdmin) {
+    user.isAdmin = false;
+  }
+
+  if (user.isModified('role') || user.isModified('isAdmin')) {
+    await user.save();
+  }
+
+  return user;
 };
 
 // Check if user is authenticated
@@ -36,8 +63,20 @@ const requireGuest = (req, res, next) => {
 };
 
 // Check if the current user is an admin
-const requireAdmin = (req, res, next) => {
-  if (req.isAuthenticated() && isAdminUser(req.user)) return next();
+const requireAdmin = async (req, res, next) => {
+  if (req.isAuthenticated()) {
+    try {
+      const user = await User.findById(req.user?._id);
+      if (user) {
+        const syncedUser = await syncAdminStatus(user);
+        req.user = syncedUser || user;
+        if (isAdminUser(req.user)) return next();
+      }
+    } catch (err) {
+      console.error('❌ Error checking admin access:', err);
+    }
+  }
+
   req.flash('error_msg', '⚠️ Hii sehemu ni ya Admin tu.');
   if (isApiRequest(req)) {
     return res.status(403).json({ success: false, message: 'Admin access required' });
@@ -51,11 +90,8 @@ const getUserFromSession = async (req, res, next) => {
     try {
       const user = await User.findById(req.user._id);
       if (user) {
-        if (isAdminUser(user) && user.role !== 'admin') {
-          user.role = 'admin';
-          await user.save();
-        }
-        req.user = user;
+        const syncedUser = await syncAdminStatus(user);
+        req.user = syncedUser || user;
       }
     } catch (err) {
       console.error('❌ Error fetching user:', err);
@@ -64,4 +100,4 @@ const getUserFromSession = async (req, res, next) => {
   next();
 };
 
-module.exports = { requireAuth, requireGuest, getUserFromSession, requireAdmin, isAdminUser, ADMIN_EMAILS };
+module.exports = { requireAuth, requireGuest, getUserFromSession, requireAdmin, isAdminUser, ADMIN_EMAILS, syncAdminStatus };
