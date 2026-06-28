@@ -10,6 +10,13 @@ const PTERODACTYL_CLIENT_API_KEY = process.env.PTERODACTYL_CLIENT_API_KEY || pro
 const hasPteroConfig = PTERODACTYL_URL && PTERODACTYL_APP_API_KEY;
 const hasClientConfig = PTERODACTYL_URL && PTERODACTYL_CLIENT_API_KEY;
 
+// Power control and live resource/status reads only work through the Pterodactyl
+// Client API, which requires a client key (prefixed "ptlc_"). An application key
+// ("ptla_") cannot call client endpoints, so we detect a usable client key here.
+const isClientApiKey = (key) => typeof key === 'string' && key.startsWith('ptlc_');
+const clientApiUsable = Boolean(hasClientConfig && isClientApiKey(PTERODACTYL_CLIENT_API_KEY));
+const CLIENT_KEY_REQUIRED_MESSAGE = 'Kipengele hiki kinahitaji Pterodactyl CLIENT API key (inayoanza na "ptlc_"). Weka PTERODACTYL_CLIENT_API_KEY kwenye mipangilio ya server (.env).';
+
 const appApi = hasPteroConfig
   ? axios.create({
       baseURL: `${PTERODACTYL_URL}/api/application`,
@@ -80,11 +87,12 @@ const eggConfigs = {
 };
 
 const normalizeServerStatus = (value) => {
-  const raw = String(value || 'offline').trim().toLowerCase();
+  const raw = String(value || '').trim().toLowerCase();
+  if (!raw) return 'unknown';
   if (['running', 'online', 'active'].includes(raw)) return 'online';
-  if (['installing', 'installing...'].includes(raw)) return 'installing';
+  if (raw.includes('install')) return 'installing';
   if (['offline', 'stopped', 'stopping', 'suspended', 'disabled'].includes(raw)) return 'offline';
-  return raw || 'offline';
+  return raw;
 };
 
 const extractConnectionDetails = (serverData = {}) => {
@@ -104,12 +112,15 @@ const extractConnectionDetails = (serverData = {}) => {
   };
 };
 
-async function getServerConnectionDetails(serverId) {
-  if (!serverId) return extractConnectionDetails({});
+async function getServerConnectionDetails(ref) {
+  const { id, identifier } = (ref && typeof ref === 'object')
+    ? ref
+    : { id: ref, identifier: ref };
+  if (!id && !identifier) return extractConnectionDetails({});
 
   try {
-    if (clientApi) {
-      const response = await clientApi.get(`/servers/${encodeURIComponent(serverId)}/network/allocations`);
+    if (clientApiUsable && clientApi && identifier) {
+      const response = await clientApi.get(`/servers/${encodeURIComponent(identifier)}/network/allocations`);
       const allocations = response.data?.data || [];
       const allocation = allocations.find((item) => item?.attributes?.is_primary) || allocations[0];
       const attrs = allocation?.attributes || {};
@@ -118,12 +129,12 @@ async function getServerConnectionDetails(serverId) {
         ipAddress: attrs.ip || attrs.address || attrs.ipv4 || attrs.ip_address || '',
         port: attrs.port ? String(attrs.port) : '',
         sftpHost: resolvedHost || process.env.PTERODACTYL_URL || '',
-        sftpUser: String(serverId)
+        sftpUser: String(identifier)
       };
     }
 
-    if (appApi) {
-      const response = await appApi.get(`/servers/${encodeURIComponent(serverId)}/network/allocations`);
+    if (appApi && id) {
+      const response = await appApi.get(`/servers/${encodeURIComponent(id)}/network/allocations`);
       const allocations = response.data?.data || [];
       const allocation = allocations.find((item) => item?.attributes?.is_primary) || allocations[0];
       const attrs = allocation?.attributes || {};
@@ -145,7 +156,7 @@ async function getServerConnectionDetails(serverId) {
 const sanitizeServer = (server, resourceAttrs = {}, user = null, connectionDetails = null) => {
   const attrs = server?.attributes || {};
   const resolvedConnection = connectionDetails || extractConnectionDetails(server);
-  const status = normalizeServerStatus(resourceAttrs?.current_state || attrs.status || 'offline');
+  const status = normalizeServerStatus(resourceAttrs?.current_state || attrs.status || '');
   return {
     id: attrs.id,
     uuid: attrs.uuid,
@@ -162,19 +173,22 @@ const sanitizeServer = (server, resourceAttrs = {}, user = null, connectionDetai
   };
 };
 
-async function resolveServerId(serverIdentifier) {
-  if (!serverIdentifier || !appApi) return serverIdentifier;
-
-  const rawValue = String(serverIdentifier).trim();
-  if (!rawValue) return rawValue;
+// Resolve any server reference (numeric id, uuid, or short identifier) to both the
+// application numeric `id` and the client `identifier` (short hash). The Application
+// API is keyed by numeric id; the Client API is keyed by the identifier.
+async function resolveServerRef(serverIdentifier) {
+  const rawValue = String(serverIdentifier || '').trim();
+  const fallback = { id: rawValue, identifier: rawValue };
+  if (!rawValue || !appApi) return fallback;
 
   const candidates = [rawValue, rawValue.toLowerCase(), rawValue.toUpperCase()];
 
   for (const candidate of candidates) {
     try {
       const response = await appApi.get(`/servers/${encodeURIComponent(candidate)}`);
-      if (response?.data?.attributes?.id) {
-        return String(response.data.attributes.id);
+      const attrs = response?.data?.attributes;
+      if (attrs?.id) {
+        return { id: String(attrs.id), identifier: attrs.identifier || rawValue };
       }
     } catch (err) {
       if (err.response?.status !== 404) {
@@ -187,14 +201,23 @@ async function resolveServerId(serverIdentifier) {
     const listResponse = await appApi.get('/servers?per_page=1000');
     const match = (listResponse.data?.data || []).find((server) => {
       const attrs = server?.attributes || {};
-      const candidates = [attrs.id, attrs.uuid, attrs.identifier, attrs.external_id];
-      return candidates.some((value) => String(value) === rawValue);
+      const ids = [attrs.id, attrs.uuid, attrs.identifier, attrs.external_id];
+      return ids.some((value) => String(value) === rawValue);
     });
 
-    return match?.attributes?.id ? String(match.attributes.id) : rawValue;
+    if (match?.attributes?.id) {
+      return { id: String(match.attributes.id), identifier: match.attributes.identifier || rawValue };
+    }
   } catch (err) {
-    return rawValue;
+    return fallback;
   }
+
+  return fallback;
+}
+
+async function resolveServerId(serverIdentifier) {
+  const ref = await resolveServerRef(serverIdentifier);
+  return ref.id;
 }
 
 async function getFirstValidLocation() {
@@ -442,15 +465,18 @@ router.get('/api/servers', requireAuth, async (req, res) => {
     const servers = await Promise.all(
       ownedServers.map(async (server) => {
         const attrs = server?.attributes || {};
-        const serverId = attrs.id || attrs.identifier || attrs.uuid;
-        if (!serverId) {
+        const numericId = attrs.id;
+        const clientId = attrs.identifier || attrs.uuid;
+        if (!numericId && !clientId) {
           return sanitizeServer(server, {}, req.user);
         }
 
         try {
           const [resourcesResponse, connectionDetails] = await Promise.all([
-            clientApi ? clientApi.get(`/servers/${encodeURIComponent(serverId)}/resources`) : Promise.resolve(null),
-            getServerConnectionDetails(serverId)
+            (clientApiUsable && clientApi && clientId)
+              ? clientApi.get(`/servers/${encodeURIComponent(clientId)}/resources`)
+              : Promise.resolve(null),
+            getServerConnectionDetails({ id: numericId, identifier: clientId })
           ]);
 
           const resourceAttrs = resourcesResponse?.data?.attributes || {};
@@ -588,11 +614,11 @@ router.get('/api/servers/:id/access', requireAuth, async (req, res) => {
   }
 
   try {
-    const resolvedServerId = await resolveServerId(req.params.id);
-    const serverResponse = await appApi.get(`/servers/${encodeURIComponent(resolvedServerId)}`);
+    const ref = await resolveServerRef(req.params.id);
+    const serverResponse = await appApi.get(`/servers/${encodeURIComponent(ref.id)}`);
     const attrs = serverResponse.data?.attributes || {};
 
-    const connectionDetails = await getServerConnectionDetails(resolvedServerId);
+    const connectionDetails = await getServerConnectionDetails(ref);
     const panelUrl = process.env.PTERODACTYL_URL || '';
 
     res.json({
@@ -624,11 +650,12 @@ router.get('/api/servers/:id/details', requireAuth, async (req, res) => {
   }
 
   try {
-    const resolvedServerId = await resolveServerId(req.params.id);
-    const serverId = encodeURIComponent(resolvedServerId);
+    const ref = await resolveServerRef(req.params.id);
     const [serverResponse, resourcesResponse] = await Promise.allSettled([
-      appApi.get(`/servers/${serverId}`),
-      clientApi ? clientApi.get(`/servers/${serverId}/resources`) : Promise.resolve(null)
+      appApi.get(`/servers/${encodeURIComponent(ref.id)}`),
+      (clientApiUsable && clientApi && ref.identifier)
+        ? clientApi.get(`/servers/${encodeURIComponent(ref.identifier)}/resources`)
+        : Promise.resolve(null)
     ]);
 
     if (serverResponse.status === 'rejected') {
@@ -637,7 +664,7 @@ router.get('/api/servers/:id/details', requireAuth, async (req, res) => {
 
     const attrs = serverResponse.value?.data?.attributes || {};
     const resourceAttrs = resourcesResponse.status === 'fulfilled' ? resourcesResponse.value?.data?.attributes || {} : {};
-    const connectionDetails = await getServerConnectionDetails(resolvedServerId);
+    const connectionDetails = await getServerConnectionDetails(ref);
 
     res.json({
       success: true,
@@ -661,12 +688,8 @@ router.get('/api/servers/:id/details', requireAuth, async (req, res) => {
   }
 });
 
-// Power action
+// Power action (start/stop/restart) — only available via the Client API
 router.post('/api/servers/:id/power/:action', requireAuth, async (req, res) => {
-  if (!appApi && !clientApi) {
-    return res.status(503).json({ success: false, error: 'Pterodactyl API is not configured.' });
-  }
-
   const validActions = ['start', 'stop', 'restart'];
   const { action } = req.params;
 
@@ -674,15 +697,27 @@ router.post('/api/servers/:id/power/:action', requireAuth, async (req, res) => {
     return res.status(400).json({ success: false, error: 'Invalid power action.' });
   }
 
+  if (!clientApiUsable || !clientApi) {
+    return res.status(503).json({ success: false, error: CLIENT_KEY_REQUIRED_MESSAGE });
+  }
+
   try {
-    const resolvedServerId = await resolveServerId(req.params.id);
-    const powerApi = clientApi || appApi;
-    const response = await powerApi.post(`/servers/${encodeURIComponent(resolvedServerId)}/power`, { signal: action });
-    res.json({ success: true, data: response.data });
+    const ref = await resolveServerRef(req.params.id);
+    if (!ref.identifier) {
+      return res.status(404).json({ success: false, error: 'Server haijapatikana kwenye panel.' });
+    }
+    await clientApi.post(`/servers/${encodeURIComponent(ref.identifier)}/power`, { signal: action });
+    res.json({ success: true, data: { signal: action, identifier: ref.identifier } });
   } catch (err) {
     const status = err.response?.status;
     const detail = err.response?.data?.errors?.[0]?.detail || err.response?.data?.message || err.message;
-    res.status(status && status !== 500 ? status : 500).json({ success: false, error: detail || 'Failed to update server.' });
+    const friendly =
+      status === 401 || status === 403
+        ? 'Client API key haina ruhusa kwa server hii. Hakikisha ni key ya "ptlc_" yenye access ya server husika.'
+        : status === 404
+          ? 'Server haipo kwenye Client API. Hakikisha akaunti ya key inamiliki server hii.'
+          : detail || 'Imeshindwa kubadilisha hali ya server.';
+    res.status(status && status !== 500 ? status : 500).json({ success: false, error: friendly });
   }
 });
 
