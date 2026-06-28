@@ -6,19 +6,35 @@
   <title>Dashboard Live - Pterodactyl Sync</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body { font-family: Inter, sans-serif; }
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+    * { font-family: 'Inter', sans-serif; }
+    body { background: #0a0a14; }
     .glass {
-      background: rgba(255, 255, 255, 0.02);
+      background: rgba(255, 255, 255, 0.03);
       backdrop-filter: blur(20px);
-      border: 1px solid rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.06);
     }
+    .glass-hover { transition: transform .25s ease, border-color .25s ease, box-shadow .25s ease; }
+    .glass-hover:hover { transform: translateY(-2px); border-color: rgba(99,102,241,.35); box-shadow: 0 12px 30px rgba(0,0,0,.35); }
+    .gradient-text { background: linear-gradient(135deg, #818cf8, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .coin-pill { background: linear-gradient(135deg, rgba(245,158,11,.18), rgba(99,102,241,.18)); border: 1px solid rgba(245,158,11,.3); }
     .tab-button { transition: all 0.3s ease; }
-    .tab-button.active { background: #6366f1; border-color: #6366f1; color: white; }
+    .tab-button.active { background: #6366f1; border-color: #6366f1; color: white; box-shadow: 0 4px 15px rgba(99,102,241,.3); }
     .tab-content { display: none; }
     .tab-content.active { display: block; }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(99,102,241,.4); border-radius: 8px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(99,102,241,.6); }
   </style>
 </head>
 <body class="min-h-screen bg-[#0a0a14] text-slate-50">
+
+  <div class="fixed inset-0 overflow-hidden pointer-events-none">
+    <div class="absolute -top-40 -right-40 h-96 w-96 rounded-full bg-indigo-500/10 blur-3xl"></div>
+    <div class="absolute top-1/2 -left-40 h-96 w-96 rounded-full bg-purple-500/10 blur-3xl"></div>
+    <div class="absolute bottom-0 right-1/3 h-72 w-72 rounded-full bg-cyan-500/5 blur-3xl"></div>
+  </div>
 
   <div class="relative mx-auto max-w-7xl px-4 py-6">
     <header class="glass rounded-2xl p-6 mb-6">
@@ -31,8 +47,11 @@
           <h1 id="userName" class="mt-1 text-2xl font-bold text-white">Inapakia profile...</h1>
         </div>
         <div class="flex items-center gap-3 flex-wrap justify-end">
-          <div class="px-4 py-2.5 rounded-xl bg-indigo-600/10 text-sm font-bold text-indigo-400 border border-indigo-500/20">
-            🪙 Salio: <span id="userCoins">0</span> Coins
+          <div class="coin-pill px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2" title="Salio lako la coins">
+            <span class="text-base">🪙</span>
+            <span class="text-slate-300 font-medium">Salio:</span>
+            <span id="userCoins" class="text-white text-base">0</span>
+            <span class="text-amber-300/90 font-medium">Coins</span>
           </div>
           <div id="adminBadge" class="hidden px-3 py-2 rounded-xl bg-emerald-500/10 text-xs font-semibold text-emerald-400 border border-emerald-500/20">
             Admin Access
@@ -165,6 +184,19 @@
 
   <script>
     let globalPackages = []; // Itahifadhi package zote kutoka API ili kusoma specs live
+    let currentCoins = 0; // Salio halisi la coins kutoka mfumo (chanzo kimoja kwa kurasa zote)
+
+    // Soma coins kwa namna sawa kila mahali (formatting moja)
+    function formatCoins(value) {
+      return Number(value || 0).toLocaleString('en-US');
+    }
+
+    function setUserCoins(value) {
+      currentCoins = Number(value) || 0;
+      const el = document.getElementById('userCoins');
+      if (el) el.textContent = formatCoins(currentCoins);
+    }
+
     const serverList = document.getElementById('serverList');
     const userName = document.getElementById('userName');
     const createForm = document.getElementById('createForm');
@@ -204,7 +236,8 @@
         const res = await fetch('/api/me');
         const data = await res.json();
         userName.textContent = data.user.displayName || data.user.username;
-        if(data.user.coins !== undefined) document.getElementById('userCoins').textContent = data.user.coins;
+        const coinValue = data.user.coins ?? data.user.balance;
+        if (coinValue !== undefined && coinValue !== null) setUserCoins(coinValue);
         const isAdmin = data.user.role === 'admin' || data.user.isAdmin;
         const adminBadge = document.getElementById('adminBadge');
         const adminLink = document.getElementById('adminLink');
@@ -239,7 +272,7 @@
           const statusClass = isInstalling ? 'bg-amber-500/15 text-amber-300 border border-amber-500/20' : (isOnline ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/20' : 'bg-red-500/15 text-red-300 border border-red-500/20');
           
           return `
-            <div class="rounded-2xl border border-slate-800 bg-slate-900/40 p-5 space-y-4 shadow-lg shadow-black/20">
+            <div class="glass-hover rounded-2xl border border-slate-800 bg-slate-900/40 p-5 space-y-4 shadow-lg shadow-black/20">
               <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
                   <div class="flex items-center gap-2">
@@ -389,7 +422,7 @@
       const packageId = document.getElementById('packageSelect').value;
       const packageInfo = globalPackages.find(p => (p._id || p.id) === packageId) || {};
       const coinsCost = Number(packageInfo?.pricing?.coinsCost || packageInfo?.coinsCost || 0);
-      const userCoins = Number(document.getElementById('userCoins').textContent || 0);
+      const userCoins = Number(currentCoins) || 0;
       const phone = document.getElementById('serverPhone').value.trim();
       const paymentMethod = userCoins >= coinsCost ? 'coins' : 'sonicpesa';
 
@@ -412,8 +445,9 @@
           window.open(data.data.paymentUrl, '_blank', 'noopener,noreferrer');
         } else if (data.success && data.data?.server) {
           formMessage.innerHTML = '<span class="text-emerald-400 font-bold">✅ Server imeundwa kikamilifu kwenye Pterodactyl!</span>';
+          if (data.data?.remainingCoins !== undefined) setUserCoins(data.data.remainingCoins);
           createForm.reset();
-          setTimeout(() => { loadServers(); switchDashTab(null, 'my-servers'); }, 1500);
+          setTimeout(() => { loadUser(); loadServers(); switchDashTab(null, 'my-servers'); }, 1500);
         } else {
           formMessage.innerHTML = `<span class="text-red-400">❌ Kosa: ${data.message || data.error || 'Imeshindwa kuunda.'}</span>`;
         }

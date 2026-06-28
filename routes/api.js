@@ -404,6 +404,7 @@ async function resolveAndSavePteroId(user) {
 
 // Get current user info
 router.get('/api/me', requireAuth, (req, res) => {
+  const coins = Number(req.user.coins) || 0;
   res.json({
     user: {
       id: req.user._id,
@@ -413,7 +414,9 @@ router.get('/api/me', requireAuth, (req, res) => {
       pterodactylId: req.user.pteroId,
       linkedToPtero: Boolean(req.user.pteroId && Number(req.user.pteroId) > 0),
       isAdmin: isAdminUser(req.user),
-      role: req.user.role || 'user'
+      role: req.user.role || 'user',
+      coins,
+      balance: coins
     }
   });
 });

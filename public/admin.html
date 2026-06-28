@@ -6,25 +6,37 @@
   <title>Admin Control Panel</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body { font-family: Inter, sans-serif; }
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+    * { font-family: 'Inter', sans-serif; }
+    body { background: #0a0a14; }
     .glass {
-      background: rgba(255, 255, 255, 0.02);
+      background: rgba(255, 255, 255, 0.03);
       backdrop-filter: blur(20px);
-      border: 1px solid rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.06);
     }
+    .glass-hover { transition: transform .25s ease, border-color .25s ease, box-shadow .25s ease; }
+    .glass-hover:hover { transform: translateY(-2px); border-color: rgba(99,102,241,.35); box-shadow: 0 12px 30px rgba(0,0,0,.35); }
+    .gradient-text { background: linear-gradient(135deg, #818cf8, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .tab-button { transition: all 0.3s ease; }
     .tab-button.active {
       background: #6366f1;
       border-color: #6366f1;
       color: white;
+      box-shadow: 0 4px 15px rgba(99,102,241,.3);
     }
     .tab-content { display: none; }
     .tab-content.active { display: block; }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(99,102,241,.4); border-radius: 8px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(99,102,241,.6); }
   </style>
 </head>
 <body class="min-h-screen bg-[#0a0a14] text-slate-50">
   <div class="fixed inset-0 overflow-hidden pointer-events-none">
     <div class="absolute -top-40 -right-40 h-96 w-96 rounded-full bg-purple-500/10 blur-3xl"></div>
     <div class="absolute top-1/2 -left-40 h-96 w-96 rounded-full bg-indigo-500/10 blur-3xl"></div>
+    <div class="absolute bottom-0 right-1/3 h-72 w-72 rounded-full bg-cyan-500/5 blur-3xl"></div>
   </div>
 
   <div class="relative mx-auto max-w-7xl px-4 py-6">
@@ -33,7 +45,7 @@
       <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p class="text-sm text-slate-400 font-medium">Sehemu ya Admin</p>
-          <h1 class="mt-1 text-2xl font-bold text-white">Control Panel</h1>
+          <h1 class="mt-1 text-2xl font-bold gradient-text">Control Panel</h1>
           <p class="mt-1 text-sm text-slate-400">Usimamizi wa Package & Mifumo</p>
         </div>
         <div class="flex items-center gap-3">
@@ -45,19 +57,19 @@
 
     <!-- Stats -->
     <section class="grid gap-4 grid-cols-2 sm:grid-cols-4 mb-6">
-      <div class="glass rounded-2xl p-5">
+      <div class="glass glass-hover rounded-2xl p-5">
         <p class="text-xs sm:text-sm text-slate-400 font-medium">Jumla ya Packages</p>
         <h2 id="statTotal" class="mt-2 text-2xl sm:text-3xl font-bold text-white">0</h2>
       </div>
-      <div class="glass rounded-2xl p-5">
+      <div class="glass glass-hover rounded-2xl p-5">
         <p class="text-xs sm:text-sm text-slate-400 font-medium">Zinazofanya Kazi</p>
         <h2 id="statActive" class="mt-2 text-2xl sm:text-3xl font-bold text-emerald-400">0</h2>
       </div>
-      <div class="glass rounded-2xl p-5">
-        <p class="text-xs sm:text-sm text-slate-400 font-medium">Zenye Kushika Kasi</p>
-        <h2 id="statPopular" class="mt-2 text-2xl sm:text-3xl font-bold text-amber-400">0</h2>
+      <div class="glass glass-hover rounded-2xl p-5">
+        <p class="text-xs sm:text-sm text-slate-400 font-medium">Jumla ya Coins</p>
+        <h2 id="statCoins" class="mt-2 text-2xl sm:text-3xl font-bold text-amber-400">🪙 0</h2>
       </div>
-      <div class="glass rounded-2xl p-5">
+      <div class="glass glass-hover rounded-2xl p-5">
         <p class="text-xs sm:text-sm text-slate-400 font-medium">Mapato/Mwezi</p>
         <h2 id="statRevenue" class="mt-2 text-xl sm:text-2xl font-bold text-indigo-400">Tsh 0</h2>
       </div>
@@ -90,6 +102,10 @@
             <div class="flex justify-between items-center pb-3 border-b border-slate-700/30">
               <span class="text-slate-400">Jumla ya Wateja</span>
               <span class="text-white font-semibold" id="totalUsers">0</span>
+            </div>
+            <div class="flex justify-between items-center pb-3 border-b border-slate-700/30">
+              <span class="text-slate-400">Jumla ya Coins (Mfumo)</span>
+              <span class="text-amber-400 font-semibold" id="totalCoins">🪙 0</span>
             </div>
           </div>
         </div>
@@ -214,12 +230,14 @@
         if(pData.success) {
           document.getElementById('statTotal').textContent = pData.data.totalPackages || 0;
           document.getElementById('statActive').textContent = pData.data.activePackages || 0;
-          document.getElementById('statPopular').textContent = pData.data.popularPackages || 0;
           document.getElementById('statRevenue').textContent = 'Tsh ' + Number(pData.data.totalRevenuePotential || 0).toLocaleString();
         }
         if(uData.success) {
           document.getElementById('adminCount').textContent = uData.data.totalAdmins || 0;
           document.getElementById('totalUsers').textContent = uData.data.totalUsers || 0;
+          document.getElementById('statCoins').textContent = '🪙 ' + Number(uData.data.totalCoinsDistributed || 0).toLocaleString();
+          const totalCoinsEl = document.getElementById('totalCoins');
+          if (totalCoinsEl) totalCoinsEl.textContent = '🪙 ' + Number(uData.data.totalCoinsDistributed || 0).toLocaleString();
         }
       } catch(e) { console.error(e); }
     }
@@ -231,7 +249,7 @@
         if(d.success) {
           const list = document.getElementById('packagesList');
           list.innerHTML = d.data.map(p => `
-            <div class="glass p-4 rounded-xl flex justify-between items-center">
+            <div class="glass glass-hover p-4 rounded-xl flex justify-between items-center">
               <div>
                 <h4 class="font-bold">${p.name}</h4>
                 <p class="text-xs text-slate-400">Tsh ${Number(p.pricing?.usdCost || p.usdCost || 0).toLocaleString()} / ${p.pricing?.coinsCost || p.coinsCost} Coins</p>
@@ -276,7 +294,7 @@
           tbody.innerHTML = d.data.map(u => `
             <tr class="border-b border-slate-800/40 text-xs">
               <td class="py-2 px-4">${u.username || u.email}</td>
-              <td class="py-2 px-4 text-amber-400">🪙 ${u.coins || 0}</td>
+              <td class="py-2 px-4 text-amber-400">🪙 ${Number(u.coins || 0).toLocaleString()}</td>
               <td class="py-2 px-4 flex gap-2">
                 <button onclick="adjustCoins('${u._id||u.id}', ${u.coins||0})" class="bg-slate-700 px-2 py-1 rounded text-white text-[10px]">Edit Coins</button>
                 <button onclick="deleteUser('${u._id||u.id}')" class="bg-red-500/20 text-red-400 px-2 py-1 rounded text-[10px]">Futa</button>
