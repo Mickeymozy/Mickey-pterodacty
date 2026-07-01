@@ -10,22 +10,16 @@ const Transaction = require('../models/Transaction');
 const User = require('../models/User');
 const { createServerFromPackage } = require('../utils/serverHelper');
 const sendEmail = require('../utils/email');
-const { requireAdmin, ADMIN_EMAILS } = require('../middleware/auth');
-
-const authenticate = (req, res, next) => {
-  if (!req.user) {
-    return res.status(401).json({ success: false, message: 'Authentication required' });
-  }
-  next();
-};
+const { requireAuth, requireAdmin, ADMIN_EMAILS } = require('../middleware/auth');
+const { DEFAULT_SERVER_PASSWORD, PTERODACTYL_URL } = require('../utils/pteroClient');
 
 async function notifyUserAboutPayment(user, transaction, packageDoc, serverData) {
   if (!user?.email) return;
 
   const serverName = serverData?.server?.name || serverData?.server?.identifier || 'server';
-  const panelUrl = process.env.PTERODACTYL_URL || 'N/A';
+  const panelUrl = PTERODACTYL_URL || 'N/A';
   const accessDetails = serverData?.access || {};
-  const password = accessDetails.password || process.env.DEFAULT_SERVER_PASSWORD || process.env.SERVER_DEFAULT_PASSWORD || 'MICKEY24@';
+  const password = accessDetails.password || DEFAULT_SERVER_PASSWORD;
   const emailBody = `
     <p>Malipo yako yamekamilika na huduma yako imeandaliwa.</p>
     <p><strong>Package:</strong> ${packageDoc?.name || 'Top-up'}</p>
@@ -81,7 +75,7 @@ async function notifyUserAboutPendingPayment(user, transaction, packageDoc, requ
 /**
  * Initialize payment for a package purchase
  */
-router.post('/checkout', authenticate, async (req, res) => {
+router.post('/checkout', requireAuth, async (req, res) => {
   try {
     const { packageId, paymentMethod, serverName, phone, proofText, eggId, dockerImage, startupFile, startupCommand } = req.body;
     const userId = req.user._id;
@@ -293,7 +287,7 @@ router.post('/checkout', authenticate, async (req, res) => {
 /**
  * Verify payment and credit user with coins
  */
-router.post('/topup', authenticate, async (req, res) => {
+router.post('/topup', requireAuth, async (req, res) => {
   try {
     const { coins, phone, paymentMethod = 'manual', proofText } = req.body;
     const userId = req.user._id;
@@ -398,7 +392,7 @@ router.post('/topup', authenticate, async (req, res) => {
   }
 });
 
-router.get('/verify/:transactionId', authenticate, async (req, res) => {
+router.get('/verify/:transactionId', requireAuth, async (req, res) => {
   try {
     const { transactionId } = req.params;
 
@@ -550,7 +544,7 @@ router.post('/webhook', async (req, res) => {
 /**
  * Get user transaction history
  */
-router.get('/transactions', authenticate, async (req, res) => {
+router.get('/transactions', requireAuth, async (req, res) => {
   try {
     const userId = req.user._id;
     const page = parseInt(req.query.page) || 1;

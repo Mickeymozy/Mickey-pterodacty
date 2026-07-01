@@ -1,11 +1,12 @@
 const express = require('express');
 const passport = require('passport');
 const crypto = require('crypto');
+const axios = require('axios');
 const router = express.Router();
 const User = require('../models/User');
 const { requireGuest, ADMIN_EMAILS } = require('../middleware/auth');
 const sendEmail = require('../utils/email');
-const axios = require('axios');
+const { appApi, hasPteroConfig } = require('../utils/pteroClient');
 
 const COMMON_PASSWORDS = new Set([
   'password', '123456', '123456789', 'qwerty', 'password123', 'admin', 'welcome',
@@ -67,25 +68,8 @@ async function findOrCreateGithubUser(profile) {
   return user;
 }
 
-// Pterodactyl API helper
-const PTERODACTYL_URL = process.env.PTERODACTYL_URL?.replace(/\/$/, '');
-const PTERODACTYL_APP_API_KEY = process.env.PTERODACTYL_APP_API_KEY;
-const hasPteroConfig = PTERODACTYL_URL && PTERODACTYL_APP_API_KEY;
-
-const appApi = hasPteroConfig
-  ? axios.create({
-      baseURL: `${PTERODACTYL_URL}/api/application`,
-      headers: {
-        Authorization: `Bearer ${PTERODACTYL_APP_API_KEY}`,
-        'Content-Type': 'application/json',
-        Accept: 'application/json'
-      },
-      timeout: 10000
-    })
-  : null;
-
 async function getPteroUser(identifier) {
-  if (!hasPteroConfig) return null;
+  if (!hasPteroConfig || !appApi) return null;
   try {
     let page = 1;
     while (true) {
