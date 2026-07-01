@@ -102,8 +102,24 @@
               </div>
 
               <div>
-                <label for="serverPhone" class="mb-1 block text-xs font-medium text-slate-300">Namba ya simu ya malipo (SonicPesa) *</label>
-                <input id="serverPhone" placeholder="255682812345" class="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-4 py-2.5 text-sm text-white outline-none focus:border-indigo-500" />
+                <label for="paymentMode" class="mb-1 block text-xs font-medium text-slate-300">Njia ya malipo *</label>
+                <select id="paymentMode" class="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-4 py-2.5 text-sm text-white outline-none focus:border-indigo-500">
+                  <option value="coins">Lipa kwa Coins</option>
+                  <option value="manual">Lipa kwa Pesa (Manual / M-Pesa / Tigo / Airtel)</option>
+                  <option value="sonicpesa">Lipa kwa SonicPesa</option>
+                </select>
+              </div>
+
+              <div id="manualPaymentFields" class="hidden space-y-3 rounded-xl border border-slate-800/70 bg-slate-950/40 p-4">
+                <div>
+                  <label for="serverPhone" class="mb-1 block text-xs font-medium text-slate-300">Namba ya simu ya malipo *</label>
+                  <input id="serverPhone" placeholder="255682812345" class="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-4 py-2.5 text-sm text-white outline-none focus:border-indigo-500" />
+                </div>
+                <div>
+                  <label for="paymentProof" class="mb-1 block text-xs font-medium text-slate-300">Uthibitisho / Maelezo ya malipo *</label>
+                  <textarea id="paymentProof" rows="3" placeholder="Andika jina la mpokeaji, namba ya malipo, au link ya screenshot/SMS" class="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-4 py-2.5 text-sm text-white outline-none focus:border-indigo-500"></textarea>
+                </div>
+                <p class="text-[11px] text-slate-400">Baada ya kuwasilisha, admin atakagua na kukubali ili token/coins zifike kwenye akaunti yako.</p>
               </div>
 
               <div>
@@ -147,7 +163,7 @@
                 </div>
               </div>
               <div class="p-3 bg-slate-950/60 rounded-lg text-[11px] text-slate-400 border border-slate-800/50 mt-4">
-                ℹ️ Kifurushi hiki kinaweza kutumika kwa coins zako kama zipo, au kwa malipo ya moja kwa moja kupitia SonicPesa ukikosa coins. Ikiwa huna coins ya kutosha, mfumo utakuuliza namba ya simu kwa malipo.
+                ℹ️ Chagua "Coins" ikiwa unataka kutumia salio lako. Chagua "Manual" ukiweka malipo kupitia M-Pesa/Tigo/Airtel na utume uthibitisho wa screenshot au SMS. Chagua "SonicPesa" kama unataka kutumia mfumo wa SonicPesa wa moja kwa moja.
               </div>
             </div>
 
@@ -159,6 +175,13 @@
         <div class="glass rounded-2xl p-6">
           <h2 class="text-xl font-semibold text-white mb-2">🧮 Nunua kwa Kiasi Chako (Manual Coin Calculator)</h2>
           <div class="glass rounded-xl p-5 max-w-xl bg-slate-950/30 border border-slate-800">
+            <div class="rounded-xl border border-slate-800/70 bg-slate-950/40 p-4 mb-4 text-[11px] text-slate-400">
+              <p class="font-semibold text-slate-200">Mifumo ya malipo:</p>
+              <ul class="mt-2 list-disc space-y-1 pl-4">
+                <li>HALOTEL: 0615944741</li>
+                <li>AZAMPESA: 1612130873</li>
+              </ul>
+            </div>
             <div class="flex flex-col sm:flex-row items-center gap-4">
               <div class="w-full">
                 <label class="block text-xs font-medium text-slate-400 mb-1">Ingiza Coins:</label>
@@ -169,11 +192,24 @@
                 <div id="calculatedTsh" class="text-xl font-black text-cyan-400 font-mono">Tsh 2,500</div>
               </div>
             </div>
-            <div class="mt-4">
-              <label class="block text-xs font-medium text-slate-400 mb-1">Namba ya simu (hiari):</label>
-              <input id="topupPhone" type="tel" placeholder="255682812345" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none" />
+            <div class="mt-4 grid gap-3 sm:grid-cols-2">
+              <div>
+                <label class="block text-xs font-medium text-slate-400 mb-1">Njia ya malipo:</label>
+                <select id="topupPaymentMethod" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none">
+                  <option value="manual">Manual / M-Pesa / Tigo / Airtel</option>
+                  <option value="sonicpesa">SonicPesa</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-400 mb-1">Namba ya simu (hiari):</label>
+                <input id="topupPhone" type="tel" placeholder="255682812345" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none" />
+              </div>
             </div>
-            <button onclick="payProcessor()" class="w-full mt-4 bg-indigo-600 text-white font-bold py-2 rounded-lg text-xs transition uppercase">Anzisha Malipo</button>
+            <div class="mt-4">
+              <label class="block text-xs font-medium text-slate-400 mb-1">Uthibitisho / Maelezo ya malipo:</label>
+              <textarea id="topupProof" rows="3" placeholder="Weka screenshot, SMS, au namba ya malipo ulioituma" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none"></textarea>
+            </div>
+            <button onclick="payProcessor()" class="w-full mt-4 bg-indigo-600 text-white font-bold py-2 rounded-lg text-xs transition uppercase">Wasilisha Maombi</button>
             <p id="topupMessage" class="mt-3 text-xs text-slate-400"></p>
           </div>
         </div>
@@ -195,6 +231,14 @@
       currentCoins = Number(value) || 0;
       const el = document.getElementById('userCoins');
       if (el) el.textContent = formatCoins(currentCoins);
+    }
+
+    function toggleManualPaymentFields() {
+      const mode = document.getElementById('paymentMode')?.value;
+      const fields = document.getElementById('manualPaymentFields');
+      if (fields) {
+        fields.classList.toggle('hidden', mode !== 'manual');
+      }
     }
 
     const serverList = document.getElementById('serverList');
@@ -419,6 +463,9 @@
     }
 
     // FORM COMPILATION AND DEPLOYMENT
+    document.getElementById('paymentMode')?.addEventListener('change', toggleManualPaymentFields);
+    toggleManualPaymentFields();
+
     createForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       formMessage.innerHTML = '<span class="text-indigo-400 animate-pulse">Inatengeneza container na kuunganisha live kwenye Pterodactyl daemon...</span>';
@@ -427,14 +474,16 @@
       const packageInfo = globalPackages.find(p => (p._id || p.id) === packageId) || {};
       const coinsCost = Number(packageInfo?.pricing?.coinsCost || packageInfo?.coinsCost || 0);
       const userCoins = Number(currentCoins) || 0;
+      const paymentMode = document.getElementById('paymentMode').value;
       const phone = document.getElementById('serverPhone').value.trim();
-      const paymentMethod = userCoins >= coinsCost ? 'coins' : 'sonicpesa';
-
+      const proofText = document.getElementById('paymentProof').value.trim();
+      const paymentMethod = paymentMode === 'coins' ? 'coins' : paymentMode === 'manual' ? 'manual' : 'sonicpesa';
       const payload = {
         packageId,
         serverName: document.getElementById('serverName').value,
         paymentMethod,
-        phone
+        phone,
+        proofText
       };
 
       try {
@@ -468,6 +517,8 @@
     async function payProcessor() {
       const coins = parseInt(document.getElementById('manualCoinsInput').value) || 0;
       const phone = document.getElementById('topupPhone').value.trim();
+      const proofText = document.getElementById('topupProof').value.trim();
+      const paymentMethod = document.getElementById('topupPaymentMethod').value;
       const messageBox = document.getElementById('topupMessage');
       messageBox.textContent = 'Inatuma ombi la malipo...';
 
@@ -475,13 +526,17 @@
         const res = await fetch('/api/payment/topup', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ coins, phone })
+          body: JSON.stringify({ coins, phone, proofText, paymentMethod })
         });
         const data = await res.json();
 
-        if (data.success && data.data?.paymentUrl) {
-          messageBox.innerHTML = '<span class="text-emerald-400">✅ Malipo yameanzishwa. Fungua ukurasa wa malipo.</span>';
-          window.open(data.data.paymentUrl, '_blank', 'noopener,noreferrer');
+        if (data.success) {
+          if (data.data?.paymentUrl) {
+            messageBox.innerHTML = '<span class="text-emerald-400">✅ Malipo yameanzishwa. Fungua ukurasa wa malipo.</span>';
+            window.open(data.data.paymentUrl, '_blank', 'noopener,noreferrer');
+          } else {
+            messageBox.innerHTML = '<span class="text-emerald-400">✅ Maombi yako yamepokelewa. Admin ataapprove baada ya kuthibitisha malipo yako.</span>';
+          }
         } else {
           messageBox.innerHTML = `<span class="text-red-400">❌ ${data.message || 'Imeshindwa kuanzisha malipo.'}</span>`;
         }

@@ -88,10 +88,11 @@ const eggConfigs = {
 
 const normalizeServerStatus = (value) => {
   const raw = String(value || '').trim().toLowerCase();
-  if (!raw) return 'unknown';
-  if (['running', 'online', 'active'].includes(raw)) return 'online';
-  if (raw.includes('install')) return 'installing';
-  if (['offline', 'stopped', 'stopping', 'suspended', 'disabled'].includes(raw)) return 'offline';
+  if (!raw || ['unknown', 'null', 'none'].includes(raw)) return 'unknown';
+  if (['running', 'online', 'active', 'started'].includes(raw)) return 'online';
+  if (['starting', 'booting', 'launching', 'restarting'].includes(raw)) return 'starting';
+  if (['installing', 'installing', 'creating', 'building', 'setting up'].includes(raw)) return 'installing';
+  if (['offline', 'stopped', 'stopping', 'suspended', 'disabled', 'crashed', 'dead', 'failed'].includes(raw)) return 'offline';
   return raw;
 };
 

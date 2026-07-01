@@ -270,17 +270,31 @@
         const d = await res.json();
         const tbody = document.getElementById('paymentsList');
         if(d.success && d.data.length > 0) {
-          tbody.innerHTML = d.data.map(p => `
-            <tr class="border-b border-slate-800/40 text-xs">
-              <td class="py-2 px-4">${p.userId?.username || p.userId?.email || 'User'}</td>
-              <td class="py-2 px-4 text-emerald-400">${p.metadata?.type === 'topup' ? `${Number(p.amount || 0).toLocaleString()} Coins` : `Tsh ${Number(p.amount || 0).toLocaleString()}`}</td>
-              <td class="py-2 px-4 uppercase">${p.status}</td>
-              <td class="py-2 px-4 flex gap-2">
-                ${p.status === 'pending' ? `<button onclick="updatePayment('${p._id||p.id}', 'approve')" class="bg-emerald-600 px-2 py-0.5 rounded text-white">Approve</button>` : '—'}
-                <button onclick="deleteUser('${p.userId?._id || p.userId || ''}')" class="bg-red-500/20 text-red-400 px-2 py-0.5 rounded">Delete User</button>
-              </td>
-            </tr>
-          `).join('');
+          tbody.innerHTML = d.data.map(p => {
+            const proofText = p.metadata?.proofText || p.metadata?.paymentProof || p.metadata?.description || '';
+            const phone = p.metadata?.phone || '';
+            const source = p.metadata?.paymentMethod === 'manual' ? 'Manual' : (p.paymentMethod || 'SonicPesa');
+            return `
+              <tr class="border-b border-slate-800/40 text-xs align-top">
+                <td class="py-2 px-4">
+                  <div class="font-semibold text-white">${p.userId?.username || p.userId?.email || 'User'}</div>
+                  <div class="text-[10px] text-slate-500">${source}</div>
+                </td>
+                <td class="py-2 px-4 text-emerald-400">
+                  <div>${p.metadata?.type === 'topup' ? `${Number(p.amount || 0).toLocaleString()} Coins` : `Tsh ${Number(p.amount || 0).toLocaleString()}`}</div>
+                  ${phone ? `<div class="text-[10px] text-slate-500">Namba: ${phone}</div>` : ''}
+                </td>
+                <td class="py-2 px-4 uppercase">
+                  <div class="${p.status === 'pending' ? 'text-amber-400' : p.status === 'completed' ? 'text-emerald-400' : 'text-red-400'}">${p.status}</div>
+                  ${proofText ? `<div class="mt-1 text-[10px] text-slate-500">${proofText}</div>` : ''}
+                </td>
+                <td class="py-2 px-4 flex gap-2 flex-wrap">
+                  ${p.status === 'pending' ? `<button onclick="updatePayment('${p._id||p.id}', 'approve')" class="bg-emerald-600 px-2 py-0.5 rounded text-white">Approve</button>` : '—'}
+                  <button onclick="deleteUser('${p.userId?._id || p.userId || ''}')" class="bg-red-500/20 text-red-400 px-2 py-0.5 rounded">Delete User</button>
+                </td>
+              </tr>
+            `;
+          }).join('');
         } else { tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-500">Hakuna malipo.</td></tr>`; }
       } catch(e) { console.error(e); }
     }

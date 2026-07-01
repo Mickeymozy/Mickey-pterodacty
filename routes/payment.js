@@ -50,7 +50,7 @@ async function notifyUserAboutPayment(user, transaction, packageDoc, serverData)
  */
 router.post('/checkout', authenticate, async (req, res) => {
   try {
-    const { packageId, paymentMethod, serverName, phone } = req.body;
+    const { packageId, paymentMethod, serverName, phone, proofText } = req.body;
     const userId = req.user._id;
 
     if (!packageId) {
@@ -126,13 +126,50 @@ router.post('/checkout', authenticate, async (req, res) => {
           message: error.message || 'Failed to create server. Coins refunded.'
         });
       }
+    } else if (paymentMethod === 'manual') {
+      const manualTransaction = new Transaction({
+        userId,
+        type: 'purchase',
+        amount: usdCost || coinsCost,
+        currency: 'USD',
+        packageId,
+        paymentMethod: 'manual',
+        paymentProvider: 'manual',
+        status: 'pending',
+        description: `Purchase of ${pkg.name} package via manual payment`,
+        metadata: {
+          type: 'package_purchase',
+          packageId: packageId,
+          userId: userId.toString(),
+          serverName,
+          phone,
+          proofText,
+          paymentMethod: 'manual'
+        }
+      });
+
+      await manualTransaction.save();
+
+      return res.json({
+        success: true,
+        message: 'Maombi yako ya server yamepokelewa. Admin atakagua malipo yako na kukubali ili server iundwe.',
+        data: {
+          transactionId: manualTransaction._id,
+          provider: 'manual',
+          package: {
+            name: pkg.name,
+            coins: coinsCost,
+            usd: usdCost
+          }
+        }
+      });
     } else {
       // Handle USD payment via SonicPesa
       const transaction = new Transaction({
         userId,
         type: 'purchase',
-        amount: coinsCost,
-        currency: 'coins',
+        amount: usdCost || coinsCost,
+        currency: 'USD',
         packageId,
         paymentMethod: paymentMethod || 'sonicpesa',
         status: 'pending',
@@ -205,7 +242,7 @@ router.post('/checkout', authenticate, async (req, res) => {
  */
 router.post('/topup', authenticate, async (req, res) => {
   try {
-    const { coins, phone } = req.body;
+    const { coins, phone, paymentMethod = 'manual', proofText } = req.body;
     const userId = req.user._id;
     const coinAmount = Number(coins);
 
@@ -224,64 +261,81 @@ router.post('/topup', authenticate, async (req, res) => {
       type: 'payment',
       amount: coinAmount,
       currency: 'coins',
-      paymentMethod: 'sonicpesa',
-      paymentProvider: 'sonicpesa',
+      paymentMethod: paymentMethod === 'sonicpesa' ? 'sonicpesa' : 'manual',
+      paymentProvider: paymentMethod === 'sonicpesa' ? 'sonicpesa' : 'manual',
       status: 'pending',
       description: `Coin top-up for ${coinAmount} coins`,
       metadata: {
         type: 'topup',
         coinsAmount: coinAmount,
-        phone
+        phone,
+        proofText,
+        amountTzs,
+        paymentMethod: paymentMethod === 'sonicpesa' ? 'sonicpesa' : 'manual'
       }
     });
 
     await transaction.save();
 
-    const paymentData = {
-      amount: amountTzs,
-      currency: 'TZS',
-      reference: transaction._id.toString(),
-      description: `Coin top-up ${coinAmount} coins - ${user.email}`,
-      customerEmail: user.email,
-      customerName: user.username,
-      customerPhone: phone || '',
-      metadata: {
-        transactionId: transaction._id.toString(),
-        type: 'topup',
-        coinsAmount: coinAmount,
-        userId: userId.toString()
-      }
-    };
-
-    const paymentResult = await sonicPesaService.createPayment(paymentData);
-
-    if (paymentResult.success) {
-      transaction.zenopayTransactionId = paymentResult.orderId || paymentResult.transactionId;
-      transaction.zenopayReference = paymentResult.reference;
-      transaction.metadata = {
-        ...(transaction.metadata || {}),
-        sonicpesaOrderId: paymentResult.orderId || paymentResult.transactionId,
-        paymentUrl: paymentResult.paymentUrl
-      };
-      await transaction.save();
-
-      res.json({
-        success: true,
-        message: 'Payment initialized',
-        data: {
-          paymentUrl: paymentResult.paymentUrl,
-          transactionId: transaction._id,
-          provider: 'sonicpesa',
-          coins: coinAmount,
-          amountTzs: amountTzs
+    if (paymentMethod === 'sonicpesa') {
+      const paymentData = {
+        amount: amountTzs,
+        currency: 'TZS',
+        reference: transaction._id.toString(),
+        description: `Coin top-up ${coinAmount} coins - ${user.email}`,
+        customerEmail: user.email,
+        customerName: user.username,
+        customerPhone: phone || '',
+        metadata: {
+          transactionId: transaction._id.toString(),
+          type: 'topup',
+          coinsAmount: coinAmount,
+          userId: userId.toString()
         }
-      });
-    } else {
-      transaction.status = 'failed';
-      transaction.notes = paymentResult.error;
-      await transaction.save();
-      res.status(400).json({ success: false, message: paymentResult.error });
+      };
+
+      const paymentResult = await sonicPesaService.createPayment(paymentData);
+
+      if (paymentResult.success) {
+        transaction.zenopayTransactionId = paymentResult.orderId || paymentResult.transactionId;
+        transaction.zenopayReference = paymentResult.reference;
+        transaction.metadata = {
+          ...(transaction.metadata || {}),
+          sonicpesaOrderId: paymentResult.orderId || paymentResult.transactionId,
+          paymentUrl: paymentResult.paymentUrl
+        };
+        await transaction.save();
+
+        res.json({
+          success: true,
+          message: 'Payment initialized',
+          data: {
+            paymentUrl: paymentResult.paymentUrl,
+            transactionId: transaction._id,
+            provider: 'sonicpesa',
+            coins: coinAmount,
+            amountTzs: amountTzs
+          }
+        });
+      } else {
+        transaction.status = 'failed';
+        transaction.notes = paymentResult.error;
+        await transaction.save();
+        res.status(400).json({ success: false, message: paymentResult.error });
+      }
+      return;
     }
+
+    res.json({
+      success: true,
+      message: 'Maombi yako ya kupakia coins yamepokelewa. Admin ataapprove baada ya kuthibitisha malipo yako.',
+      data: {
+        transactionId: transaction._id,
+        coins: coinAmount,
+        amountTzs: amountTzs,
+        provider: 'manual'
+      }
+    });
   } catch (error) {
     console.error('Top-up Error:', error);
     res.status(500).json({ success: false, message: error.message });
@@ -508,13 +562,28 @@ router.post('/admin/:transactionId/approve', requireAdmin, async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    const coinsToAdd = transaction.amount;
-    user.coins = (user.coins || 0) + coinsToAdd;
+    if (transaction.type === 'purchase' && transaction.packageId) {
+      const pkg = await ServerPackage.findById(transaction.packageId);
+      const serverName = transaction.metadata?.serverName || `${pkg?.name || 'server'}-${Date.now()}`;
+      const serverData = await createServerFromPackage(user, transaction.packageId, serverName);
+      transaction.serverId = serverData?.server?.identifier || serverData?.server?.id;
+      transaction.notes = transaction.notes || `Server created after admin approval: ${serverName}`;
+      transaction.processedBy = req.user?._id;
+      transaction.status = 'completed';
+      transaction.completedAt = new Date();
+      await transaction.save();
+
+      return res.json({ success: true, message: 'Payment approved and server created', data: { server: serverData?.server } });
+    }
+
+    const coinsToAdd = transaction.metadata?.coinsAmount || transaction.amount || 0;
+    user.coins = (user.coins || 0) + Number(coinsToAdd);
     await user.save();
 
     transaction.status = 'completed';
     transaction.completedAt = new Date();
     transaction.notes = transaction.notes || 'Approved manually by admin';
+    transaction.processedBy = req.user?._id;
     await transaction.save();
 
     res.json({ success: true, message: 'Payment approved and coins credited', data: { coins: user.coins } });

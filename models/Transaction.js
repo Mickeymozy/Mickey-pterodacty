@@ -31,7 +31,7 @@ const transactionSchema = new mongoose.Schema({
 
   paymentMethod: {
     type: String,
-    enum: ['sonicpesa', 'zenopay', 'wallet', 'admin'],
+    enum: ['sonicpesa', 'zenopay', 'wallet', 'admin', 'manual'],
     default: 'wallet'
   },
 
@@ -60,7 +60,7 @@ const transactionSchema = new mongoose.Schema({
 
   paymentProvider: {
     type: String,
-    enum: ['sonicpesa', 'zenopay', 'wallet', 'admin'],
+    enum: ['sonicpesa', 'zenopay', 'wallet', 'admin', 'manual'],
     default: 'wallet'
   },
 
