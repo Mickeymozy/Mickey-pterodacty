@@ -1,100 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const axios = require('axios');
 const { requireAuth, isAdminUser } = require('../middleware/auth');
-const { createServerFromPackage } = require('../utils/serverHelper');
-
-const PTERODACTYL_URL = process.env.PTERODACTYL_URL?.replace(/\/$/, '');
-const PTERODACTYL_APP_API_KEY = process.env.PTERODACTYL_APP_API_KEY;
-const PTERODACTYL_CLIENT_API_KEY = process.env.PTERODACTYL_CLIENT_API_KEY || process.env.PTERODACTYL_CLIENT_KEY || process.env.PTERODACTYL_API_KEY || process.env.PTERODACTYL_APP_API_KEY;
-const hasPteroConfig = PTERODACTYL_URL && PTERODACTYL_APP_API_KEY;
-const hasClientConfig = PTERODACTYL_URL && PTERODACTYL_CLIENT_API_KEY;
-
-// Power control and live resource/status reads only work through the Pterodactyl
-// Client API, which requires a client key (prefixed "ptlc_"). An application key
-// ("ptla_") cannot call client endpoints, so we detect a usable client key here.
-const isClientApiKey = (key) => typeof key === 'string' && key.startsWith('ptlc_');
-const clientApiUsable = Boolean(hasClientConfig && isClientApiKey(PTERODACTYL_CLIENT_API_KEY));
-const CLIENT_KEY_REQUIRED_MESSAGE = 'Kipengele hiki kinahitaji Pterodactyl CLIENT API key (inayoanza na "ptlc_"). Weka PTERODACTYL_CLIENT_API_KEY kwenye mipangilio ya server (.env).';
-
-const appApi = hasPteroConfig
-  ? axios.create({
-      baseURL: `${PTERODACTYL_URL}/api/application`,
-      headers: {
-        Authorization: `Bearer ${PTERODACTYL_APP_API_KEY}`,
-        'Content-Type': 'application/json',
-        Accept: 'application/json'
-      },
-      timeout: 10000
-    })
-  : null;
-
-const clientApi = hasClientConfig
-  ? axios.create({
-      baseURL: `${PTERODACTYL_URL}/api/client`,
-      headers: {
-        Authorization: `Bearer ${PTERODACTYL_CLIENT_API_KEY}`,
-        'Content-Type': 'application/json',
-        Accept: 'application/json'
-      },
-      timeout: 10000
-    })
-  : null;
-
-const DEFAULT_SERVER_PASSWORD = process.env.DEFAULT_SERVER_PASSWORD || process.env.SERVER_DEFAULT_PASSWORD || 'MICKEY24@';
-
-const eggConfigs = {
-  16: {
-    id: 16,
-    key: 'nodejs',
-    name: 'Node.js',
-    docker_image: 'ghcr.io/parkervcp/yolks:nodejs_21',
-    startup: `if [[ -d .git ]] && [[ "$AUTO_UPDATE" == "1" ]]; then git pull; fi; if [[ ! -z "$NODE_PACKAGES" ]]; then /usr/local/bin/npm install $NODE_PACKAGES; fi; if [[ ! -z "$UNNODE_PACKAGES" ]]; then /usr/local/bin/npm uninstall $UNNODE_PACKAGES; fi; if [ -f /home/container/package.json ]; then /usr/local/bin/npm install; fi; if [[ "$MAIN_FILE" == "*.js" ]]; then /usr/local/bin/node "/home/container/$MAIN_FILE" $NODE_ARGS; else /usr/local/bin/ts-node --esm "/home/container/$MAIN_FILE" $NODE_ARGS; fi`,
-    environment: {
-      USER_UPLOAD: '0',
-      MAIN_FILE: 'index.js',
-      AUTO_UPDATE: '1',
-      STARTUP_CMD: 'npm start'
-    }
-  },
-  27: {
-    id: 27,
-    key: 'python',
-    name: 'Python',
-    docker_image: 'ghcr.io/parkervcp/yolks:python_3.10',
-    startup: `if [[ -d .git ]] && [[ "$AUTO_UPDATE" == "1" ]]; then git pull; fi; if [[ ! -z "$PY_PACKAGES" ]]; then pip install -U --prefix .local $PY_PACKAGES; fi; if [[ -f /home/container/$REQUIREMENTS_FILE ]]; then pip install -U --prefix .local -r $REQUIREMENTS_FILE; fi; /usr/local/bin/python /home/container/$PY_FILE`,
-    environment: {
-      USER_UPLOAD: '0',
-      PY_FILE: 'main.py',
-      REQUIREMENTS_FILE: 'requirements.txt',
-      AUTO_UPDATE: '1',
-      STARTUP_CMD: 'python3 main.py'
-    }
-  },
-  28: {
-    id: 28,
-    key: 'java',
-    name: 'Java',
-    docker_image: 'ghcr.io/parkervcp/yolks:java_17',
-    startup: 'java -Dterminal.jline=false -Dterminal.ansi=true -jar $SERVER_JARFILE',
-    environment: {
-      USER_UPLOAD: '0',
-      SERVER_JARFILE: 'server.jar',
-      AUTO_UPDATE: '1',
-      STARTUP_CMD: 'java -jar server.jar'
-    }
-  }
-};
-
-const normalizeServerStatus = (value) => {
-  const raw = String(value || '').trim().toLowerCase();
-  if (!raw || ['unknown', 'null', 'none'].includes(raw)) return 'unknown';
-  if (['running', 'online', 'active', 'started'].includes(raw)) return 'online';
-  if (['starting', 'booting', 'launching', 'restarting'].includes(raw)) return 'starting';
-  if (['installing', 'installing', 'creating', 'building', 'setting up'].includes(raw)) return 'installing';
-  if (['offline', 'stopped', 'stopping', 'suspended', 'disabled', 'crashed', 'dead', 'failed'].includes(raw)) return 'offline';
-  return raw;
-};
+const { createServerFromPackage, resolvePteroUser, sanitizeServer, buildServerEnvironment, buildServerPayloads, tryCreateServer, getFirstValidLocation, getFirstAvailableAllocation, fetchPanelEggOptions, fetchEggDetails, resolveEggConfig } = require('../utils/serverHelper');
+const { appApi, clientApi, hasPteroConfig, hasClientConfig, clientApiUsable, CLIENT_KEY_REQUIRED_MESSAGE, DEFAULT_SERVER_PASSWORD, normalizeServerStatus, PTERODACTYL_URL } = require('../utils/pteroClient');
 
 const extractConnectionDetails = (serverData = {}) => {
   const attrs = serverData?.attributes || {};
@@ -108,7 +16,7 @@ const extractConnectionDetails = (serverData = {}) => {
   return {
     ipAddress: ipAddress || '',
     port: port ? String(port) : '',
-    sftpHost: host || process.env.PTERODACTYL_URL || '',
+    sftpHost: host || PTERODACTYL_URL || '',
     sftpUser: attrs?.identifier || attrs?.uuid || attrs?.id || ''
   };
 };
@@ -129,7 +37,7 @@ async function getServerConnectionDetails(ref) {
       return {
         ipAddress: attrs.ip || attrs.address || attrs.ipv4 || attrs.ip_address || '',
         port: attrs.port ? String(attrs.port) : '',
-        sftpHost: resolvedHost || process.env.PTERODACTYL_URL || '',
+        sftpHost: resolvedHost || PTERODACTYL_URL || '',
         sftpUser: String(identifier)
       };
     }
@@ -143,8 +51,8 @@ async function getServerConnectionDetails(ref) {
       return {
         ipAddress: attrs.ip || attrs.address || attrs.ipv4 || attrs.ip_address || '',
         port: attrs.port ? String(attrs.port) : '',
-        sftpHost: resolvedHost || process.env.PTERODACTYL_URL || '',
-        sftpUser: String(serverId)
+        sftpHost: resolvedHost || PTERODACTYL_URL || '',
+        sftpUser: String(id)
       };
     }
   } catch (err) {
@@ -154,29 +62,6 @@ async function getServerConnectionDetails(ref) {
   return extractConnectionDetails({});
 }
 
-const sanitizeServer = (server, resourceAttrs = {}, user = null, connectionDetails = null) => {
-  const attrs = server?.attributes || {};
-  const resolvedConnection = connectionDetails || extractConnectionDetails(server);
-  const status = normalizeServerStatus(resourceAttrs?.current_state || attrs.status || '');
-  return {
-    id: attrs.id,
-    uuid: attrs.uuid,
-    identifier: attrs.identifier,
-    name: attrs.name,
-    status,
-    user: attrs.user,
-    limits: attrs.limits || {},
-    resources: resourceAttrs || {},
-    ipAddress: resolvedConnection.ipAddress || '',
-    port: resolvedConnection.port || '',
-    sftpHost: resolvedConnection.sftpHost || '',
-    sftpUser: user?.username || user?.displayName || resolvedConnection.sftpUser || ''
-  };
-};
-
-// Resolve any server reference (numeric id, uuid, or short identifier) to both the
-// application numeric `id` and the client `identifier` (short hash). The Application
-// API is keyed by numeric id; the Client API is keyed by the identifier.
 async function resolveServerRef(serverIdentifier) {
   const rawValue = String(serverIdentifier || '').trim();
   const fallback = { id: rawValue, identifier: rawValue };
@@ -221,235 +106,6 @@ async function resolveServerId(serverIdentifier) {
   return ref.id;
 }
 
-async function getFirstValidLocation() {
-  if (!appApi) return null;
-  try {
-    const response = await appApi.get('/locations?per_page=100');
-    const locations = response.data?.data || [];
-    const firstLocation = locations.find((loc) => loc?.attributes?.id);
-    return firstLocation?.attributes?.id || null;
-  } catch (err) {
-    console.error('Failed to fetch locations:', err.message);
-    return null;
-  }
-}
-
-async function getFirstAvailableAllocation() {
-  if (!appApi) return null;
-  try {
-    const nodesResponse = await appApi.get('/nodes?per_page=100');
-    const nodes = nodesResponse.data?.data || [];
-
-    for (const node of nodes) {
-      const nodeId = node?.attributes?.id;
-      if (!nodeId) continue;
-
-      const response = await appApi.get(`/nodes/${nodeId}/allocations?per_page=1000`);
-      const allocations = response.data?.data || [];
-      const firstUnassigned = allocations.find((allocation) => !allocation?.attributes?.assigned);
-      if (firstUnassigned?.attributes?.id) {
-        return Number(firstUnassigned.attributes.id);
-      }
-    }
-  } catch (err) {
-    console.warn('Failed to fetch available allocations:', err.message);
-  }
-
-  return null;
-}
-
-async function fetchPanelEggOptions() {
-  if (!appApi) return [];
-
-  try {
-    const nestsResponse = await appApi.get('/nests?per_page=1000');
-    const nests = nestsResponse.data?.data || [];
-    const eggs = [];
-
-    for (const nest of nests) {
-      const nestId = nest?.attributes?.id;
-      if (!nestId) continue;
-
-      const eggsResponse = await appApi.get(`/nests/${nestId}/eggs?per_page=1000`);
-      const eggEntries = eggsResponse.data?.data || [];
-
-      for (const entry of eggEntries) {
-        const attrs = entry?.attributes || {};
-        eggs.push({
-          id: Number(attrs.id),
-          name: attrs.name || `Egg ${attrs.id}`,
-          docker_image: attrs.docker_image || '',
-          startup: attrs.startup || '',
-          environment: attrs.environment || {},
-          nestId
-        });
-      }
-    }
-
-    return eggs.filter((egg) => Number.isFinite(egg.id));
-  } catch (err) {
-    console.error('Failed to fetch panel eggs:', err.message);
-    return [];
-  }
-}
-
-async function fetchEggDetails(eggConfig) {
-  if (!appApi || !eggConfig?.id || !eggConfig?.nestId) return eggConfig;
-
-  try {
-    const response = await appApi.get(`/nests/${eggConfig.nestId}/eggs/${eggConfig.id}?include=variables`);
-    const attrs = response.data?.attributes || {};
-    const included = response.data?.included || [];
-
-    const variableDefaults = {};
-    for (const item of included) {
-      if (item?.type !== 'egg_variable') continue;
-      const variable = item?.attributes || {};
-      const envKey = variable.env_variable;
-      if (envKey && variable.default_value !== undefined && variable.default_value !== null) {
-        variableDefaults[envKey] = String(variable.default_value);
-      }
-    }
-
-    return {
-      ...eggConfig,
-      docker_image: attrs.docker_image || eggConfig.docker_image,
-      startup: attrs.startup || eggConfig.startup,
-      environment: {
-        ...(eggConfig.environment || {}),
-        ...(attrs.environment || {}),
-        ...variableDefaults
-      }
-    };
-  } catch (err) {
-    console.warn('Unable to fetch egg details, using fallback defaults:', err.message);
-    return eggConfig;
-  }
-}
-
-async function resolveEggConfig(rawEgg) {
-  if (rawEgg === null || rawEgg === undefined || rawEgg === '') {
-    return null;
-  }
-
-  const lookup = String(rawEgg).trim().toLowerCase();
-  const aliasMap = {
-    nodejs: '16',
-    node: '16',
-    python: '27',
-    java: '28'
-  };
-
-  const normalized = aliasMap[lookup] || lookup;
-  const numericValue = Number(normalized);
-  const configKey = Number.isFinite(numericValue) ? numericValue : normalized;
-
-  if (eggConfigs[configKey]) {
-    return eggConfigs[configKey];
-  }
-
-  const panelEggOptions = await fetchPanelEggOptions();
-  return panelEggOptions.find((egg) => Number(egg.id) === Number(configKey)) || null;
-}
-
-function getDefaultStartupFile(eggConfig = {}) {
-  const eggId = Number(eggConfig.id);
-  if (eggId === 27) return 'main.py';
-  if (eggId === 28) return 'server.jar';
-  return 'index.js';
-}
-
-function getDefaultStartupCommand(eggConfig = {}) {
-  const eggId = Number(eggConfig.id);
-  if (eggId === 27) return 'python3 main.py';
-  if (eggId === 28) return 'java -jar server.jar';
-  return 'npm start';
-}
-
-function buildServerEnvironment(eggConfig, options = {}) {
-  const resolvedEggConfig = eggConfig || {};
-  const baseEnvironment = {
-    USER_UPLOAD: '0',
-    AUTO_UPDATE: '1',
-    ...(resolvedEggConfig.environment || {})
-  };
-
-  const requestedEnvironment = {
-    ...baseEnvironment,
-    ...(options.environment || {})
-  };
-
-  const eggId = Number(resolvedEggConfig.id);
-  const startupFile = options.startupFile || options.mainFile || options.main_file || getDefaultStartupFile(resolvedEggConfig);
-  const startupCommand = options.startupCommand || getDefaultStartupCommand(resolvedEggConfig);
-
-  if (startupFile) {
-    if (eggId === 16) {
-      requestedEnvironment.MAIN_FILE = startupFile;
-    } else if (eggId === 27) {
-      requestedEnvironment.PY_FILE = startupFile;
-    } else if (eggId === 28) {
-      requestedEnvironment.SERVER_JARFILE = startupFile;
-    } else if (!requestedEnvironment.MAIN_FILE && !requestedEnvironment.PY_FILE && !requestedEnvironment.SERVER_JARFILE && !requestedEnvironment.JARFILE) {
-      requestedEnvironment.MAIN_FILE = startupFile;
-    }
-  }
-
-  if (startupCommand) {
-    requestedEnvironment.STARTUP_CMD = startupCommand;
-  }
-
-  return Object.fromEntries(
-    Object.entries(requestedEnvironment).filter(([, value]) => value !== undefined && value !== null).map(([key, value]) => [key, String(value)])
-  );
-}
-
-async function resolveAndSavePteroId(user) {
-  if (!appApi || !user) return null;
-
-  const currentId = Number(user.pteroId);
-  if (currentId > 0) {
-    try {
-      const response = await appApi.get(`/users/${currentId}`);
-      if (response?.data?.attributes?.id) {
-        return currentId;
-      }
-    } catch (err) {
-      // ignore and continue lookup by username/email below
-    }
-  }
-
-  try {
-    let page = 1;
-    while (true) {
-      const response = await appApi.get(`/users?page=${page}&per_page=100`);
-      const users = response.data?.data || [];
-      if (!users.length) break;
-
-      const matched = users.find((entry) => {
-        const attrs = entry?.attributes || {};
-        return (
-          attrs.username === String(user.username || '').toLowerCase() ||
-          attrs.email === String(user.email || '').toLowerCase()
-        );
-      });
-
-      if (matched?.attributes?.id) {
-        user.pteroId = matched.attributes.id;
-        await user.save();
-        return Number(matched.attributes.id);
-      }
-
-      if (users.length < 100) break;
-      page += 1;
-    }
-  } catch (err) {
-    console.error('Failed to resolve Pterodactyl user:', err.message);
-  }
-
-  return null;
-}
-
 // Get current user info
 router.get('/api/me', requireAuth, (req, res) => {
   const coins = Number(req.user.coins) || 0;
@@ -476,7 +132,7 @@ router.get('/api/servers', requireAuth, async (req, res) => {
   }
 
   try {
-    const resolvedPteroId = await resolveAndSavePteroId(req.user);
+    const resolvedPteroId = await resolvePteroUser(req.user);
     if (!resolvedPteroId) {
       return res.status(400).json({
         success: false,
@@ -556,7 +212,7 @@ router.post('/api/servers/create', requireAuth, async (req, res) => {
       environment
     });
 
-    const resolvedPteroId = await resolveAndSavePteroId(req.user);
+    const resolvedPteroId = await resolvePteroUser(req.user);
     if (!resolvedPteroId) {
       return res.status(400).json({
         success: false,
@@ -583,10 +239,11 @@ router.post('/api/servers/create', requireAuth, async (req, res) => {
     }
 
     const safeCpu = Math.max(25, Math.min(1000, Number.isFinite(Number(cpu)) ? (Number(cpu) > 100 ? Number(cpu) : Number(cpu) * 100) : 100));
-    const basePayload = {
+
+    const payloads = buildServerPayloads({
       name,
-      user: pteroUserId,
-      egg: Number(resolvedEggConfig.id),
+      pteroUserId,
+      eggConfig: resolvedEggConfig,
       environment: safeEnvironment,
       limits: {
         memory: Number(memory) || 1024,
@@ -596,98 +253,23 @@ router.post('/api/servers/create', requireAuth, async (req, res) => {
         cpu: safeCpu,
         oom_disabled: false
       },
-      feature_limits: {
+      featureLimits: {
         databases: 0,
         backups: 1,
         allocations: 1
       },
-      deploy: {
-        locations: [locationId],
-        dedicated_ip: false,
-        port_range: []
-      },
-      start_on_completion: true
-    };
+      locationId,
+      allocationId,
+      dockerImage,
+      startupCommand
+    });
 
-    if (dockerImage || resolvedEggConfig.docker_image) {
-      basePayload.docker_image = dockerImage || resolvedEggConfig.docker_image;
-    }
-    if (startupCommand || resolvedEggConfig.startup) {
-      basePayload.startup = startupCommand || resolvedEggConfig.startup;
-    }
-
-    const payloads = [basePayload];
-
-    if (allocationId) {
-      payloads.push({
-        ...basePayload,
-        allocation: { default: allocationId }
-      });
-    }
-
-    const fallbackPayload = {
-      ...basePayload,
-      deploy: {
-        locations: [locationId],
-        dedicated_ip: false,
-        port_range: []
-      }
-    };
-    if (allocationId) {
-      fallbackPayload.allocation = { default: allocationId };
-    }
-    payloads.push(fallbackPayload);
-
-    const minimalPayload = {
-      name,
-      user: pteroUserId,
-      egg: Number(resolvedEggConfig.id),
-      environment: safeEnvironment,
-      limits: {
-        memory: Number(memory) || 1024,
-        swap: 0,
-        disk: Number(disk) || 2048,
-        io: 500,
-        cpu: safeCpu,
-        oom_disabled: false
-      },
-      feature_limits: {
-        databases: 0,
-        backups: 1,
-        allocations: 1
-      },
-      start_on_completion: true
-    };
-    if (dockerImage || resolvedEggConfig.docker_image) {
-      minimalPayload.docker_image = dockerImage || resolvedEggConfig.docker_image;
-    }
-    if (startupCommand || resolvedEggConfig.startup) {
-      minimalPayload.startup = startupCommand || resolvedEggConfig.startup;
-    }
-    if (allocationId) {
-      minimalPayload.allocation = { default: allocationId };
-    }
-    payloads.push(minimalPayload);
-
-    let response;
-    let lastError;
-    for (const payload of payloads) {
-      try {
-        response = await appApi.post('/servers', payload);
-        break;
-      } catch (err) {
-        lastError = err;
-      }
-    }
-
-    if (!response) {
-      throw lastError || new Error('Pterodactyl rejected the server payload.');
-    }
+    const serverResponse = await tryCreateServer(payloads);
 
     res.json({
       success: true,
       message: 'Server created successfully.',
-      server: sanitizeServer(response.data)
+      server: sanitizeServer(serverResponse.data)
     });
   } catch (err) {
     const status = err.response?.status;
@@ -716,7 +298,7 @@ router.get('/api/servers/:id/access', requireAuth, async (req, res) => {
     const attrs = serverResponse.data?.attributes || {};
 
     const connectionDetails = await getServerConnectionDetails(ref);
-    const panelUrl = process.env.PTERODACTYL_URL || '';
+    const panelUrl = PTERODACTYL_URL || '';
 
     res.json({
       success: true,
@@ -825,8 +407,8 @@ router.delete('/api/servers/:id', requireAuth, async (req, res) => {
   }
 
   try {
-    const resolvedServerId = await resolveServerId(req.params.id);
-    const response = await appApi.delete(`/servers/${encodeURIComponent(resolvedServerId)}`);
+    const resolvedId = await resolveServerId(req.params.id);
+    const response = await appApi.delete(`/servers/${encodeURIComponent(resolvedId)}`);
     res.json({ success: true, data: response.data });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message || 'Failed to delete server.' });

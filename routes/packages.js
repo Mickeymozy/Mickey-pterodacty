@@ -6,13 +6,7 @@ const express = require('express');
 const router = express.Router();
 const ServerPackage = require('../models/ServerPackage');
 const User = require('../models/User');
-
-const adminOnly = (req, res, next) => {
-  if (!req.user || req.user.role !== 'admin') {
-    return res.status(403).json({ success: false, message: 'Admin access required' });
-  }
-  next();
-};
+const { requireAdmin } = require('../middleware/auth');
 
 // GET all packages (public)
 router.get('/packages', async (req, res) => {
@@ -57,7 +51,7 @@ router.get('/packages/:id', async (req, res) => {
 });
 
 // CREATE new package (admin only)
-router.post('/packages', adminOnly, async (req, res) => {
+router.post('/packages', requireAdmin, async (req, res) => {
   try {
     const { name, description, specifications, pricing, isPopular, serverConfig } = req.body;
 
@@ -117,7 +111,7 @@ router.post('/packages', adminOnly, async (req, res) => {
 });
 
 // UPDATE package (admin only)
-router.put('/packages/:id', adminOnly, async (req, res) => {
+router.put('/packages/:id', requireAdmin, async (req, res) => {
   try {
     const { name, description, specifications, pricing, isActive, isPopular, serverConfig } = req.body;
 
@@ -164,7 +158,7 @@ router.put('/packages/:id', adminOnly, async (req, res) => {
 });
 
 // DELETE package (admin only)
-router.delete('/packages/:id', adminOnly, async (req, res) => {
+router.delete('/packages/:id', requireAdmin, async (req, res) => {
   try {
     const pkg = await ServerPackage.findByIdAndDelete(req.params.id);
     if (!pkg) {
@@ -181,7 +175,7 @@ router.delete('/packages/:id', adminOnly, async (req, res) => {
 });
 
 // Get admin dashboard stats
-router.get('/packages/admin/stats', adminOnly, async (req, res) => {
+router.get('/packages/admin/stats', requireAdmin, async (req, res) => {
   try {
     const totalPackages = await ServerPackage.countDocuments();
     const activePackages = await ServerPackage.countDocuments({ isActive: true });
