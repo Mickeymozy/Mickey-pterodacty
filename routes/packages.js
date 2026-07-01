@@ -7,8 +7,13 @@ const router = express.Router();
 const ServerPackage = require('../models/ServerPackage');
 const User = require('../models/User');
 
+const { requireAuth, requireAdmin } = require('../middleware/auth');
+
 const adminOnly = (req, res, next) => {
-  if (!req.user || req.user.role !== 'admin') {
+  if (!req.isAuthenticated || !req.isAuthenticated()) {
+    return res.status(401).json({ success: false, message: 'Authentication required' });
+  }
+  if (!req.user || (req.user.role !== 'admin' && !req.user.isAdmin)) {
     return res.status(403).json({ success: false, message: 'Admin access required' });
   }
   next();

@@ -25,7 +25,7 @@ async function notifyUserAboutPayment(user, transaction, packageDoc, serverData)
   const serverName = serverData?.server?.name || serverData?.server?.identifier || 'server';
   const panelUrl = process.env.PTERODACTYL_URL || 'N/A';
   const accessDetails = serverData?.access || {};
-  const password = accessDetails.password || process.env.DEFAULT_SERVER_PASSWORD || process.env.SERVER_DEFAULT_PASSWORD || 'MICKEY24@';
+  const password = accessDetails.password || process.env.DEFAULT_SERVER_PASSWORD || process.env.SERVER_DEFAULT_PASSWORD || 'Set via panel';
   const emailBody = `
     <p>Malipo yako yamekamilika na huduma yako imeandaliwa.</p>
     <p><strong>Package:</strong> ${packageDoc?.name || 'Top-up'}</p>
@@ -409,6 +409,10 @@ router.get('/verify/:transactionId', authenticate, async (req, res) => {
       return res.status(404).json({ success: false, message: 'Transaction not found' });
     }
 
+    if (String(transaction.userId) !== String(req.user._id)) {
+      return res.status(403).json({ success: false, message: 'Access denied' });
+    }
+
     const verificationResult = await sonicPesaService.verifyPayment(
       transaction.zenopayTransactionId
     );
@@ -502,8 +506,13 @@ router.post('/webhook', async (req, res) => {
     const signature = req.headers['x-sonicpesa-signature'] || req.headers['signature'];
     const payload = JSON.stringify(req.body || {});
 
-    if (signature && !sonicPesaService.validateWebhookSignature(payload, signature)) {
-      return res.status(400).json({ success: false, message: 'Invalid signature' });
+    if (!signature) {
+      console.warn('Webhook request missing signature header');
+      return res.status(401).json({ success: false, message: 'Missing webhook signature' });
+    }
+
+    if (!sonicPesaService.validateWebhookSignature(payload, signature)) {
+      return res.status(401).json({ success: false, message: 'Invalid webhook signature' });
     }
 
     const reference = req.body?.reference || req.body?.order_id || req.body?.data?.reference;
@@ -553,8 +562,8 @@ router.post('/webhook', async (req, res) => {
 router.get('/transactions', authenticate, async (req, res) => {
   try {
     const userId = req.user._id;
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 10));
     const skip = (page - 1) * limit;
 
     const transactions = await Transaction.find({ userId })
@@ -592,7 +601,7 @@ router.get('/methods', (req, res) => {
   }
 });
 
-router.get('/admin/all', requireAdmin, async (req, res) => {
+router.get('/admin/all', authenticate, requireAdmin, async (req, res) => {
   try {
     const transactions = await Transaction.find()
       .populate('userId', 'username email')
@@ -606,7 +615,7 @@ router.get('/admin/all', requireAdmin, async (req, res) => {
   }
 });
 
-router.post('/admin/:transactionId/approve', requireAdmin, async (req, res) => {
+router.post('/admin/:transactionId/approve', authenticate, requireAdmin, async (req, res) => {
   try {
     const transaction = await Transaction.findById(req.params.transactionId);
     if (!transaction) {
