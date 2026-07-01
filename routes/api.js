@@ -800,13 +800,13 @@ router.delete('/api/servers/:id', requireAuth, async (req, res) => {
 // Create server from package
 router.post('/api/servers/from-package', requireAuth, async (req, res) => {
   try {
-    const { packageId, serverName } = req.body;
+    const { packageId, serverName, eggId } = req.body;
     
     if (!packageId) {
       return res.status(400).json({ success: false, error: 'Package ID is required.' });
     }
     
-    const serverData = await createServerFromPackage(req.user, packageId, serverName);
+    const serverData = await createServerFromPackage(req.user, packageId, serverName, { eggId });
 
     res.json({
       success: true,

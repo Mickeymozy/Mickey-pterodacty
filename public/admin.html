@@ -289,7 +289,7 @@
                   ${proofText ? `<div class="mt-1 text-[10px] text-slate-500">${proofText}</div>` : ''}
                 </td>
                 <td class="py-2 px-4 flex gap-2 flex-wrap">
-                  ${p.status === 'pending' ? `<button onclick="updatePayment('${p._id||p.id}', 'approve')" class="bg-emerald-600 px-2 py-0.5 rounded text-white">Approve</button>` : '—'}
+                  ${p.status === 'pending' ? `<button onclick="updatePayment('${p._id||p.id}', 'approve')" class="bg-emerald-600 px-2 py-0.5 rounded text-white">Approve & Create</button>` : '—'}
                   <button onclick="deleteUser('${p.userId?._id || p.userId || ''}')" class="bg-red-500/20 text-red-400 px-2 py-0.5 rounded">Delete User</button>
                 </td>
               </tr>
@@ -339,6 +339,7 @@
     }
 
     async function updatePayment(id) {
+      if (!confirm('Approve payment na uunde server?')) return;
       const res = await fetch(`${API_URL}/payment/admin/${id}/approve`, { method: 'POST' });
       const d = await res.json();
       alert(d.message || 'Payment updated');

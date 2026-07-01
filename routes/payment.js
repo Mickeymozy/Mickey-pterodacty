@@ -50,7 +50,7 @@ async function notifyUserAboutPayment(user, transaction, packageDoc, serverData)
  */
 router.post('/checkout', authenticate, async (req, res) => {
   try {
-    const { packageId, paymentMethod, serverName, phone, proofText } = req.body;
+    const { packageId, paymentMethod, serverName, phone, proofText, eggId } = req.body;
     const userId = req.user._id;
 
     if (!packageId) {
@@ -70,6 +70,13 @@ router.post('/checkout', authenticate, async (req, res) => {
     const coinsCost = pkg.pricing.coinsCost;
     const usdCost = pkg.pricing.usdCost;
 
+    if (paymentMethod === 'sonicpesa') {
+      return res.status(400).json({
+        success: false,
+        message: 'SonicPesa inatumika kwa kununua coins pekee. Tafadhali chagua Coins au Manual kwa server.'
+      });
+    }
+
     // Handle coin payment separately
     if (paymentMethod === 'coins') {
       if ((user.coins || 0) < coinsCost) {
@@ -85,7 +92,7 @@ router.post('/checkout', authenticate, async (req, res) => {
         await user.save();
 
         // Create server from package
-        const serverData = await createServerFromPackage(user, packageId, serverName);
+        const serverData = await createServerFromPackage(user, packageId, serverName, { eggId });
 
         // Record transaction
         const transaction = new Transaction({
@@ -144,7 +151,9 @@ router.post('/checkout', authenticate, async (req, res) => {
           serverName,
           phone,
           proofText,
-          paymentMethod: 'manual'
+          paymentMethod: 'manual',
+          eggId,
+          eggName: pkg?.serverConfig?.eggName || 'Node.js'
         }
       });
 
@@ -565,7 +574,7 @@ router.post('/admin/:transactionId/approve', requireAdmin, async (req, res) => {
     if (transaction.type === 'purchase' && transaction.packageId) {
       const pkg = await ServerPackage.findById(transaction.packageId);
       const serverName = transaction.metadata?.serverName || `${pkg?.name || 'server'}-${Date.now()}`;
-      const serverData = await createServerFromPackage(user, transaction.packageId, serverName);
+      const serverData = await createServerFromPackage(user, transaction.packageId, serverName, { eggId: transaction.metadata?.eggId });
       transaction.serverId = serverData?.server?.identifier || serverData?.server?.id;
       transaction.notes = transaction.notes || `Server created after admin approval: ${serverName}`;
       transaction.processedBy = req.user?._id;

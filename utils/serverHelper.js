@@ -239,7 +239,7 @@ function sanitizeServer(server) {
  * @param {String} serverName - Optional custom server name
  * @returns {Promise<Object>} Created server data
  */
-async function createServerFromPackage(user, packageId, serverName) {
+async function createServerFromPackage(user, packageId, serverName, options = {}) {
   if (!appApi) {
     throw new Error('Pterodactyl API is not configured.');
   }
@@ -269,12 +269,32 @@ async function createServerFromPackage(user, packageId, serverName) {
 
   const allocationId = await getFirstAvailableAllocation();
 
-  // Fetch egg details
-  let resolvedEggConfig = eggConfigs[pkg.serverConfig.eggId];
+  const requestedEggValue = options?.eggId ?? options?.egg ?? pkg.serverConfig?.eggId;
+  const eggLookup = String(requestedEggValue || '').trim().toLowerCase();
+  const aliasMap = { nodejs: '16', node: '16', python: '27', java: '28' };
+  const normalizedLookup = aliasMap[eggLookup] || eggLookup;
+
+  let resolvedEggConfig = eggConfigs[Number(normalizedLookup)] || eggConfigs[normalizedLookup];
+
   if (!resolvedEggConfig) {
     try {
       const eggsList = await fetchPanelEggOptions();
-      resolvedEggConfig = eggsList.find((e) => e.id === pkg.serverConfig.eggId);
+      resolvedEggConfig = eggsList.find((egg) => {
+        const eggId = Number(egg.id);
+        return eggId === Number(normalizedLookup) ||
+          String(egg.name).toLowerCase() === eggLookup ||
+          String(egg.key).toLowerCase() === eggLookup ||
+          String(egg.id) === normalizedLookup;
+      }) || null;
+
+      if (!resolvedEggConfig) {
+        resolvedEggConfig = eggsList.find((egg) => Number(egg.id) === Number(pkg.serverConfig?.eggId)) || null;
+      }
+
+      if (!resolvedEggConfig && eggsList.length === 1) {
+        resolvedEggConfig = eggsList[0];
+      }
+
       if (!resolvedEggConfig) {
         throw new Error('Egg configuration not found.');
       }

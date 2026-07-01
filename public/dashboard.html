@@ -106,7 +106,6 @@
                 <select id="paymentMode" class="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-4 py-2.5 text-sm text-white outline-none focus:border-indigo-500">
                   <option value="coins">Lipa kwa Coins</option>
                   <option value="manual">Lipa kwa Pesa (Manual / M-Pesa / Tigo / Airtel)</option>
-                  <option value="sonicpesa">Lipa kwa SonicPesa</option>
                 </select>
               </div>
 
@@ -163,7 +162,7 @@
                 </div>
               </div>
               <div class="p-3 bg-slate-950/60 rounded-lg text-[11px] text-slate-400 border border-slate-800/50 mt-4">
-                ℹ️ Chagua "Coins" ikiwa unataka kutumia salio lako. Chagua "Manual" ukiweka malipo kupitia M-Pesa/Tigo/Airtel na utume uthibitisho wa screenshot au SMS. Chagua "SonicPesa" kama unataka kutumia mfumo wa SonicPesa wa moja kwa moja.
+                ℹ️ Chagua "Coins" ikiwa unataka kutumia salio lako. Chagua "Manual" ukiweka malipo kupitia M-Pesa/Tigo/Airtel na utume uthibitisho wa screenshot au SMS. SonicPesa inatumika kwa kununua coins pekee.
               </div>
             </div>
 
@@ -483,7 +482,8 @@
         serverName: document.getElementById('serverName').value,
         paymentMethod,
         phone,
-        proofText
+        proofText,
+        eggId: document.getElementById('eggSelect').value
       };
 
       try {
