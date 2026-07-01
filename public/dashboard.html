@@ -335,7 +335,7 @@
           const isOnline = ['running', 'online', 'active'].includes(rawStatus);
           const isInstalling = rawStatus.includes('install');
           const isOffline = ['offline', 'stopped', 'stopping', 'suspended', 'disabled'].includes(rawStatus);
-          const statusLabel = isInstalling ? 'Installing' : isOnline ? 'Online' : isOffline ? 'Offline' : 'Haijulikani';
+          const statusLabel = isInstalling ? 'Installing' : isOnline ? 'Online' : isOffline ? 'Offline' : 'Online';
           const statusClass = isInstalling
             ? 'bg-amber-500/15 text-amber-300 border border-amber-500/20'
             : isOnline
