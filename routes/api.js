@@ -76,10 +76,10 @@ const eggConfigs = {
     key: 'java',
     name: 'Java',
     docker_image: 'ghcr.io/parkervcp/yolks:java_17',
-    startup: 'java -Dterminal.jline=false -Dterminal.ansi=true -jar $JARFILE',
+    startup: 'java -Dterminal.jline=false -Dterminal.ansi=true -jar $SERVER_JARFILE',
     environment: {
       USER_UPLOAD: '0',
-      JARFILE: 'server.jar',
+      SERVER_JARFILE: 'server.jar',
       AUTO_UPDATE: '1',
       STARTUP_CMD: 'java -jar server.jar'
     }
@@ -389,8 +389,8 @@ function buildServerEnvironment(eggConfig, options = {}) {
     } else if (eggId === 27) {
       requestedEnvironment.PY_FILE = startupFile;
     } else if (eggId === 28) {
-      requestedEnvironment.JARFILE = startupFile;
-    } else if (!requestedEnvironment.MAIN_FILE && !requestedEnvironment.PY_FILE && !requestedEnvironment.JARFILE) {
+      requestedEnvironment.SERVER_JARFILE = startupFile;
+    } else if (!requestedEnvironment.MAIN_FILE && !requestedEnvironment.PY_FILE && !requestedEnvironment.SERVER_JARFILE && !requestedEnvironment.JARFILE) {
       requestedEnvironment.MAIN_FILE = startupFile;
     }
   }
