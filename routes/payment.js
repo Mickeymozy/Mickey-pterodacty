@@ -10,7 +10,7 @@ const Transaction = require('../models/Transaction');
 const User = require('../models/User');
 const { createServerFromPackage } = require('../utils/serverHelper');
 const sendEmail = require('../utils/email');
-const { requireAdmin } = require('../middleware/auth');
+const { requireAdmin, ADMIN_EMAILS } = require('../middleware/auth');
 
 const authenticate = (req, res, next) => {
   if (!req.user) {
@@ -27,7 +27,7 @@ async function notifyUserAboutPayment(user, transaction, packageDoc, serverData)
   const accessDetails = serverData?.access || {};
   const password = accessDetails.password || process.env.DEFAULT_SERVER_PASSWORD || process.env.SERVER_DEFAULT_PASSWORD || 'MICKEY24@';
   const emailBody = `
-    <p>Malipo yako yamekamilika na coins zimesajiliwa kwenye akaunti yako.</p>
+    <p>Malipo yako yamekamilika na huduma yako imeandaliwa.</p>
     <p><strong>Package:</strong> ${packageDoc?.name || 'Top-up'}</p>
     <p><strong>Server:</strong> ${serverName}</p>
     <p><strong>Panel:</strong> ${panelUrl}</p>
@@ -45,6 +45,39 @@ async function notifyUserAboutPayment(user, transaction, packageDoc, serverData)
   });
 }
 
+async function notifyAdminAboutPendingPayment(user, transaction, packageDoc, requestType = 'payment request') {
+  const adminRecipients = ADMIN_EMAILS.filter(Boolean);
+  if (!adminRecipients.length || !user?.email) return;
+
+  const subject = `New ${requestType} pending approval`;
+  const html = `
+    <p>A new ${requestType} has been submitted and requires admin approval.</p>
+    <p><strong>User:</strong> ${user.username || user.email}</p>
+    <p><strong>Email:</strong> ${user.email}</p>
+    <p><strong>Transaction:</strong> ${transaction?._id || 'N/A'}</p>
+    <p><strong>Package:</strong> ${packageDoc?.name || 'N/A'}</p>
+    <p>Please review it from the admin panel.</p>
+  `;
+
+  await sendEmail({
+    to: adminRecipients,
+    subject,
+    html,
+    text: `A new ${requestType} is waiting for admin approval for ${user.email}.`
+  });
+}
+
+async function notifyUserAboutPendingPayment(user, transaction, packageDoc, requestType = 'payment request') {
+  if (!user?.email) return;
+
+  await sendEmail({
+    to: user.email,
+    subject: 'Payment request received',
+    html: `<p>Maombi yako ya ${requestType} yamepokelewa.</p><p>Admin atakagua na kukubali hivi karibuni.</p><p><strong>Transaction:</strong> ${transaction?._id || 'N/A'}</p><p><strong>Package:</strong> ${packageDoc?.name || 'N/A'}</p>`,
+    text: `Your ${requestType} has been received and is waiting for admin approval.`
+  });
+}
+
 /**
  * Initialize payment for a package purchase
  */
@@ -52,6 +85,9 @@ router.post('/checkout', authenticate, async (req, res) => {
   try {
     const { packageId, paymentMethod, serverName, phone, proofText, eggId, dockerImage, startupFile, startupCommand } = req.body;
     const userId = req.user._id;
+    const normalizedPaymentMethod = String(paymentMethod || '').toLowerCase();
+    const useWalletPayment = normalizedPaymentMethod === 'wallet' || normalizedPaymentMethod === 'coins';
+    const useManualPayment = normalizedPaymentMethod === 'manual';
 
     if (!packageId) {
       return res.status(400).json({ success: false, message: 'Package ID required' });
@@ -67,10 +103,11 @@ router.post('/checkout', authenticate, async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    const coinsCost = pkg.pricing.coinsCost;
-    const usdCost = pkg.pricing.usdCost;
+    const pricing = pkg?.pricing || {};
+    const coinsCost = Number(pricing.coinsCost ?? pkg?.coinsCost ?? 0);
+    const usdCost = Number(pricing.usdCost ?? pkg?.usdCost ?? 0);
 
-    if (paymentMethod === 'sonicpesa') {
+    if (normalizedPaymentMethod === 'sonicpesa') {
       return res.status(400).json({
         success: false,
         message: 'SonicPesa inatumika kwa kununua coins pekee. Tafadhali chagua Coins au Manual kwa server.'
@@ -78,7 +115,7 @@ router.post('/checkout', authenticate, async (req, res) => {
     }
 
     // Handle coin payment separately
-    if (paymentMethod === 'coins') {
+    if (useWalletPayment) {
       if ((user.coins || 0) < coinsCost) {
         return res.status(400).json({
           success: false,
@@ -134,7 +171,7 @@ router.post('/checkout', authenticate, async (req, res) => {
           message: error.message || 'Failed to create server. Coins refunded.'
         });
       }
-    } else if (paymentMethod === 'manual') {
+    } else if (useManualPayment) {
       const manualTransaction = new Transaction({
         userId,
         type: 'purchase',
@@ -163,6 +200,9 @@ router.post('/checkout', authenticate, async (req, res) => {
 
       await manualTransaction.save();
 
+      await notifyUserAboutPendingPayment(user, manualTransaction, pkg, 'server purchase');
+      await notifyAdminAboutPendingPayment(user, manualTransaction, pkg, 'server purchase');
+
       return res.json({
         success: true,
         message: 'Maombi yako ya server yamepokelewa. Admin atakagua malipo yako na kukubali ili server iundwe.',
@@ -184,7 +224,7 @@ router.post('/checkout', authenticate, async (req, res) => {
         amount: usdCost || coinsCost,
         currency: 'USD',
         packageId,
-        paymentMethod: paymentMethod || 'sonicpesa',
+        paymentMethod: normalizedPaymentMethod || 'sonicpesa',
         status: 'pending',
         description: `Purchase of ${pkg.name} package`
       });
@@ -289,6 +329,9 @@ router.post('/topup', authenticate, async (req, res) => {
     });
 
     await transaction.save();
+
+    await notifyUserAboutPendingPayment(user, transaction, { name: 'Coins Top-up' }, 'coin top-up');
+    await notifyAdminAboutPendingPayment(user, transaction, { name: 'Coins Top-up' }, 'coin top-up');
 
     if (paymentMethod === 'sonicpesa') {
       const paymentData = {
@@ -590,6 +633,7 @@ router.post('/admin/:transactionId/approve', requireAdmin, async (req, res) => {
       transaction.status = 'completed';
       transaction.completedAt = new Date();
       await transaction.save();
+      await notifyUserAboutPayment(user, transaction, pkg, serverData);
 
       return res.json({ success: true, message: 'Payment approved and server created', data: { server: serverData?.server } });
     }
@@ -603,6 +647,8 @@ router.post('/admin/:transactionId/approve', requireAdmin, async (req, res) => {
     transaction.notes = transaction.notes || 'Approved manually by admin';
     transaction.processedBy = req.user?._id;
     await transaction.save();
+
+    await notifyUserAboutPayment(user, transaction, { name: 'Coins Top-up' }, null);
 
     res.json({ success: true, message: 'Payment approved and coins credited', data: { coins: user.coins } });
   } catch (error) {

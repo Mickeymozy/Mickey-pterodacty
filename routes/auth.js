@@ -153,10 +153,24 @@ router.post('/auth/login', (req, res, next) => {
       return res.redirect('/login.html?error=1');
     }
 
-    req.logIn(user, (loginErr) => {
+    req.logIn(user, async (loginErr) => {
       if (loginErr) {
         console.error('❌ Session error:', loginErr);
         return next(loginErr);
+      }
+
+      user.lastLogin = new Date();
+      await user.save().catch(() => {});
+
+      const loginEmailSent = await sendEmail({
+        to: user.email,
+        subject: 'Login notification',
+        text: `Hello ${user.displayName || user.username}, you signed in to your account at ${new Date().toLocaleString()}. If this was not you, please contact support immediately.`,
+        html: `<p>Hello <strong>${user.displayName || user.username}</strong>,</p><p>You signed in to your account at <strong>${new Date().toLocaleString()}</strong>.</p><p>If this was not you, please contact support immediately.</p>`
+      });
+
+      if (!loginEmailSent) {
+        console.warn(`⚠️ Login email could not be sent to ${user.email}`);
       }
 
       if (!user.isEmailVerified) {
