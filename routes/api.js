@@ -572,7 +572,6 @@ router.post('/api/servers/create', requireAuth, async (req, res) => {
       });
     }
 
-    const allocationId = await getFirstAvailableAllocation();
     const pteroUserId = Number(resolvedPteroId);
     const panelUser = await appApi.get(`/users/${pteroUserId}`);
     if (!panelUser?.data?.attributes?.id) {
@@ -617,9 +616,6 @@ router.post('/api/servers/create', requireAuth, async (req, res) => {
     }
 
     const payloads = [basePayload];
-    if (allocationId) {
-      payloads.push({ ...basePayload, allocation: allocationId });
-    }
 
     const fallbackPayload = {
       ...basePayload,
