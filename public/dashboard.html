@@ -519,7 +519,7 @@
       const dockerImage = document.getElementById('dockerImage').value.trim();
       const startupFile = document.getElementById('startupFile').value.trim();
       const startupCommand = document.getElementById('startupCommand').value.trim();
-      const paymentMethod = paymentMode === 'coins' ? 'coins' : paymentMode === 'manual' ? 'manual' : 'sonicpesa';
+      const paymentMethod = paymentMode === 'coins' ? 'wallet' : paymentMode === 'manual' ? 'manual' : 'sonicpesa';
       if (!dockerImage || !startupFile || !startupCommand) {
         formMessage.innerHTML = '<span class="text-red-400">❌ Jaza Docker Image, Startup File, na Startup Command kabla ya kuendelea.</span>';
         return;

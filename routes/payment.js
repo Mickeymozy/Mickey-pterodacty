@@ -101,7 +101,8 @@ router.post('/checkout', authenticate, async (req, res) => {
           amount: coinsCost,
           currency: 'coins',
           packageId,
-          paymentMethod: 'coins',
+          paymentMethod: 'wallet',
+          paymentProvider: 'wallet',
           status: 'completed',
           description: `Purchase of ${pkg.name} package`,
           completedAt: new Date()
