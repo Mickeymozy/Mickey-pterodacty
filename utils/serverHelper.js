@@ -363,6 +363,28 @@ async function createServerFromPackage(user, packageId, serverName, options = {}
   delete fallbackPayload.startup;
   payloads.push(fallbackPayload);
 
+  const minimalPayload = {
+    name,
+    user: pteroUserId,
+    egg: Number(resolvedEggConfig.id),
+    environment: safeEnvironment,
+    limits: {
+      memory: Number(memory) || 1024,
+      swap: 0,
+      disk: Number(disk) || 2048,
+      io: 500,
+      cpu: Number(cpu) || 100,
+      oom_disabled: false
+    },
+    feature_limits: {
+      databases: pkg.specifications.databases || 0,
+      backups: pkg.specifications.backups || 1,
+      allocations: 1
+    },
+    start_on_completion: true
+  };
+  payloads.push(minimalPayload);
+
   let response;
   let lastError;
 
