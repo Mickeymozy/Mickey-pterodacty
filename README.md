@@ -216,9 +216,10 @@ See [QUICK_START.md](QUICK_START.md) for detailed SMTP/ZenoPay setup.
 - ✅ HMAC-SHA256 webhook signature validation
 - ✅ Role-based access control (admin/user)
 - ✅ Email-based admin detection
-- ✅ Input sanitization
-- ✅ SQL injection prevention (MongoDB)
-- ✅ CSRF protection via sessions
+- ✅ NoSQL injection prevention (express-mongo-sanitize)
+- ✅ Rate limiting on auth endpoints (express-rate-limit)
+- ✅ Security headers (helmet)
+- ✅ Server ownership verification (IDOR protection)
 
 ## 📊 Admin Capabilities
 

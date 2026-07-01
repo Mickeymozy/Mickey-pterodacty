@@ -106,10 +106,18 @@ class SonicPesaService {
   }
 
   validateWebhookSignature(payload, signature) {
-    if (!this.webhookSecret || !signature) return true;
+    if (!this.webhookSecret) {
+      console.warn('SONICPESA_WEBHOOK_SECRET is not configured; webhook signature cannot be verified.');
+      return false;
+    }
+    if (!signature) return false;
 
     const calculated = crypto.createHmac('sha256', this.webhookSecret).update(payload).digest('hex');
-    return crypto.timingSafeEqual(Buffer.from(calculated), Buffer.from(signature));
+    try {
+      return crypto.timingSafeEqual(Buffer.from(calculated, 'hex'), Buffer.from(signature, 'hex'));
+    } catch (err) {
+      return false;
+    }
   }
 
   generateReference() {

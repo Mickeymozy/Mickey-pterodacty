@@ -6,6 +6,9 @@ const passport = require('passport');
 const flash = require('connect-flash');
 const MongoStore = require('connect-mongo');
 const path = require('path');
+const helmet = require('helmet');
+const mongoSanitize = require('express-mongo-sanitize');
+const rateLimit = require('express-rate-limit');
 
 // Import modules
 const connectDB = require('./config/database');
@@ -37,9 +40,14 @@ require('./config/passport')(passport);
 // IMEREKEBISHWA: 'trust proxy' imewekwa kuwa true ili kuruhusu Cloudflare/Nginx kupitisha secure cookies vizuri
 app.set('trust proxy', true);
 
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false
+}));
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+app.use(mongoSanitize());
 
 const sessionStore = process.env.MONGODB_URI
   ? MongoStore.create({
@@ -54,7 +62,7 @@ const sessionStore = process.env.MONGODB_URI
 const isProduction = process.env.NODE_ENV === 'production';
 
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'default-secret-change-this',
+  secret: process.env.SESSION_SECRET || (isProduction ? (() => { throw new Error('SESSION_SECRET must be set in production'); })() : 'dev-only-fallback-' + require('crypto').randomBytes(16).toString('hex')),
   resave: true, // Imewekwa true ili kuzuia session kufutika mapema kwenye baadhi ya hosting
   saveUninitialized: false,
   store: sessionStore || undefined,
@@ -83,6 +91,19 @@ app.use((req, res, next) => {
 // ============================================
 // 4. ROUTES
 // ============================================
+// Rate limiters
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { success: false, message: 'Too many attempts, please try again after 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+app.use('/auth/login', authLimiter);
+app.use('/auth/register', authLimiter);
+app.use('/auth/reset-password', authLimiter);
+
 app.use('/', authRoutes);
 app.use('/', apiRoutes);
 app.use('/api', packagesRouter);
