@@ -360,8 +360,6 @@ async function createServerFromPackage(user, packageId, serverName, options = {}
       port_range: []
     }
   };
-  delete fallbackPayload.docker_image;
-  delete fallbackPayload.startup;
   payloads.push(fallbackPayload);
 
   const minimalPayload = {
@@ -384,6 +382,12 @@ async function createServerFromPackage(user, packageId, serverName, options = {}
     },
     start_on_completion: true
   };
+  if (options.dockerImage || resolvedEggConfig.docker_image) {
+    minimalPayload.docker_image = options.dockerImage || resolvedEggConfig.docker_image;
+  }
+  if (options.startupCommand || resolvedEggConfig.startup) {
+    minimalPayload.startup = options.startupCommand || resolvedEggConfig.startup;
+  }
   payloads.push(minimalPayload);
 
   let response;

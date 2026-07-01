@@ -629,8 +629,6 @@ router.post('/api/servers/create', requireAuth, async (req, res) => {
         port_range: []
       }
     };
-    delete fallbackPayload.docker_image;
-    delete fallbackPayload.startup;
     payloads.push(fallbackPayload);
 
     const minimalPayload = {
@@ -653,6 +651,12 @@ router.post('/api/servers/create', requireAuth, async (req, res) => {
       },
       start_on_completion: true
     };
+    if (dockerImage || resolvedEggConfig.docker_image) {
+      minimalPayload.docker_image = dockerImage || resolvedEggConfig.docker_image;
+    }
+    if (startupCommand || resolvedEggConfig.startup) {
+      minimalPayload.startup = startupCommand || resolvedEggConfig.startup;
+    }
     payloads.push(minimalPayload);
 
     let response;
