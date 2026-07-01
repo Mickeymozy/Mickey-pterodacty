@@ -160,7 +160,9 @@ router.post('/auth/login', (req, res, next) => {
       }
 
       user.lastLogin = new Date();
-      await user.save().catch(() => {});
+      await user.save().catch((saveErr) => {
+        console.error('Failed to update lastLogin:', saveErr.message);
+      });
 
       const loginEmailSent = await sendEmail({
         to: user.email,
@@ -278,66 +280,78 @@ router.post('/auth/register', async (req, res) => {
 });
 
 router.post('/auth/reset-password', async (req, res) => {
-  const email = String(req.body.email || '').trim().toLowerCase();
+  try {
+    const email = String(req.body.email || '').trim().toLowerCase();
 
-  if (!email) {
-    req.flash('error_msg', '❌ Taarifa ya email inahitajika.');
-    return res.redirect('/login.html?tab=reset');
+    if (!email) {
+      req.flash('error_msg', '❌ Taarifa ya email inahitajika.');
+      return res.redirect('/login.html?tab=reset');
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      req.flash('error_msg', '❌ Barua pepe hiyo haijasajiliwa.');
+      return res.redirect('/login.html?tab=reset');
+    }
+
+    const token = generateToken();
+    user.resetToken = token;
+    user.resetTokenExpires = Date.now() + 30 * 60 * 1000;
+    await user.save();
+
+    const resetLink = `${process.env.APP_URL || 'http://localhost:3000'}/login.html?tab=reset&token=${token}`;
+    const sent = await sendEmail({
+      to: user.email,
+      subject: 'Reset your password',
+      text: `Use this link to reset your password: ${resetLink}`,
+      html: `<p>Use this link to reset your password:</p><p><a href="${resetLink}">${resetLink}</a></p>`
+    });
+
+    if (sent) {
+      req.flash('success_msg', `✅ Maelezo ya kubadili password yametumwa kwa ${email}`);
+    } else {
+      req.flash('error_msg', '❌ Haikuweza kutuma email ya reset. Angalia SMTP settings.');
+    }
+
+    res.redirect('/login.html?tab=reset');
+  } catch (err) {
+    console.error('❌ Password reset error:', err.message);
+    req.flash('error_msg', '❌ Imefeli kutuma maombi ya kubadili password.');
+    res.redirect('/login.html?tab=reset');
   }
-
-  const user = await User.findOne({ email });
-  if (!user) {
-    req.flash('error_msg', '❌ Barua pepe hiyo haijasajiliwa.');
-    return res.redirect('/login.html?tab=reset');
-  }
-
-  const token = generateToken();
-  user.resetToken = token;
-  user.resetTokenExpires = Date.now() + 30 * 60 * 1000;
-  await user.save();
-
-  const resetLink = `${process.env.APP_URL || 'http://localhost:3000'}/login.html?tab=reset&token=${token}`;
-  const sent = await sendEmail({
-    to: user.email,
-    subject: 'Reset your password',
-    text: `Use this link to reset your password: ${resetLink}`,
-    html: `<p>Use this link to reset your password:</p><p><a href="${resetLink}">${resetLink}</a></p>`
-  });
-
-  if (sent) {
-    req.flash('success_msg', `✅ Maelezo ya kubadili password yametumwa kwa ${email}`);
-  } else {
-    req.flash('error_msg', '❌ Haikuweza kutuma email ya reset. Angalia SMTP settings.');
-  }
-
-  res.redirect('/login.html?tab=reset');
 });
 
 router.post('/auth/reset-password/confirm', async (req, res) => {
-  const { token, password } = req.body;
+  try {
+    const { token, password } = req.body;
 
-  if (!token || !password || !isAcceptablePassword(password)) {
-    req.flash('error_msg', '❌ Token au password si sahihi. lazima iwe na angalau herufi 4 na isiwe ya kawaida.');
-    return res.redirect('/login.html?tab=reset');
+    if (!token || !password || !isAcceptablePassword(password)) {
+      req.flash('error_msg', '❌ Token au password si sahihi. lazima iwe na angalau herufi 4 na isiwe ya kawaida.');
+      return res.redirect('/login.html?tab=reset');
+    }
+
+    const user = await User.findOne({
+      resetToken: token,
+      resetTokenExpires: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      req.flash('error_msg', '❌ Token ya reset imepita au si sahihi.');
+      return res.redirect('/login.html?tab=reset');
+    }
+
+    user.password = password;
+    user.resetToken = null;
+    user.resetTokenExpires = null;
+    await user.save();
+
+    req.flash('success_msg', '✅ Password yako imebadilishwa.');
+    res.redirect('/login.html?tab=login');
+  } catch (err) {
+    console.error('❌ Password reset confirm error:', err.message);
+    req.flash('error_msg', '❌ Imefeli kubadili password.');
+    res.redirect('/login.html?tab=reset');
   }
-
-  const user = await User.findOne({
-    resetToken: token,
-    resetTokenExpires: { $gt: Date.now() }
-  });
-
-  if (!user) {
-    req.flash('error_msg', '❌ Token ya reset imepita au si sahihi.');
-    return res.redirect('/login.html?tab=reset');
-  }
-
-  user.password = password;
-  user.resetToken = null;
-  user.resetTokenExpires = null;
-  await user.save();
-
-  req.flash('success_msg', '✅ Password yako imebadilishwa.');
-  res.redirect('/login.html?tab=login');
 });
 
 router.get('/auth/github', (req, res) => {

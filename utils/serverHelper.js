@@ -218,7 +218,7 @@ async function resolvePteroUser(user) {
         return currentId;
       }
     } catch (err) {
-      // continue
+      console.warn(`Stored pteroId ${currentId} not found, resolving by username/email:`, err.message);
     }
   }
 
@@ -441,6 +441,7 @@ async function createServerFromPackage(user, packageId, serverName, options = {}
       response = await appApi.post('/servers', payload);
       break;
     } catch (err) {
+      console.warn(`Server creation attempt failed (payload variant ${payloads.indexOf(payload) + 1}/${payloads.length}):`, err.response?.data?.errors?.[0]?.detail || err.message);
       lastError = err;
     }
   }

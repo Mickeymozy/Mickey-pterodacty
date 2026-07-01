@@ -37,12 +37,15 @@ async function notifyUserAboutPayment(user, transaction, packageDoc, serverData)
     <p>Unaweza kuingia kwenye dashboard yako ukitumia email yako na password ya akaunti yako ili kuona server yako.</p>
   `;
 
-  await sendEmail({
+  const sent = await sendEmail({
     to: user.email,
     subject: 'Payment completed successfully',
     html: emailBody,
     text: `Malipo yako yamekamilika. Server yako imeandaliwa na unaweza kuiona kwenye dashboard.`
   });
+  if (!sent) {
+    console.warn(`Payment notification email could not be sent to ${user.email}`);
+  }
 }
 
 async function notifyAdminAboutPendingPayment(user, transaction, packageDoc, requestType = 'payment request') {
@@ -59,23 +62,29 @@ async function notifyAdminAboutPendingPayment(user, transaction, packageDoc, req
     <p>Please review it from the admin panel.</p>
   `;
 
-  await sendEmail({
+  const sent = await sendEmail({
     to: adminRecipients,
     subject,
     html,
     text: `A new ${requestType} is waiting for admin approval for ${user.email}.`
   });
+  if (!sent) {
+    console.warn(`Admin notification email could not be sent for ${requestType} by ${user.email}`);
+  }
 }
 
 async function notifyUserAboutPendingPayment(user, transaction, packageDoc, requestType = 'payment request') {
   if (!user?.email) return;
 
-  await sendEmail({
+  const sent = await sendEmail({
     to: user.email,
     subject: 'Payment request received',
     html: `<p>Maombi yako ya ${requestType} yamepokelewa.</p><p>Admin atakagua na kukubali hivi karibuni.</p><p><strong>Transaction:</strong> ${transaction?._id || 'N/A'}</p><p><strong>Package:</strong> ${packageDoc?.name || 'N/A'}</p>`,
     text: `Your ${requestType} has been received and is waiting for admin approval.`
   });
+  if (!sent) {
+    console.warn(`Pending payment notification email could not be sent to ${user.email}`);
+  }
 }
 
 /**
@@ -507,9 +516,15 @@ router.post('/webhook', async (req, res) => {
     }
 
     const reference = req.body?.reference || req.body?.order_id || req.body?.data?.reference;
-    const transaction = await Transaction.findById(reference).catch(() => null);
+    const transaction = await Transaction.findById(reference).catch((err) => {
+      console.warn(`Webhook: findById lookup failed for reference ${reference}:`, err.message);
+      return null;
+    });
     const fallbackTransaction = reference
-      ? await Transaction.findOne({ zenopayReference: reference }).catch(() => null)
+      ? await Transaction.findOne({ zenopayReference: reference }).catch((err) => {
+          console.warn(`Webhook: fallback lookup failed for reference ${reference}:`, err.message);
+          return null;
+        })
       : null;
     const targetTransaction = transaction || fallbackTransaction;
 
