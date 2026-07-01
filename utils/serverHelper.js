@@ -63,6 +63,15 @@ const eggConfigs = {
   }
 };
 
+function normalizeEnvironmentValue(value) {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed ? trimmed : undefined;
+  }
+  return String(value);
+}
+
 function buildServerEnvironment(eggConfig, options = {}) {
   const resolvedEggConfig = eggConfig || {};
   const baseEnvironment = {
@@ -71,14 +80,25 @@ function buildServerEnvironment(eggConfig, options = {}) {
     ...(resolvedEggConfig.environment || {})
   };
 
-  const requestedEnvironment = {
-    ...baseEnvironment,
-    ...(options.environment || {})
-  };
+  const requestedEnvironment = {};
+  Object.entries(baseEnvironment).forEach(([key, value]) => {
+    const normalizedValue = normalizeEnvironmentValue(value);
+    if (normalizedValue !== undefined) {
+      requestedEnvironment[key] = normalizedValue;
+    }
+  });
+
+  const providedEnvironment = options.environment || {};
+  Object.entries(providedEnvironment).forEach(([key, value]) => {
+    const normalizedValue = normalizeEnvironmentValue(value);
+    if (normalizedValue !== undefined) {
+      requestedEnvironment[key] = normalizedValue;
+    }
+  });
 
   const eggId = Number(resolvedEggConfig.id);
-  const startupFile = options.startupFile || options.mainFile || options.main_file;
-  const startupCommand = options.startupCommand;
+  const startupFile = normalizeEnvironmentValue(options.startupFile || options.mainFile || options.main_file);
+  const startupCommand = normalizeEnvironmentValue(options.startupCommand);
 
   if (startupFile) {
     if (eggId === 16) {
@@ -87,13 +107,27 @@ function buildServerEnvironment(eggConfig, options = {}) {
       requestedEnvironment.PY_FILE = startupFile;
     } else if (eggId === 28) {
       requestedEnvironment.SERVER_JARFILE = startupFile;
+      requestedEnvironment.JARFILE = startupFile;
     } else if (!requestedEnvironment.MAIN_FILE && !requestedEnvironment.PY_FILE && !requestedEnvironment.SERVER_JARFILE && !requestedEnvironment.JARFILE) {
       requestedEnvironment.MAIN_FILE = startupFile;
     }
+  } else if (eggId === 16 && !requestedEnvironment.MAIN_FILE) {
+    requestedEnvironment.MAIN_FILE = 'index.js';
+  } else if (eggId === 27 && !requestedEnvironment.PY_FILE) {
+    requestedEnvironment.PY_FILE = 'main.py';
+  } else if (eggId === 28 && !requestedEnvironment.SERVER_JARFILE && !requestedEnvironment.JARFILE) {
+    requestedEnvironment.SERVER_JARFILE = 'server.jar';
+    requestedEnvironment.JARFILE = 'server.jar';
   }
 
   if (startupCommand) {
     requestedEnvironment.STARTUP_CMD = startupCommand;
+  } else if (eggId === 16 && !requestedEnvironment.STARTUP_CMD) {
+    requestedEnvironment.STARTUP_CMD = 'npm start';
+  } else if (eggId === 27 && !requestedEnvironment.STARTUP_CMD) {
+    requestedEnvironment.STARTUP_CMD = 'python3 main.py';
+  } else if (eggId === 28 && !requestedEnvironment.STARTUP_CMD) {
+    requestedEnvironment.STARTUP_CMD = 'java -jar server.jar';
   }
 
   return Object.fromEntries(
