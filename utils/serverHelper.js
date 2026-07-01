@@ -267,6 +267,7 @@ async function createServerFromPackage(user, packageId, serverName, options = {}
     throw new Error('No valid locations available.');
   }
 
+  const allocationId = await getFirstAvailableAllocation();
   const requestedEggValue = options?.eggId ?? options?.egg ?? pkg.serverConfig?.eggId;
   const eggLookup = String(requestedEggValue || '').trim().toLowerCase();
   const aliasMap = { nodejs: '16', node: '16', python: '27', java: '28' };
@@ -347,6 +348,13 @@ async function createServerFromPackage(user, packageId, serverName, options = {}
 
   const payloads = [basePayload];
 
+  if (allocationId) {
+    payloads.push({
+      ...basePayload,
+      allocation: { default: allocationId }
+    });
+  }
+
   const fallbackPayload = {
     ...basePayload,
     deploy: {
@@ -355,6 +363,9 @@ async function createServerFromPackage(user, packageId, serverName, options = {}
       port_range: []
     }
   };
+  if (allocationId) {
+    fallbackPayload.allocation = { default: allocationId };
+  }
   payloads.push(fallbackPayload);
 
   const minimalPayload = {
@@ -382,6 +393,9 @@ async function createServerFromPackage(user, packageId, serverName, options = {}
   }
   if (options.startupCommand || resolvedEggConfig.startup) {
     minimalPayload.startup = options.startupCommand || resolvedEggConfig.startup;
+  }
+  if (allocationId) {
+    minimalPayload.allocation = { default: allocationId };
   }
   payloads.push(minimalPayload);
 

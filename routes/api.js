@@ -572,6 +572,7 @@ router.post('/api/servers/create', requireAuth, async (req, res) => {
       });
     }
 
+    const allocationId = await getFirstAvailableAllocation();
     const pteroUserId = Number(resolvedPteroId);
     const panelUser = await appApi.get(`/users/${pteroUserId}`);
     if (!panelUser?.data?.attributes?.id) {
@@ -617,6 +618,13 @@ router.post('/api/servers/create', requireAuth, async (req, res) => {
 
     const payloads = [basePayload];
 
+    if (allocationId) {
+      payloads.push({
+        ...basePayload,
+        allocation: { default: allocationId }
+      });
+    }
+
     const fallbackPayload = {
       ...basePayload,
       deploy: {
@@ -625,6 +633,9 @@ router.post('/api/servers/create', requireAuth, async (req, res) => {
         port_range: []
       }
     };
+    if (allocationId) {
+      fallbackPayload.allocation = { default: allocationId };
+    }
     payloads.push(fallbackPayload);
 
     const minimalPayload = {
@@ -652,6 +663,9 @@ router.post('/api/servers/create', requireAuth, async (req, res) => {
     }
     if (startupCommand || resolvedEggConfig.startup) {
       minimalPayload.startup = startupCommand || resolvedEggConfig.startup;
+    }
+    if (allocationId) {
+      minimalPayload.allocation = { default: allocationId };
     }
     payloads.push(minimalPayload);
 
