@@ -114,6 +114,30 @@ async function getFirstValidLocation() {
   }
 }
 
+async function getFirstAvailableAllocation() {
+  if (!appApi) return null;
+  try {
+    const nodesResponse = await appApi.get('/nodes?per_page=100');
+    const nodes = nodesResponse.data?.data || [];
+
+    for (const node of nodes) {
+      const nodeId = node?.attributes?.id;
+      if (!nodeId) continue;
+
+      const response = await appApi.get(`/nodes/${nodeId}/allocations?per_page=1000`);
+      const allocations = response.data?.data || [];
+      const firstUnassigned = allocations.find((allocation) => !allocation?.attributes?.assigned);
+      if (firstUnassigned?.attributes?.id) {
+        return Number(firstUnassigned.attributes.id);
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to fetch available allocations:', err.message);
+  }
+
+  return null;
+}
+
 async function fetchPanelEggOptions() {
   if (!appApi) return [];
 
@@ -243,6 +267,8 @@ async function createServerFromPackage(user, packageId, serverName) {
     throw new Error('No valid locations available.');
   }
 
+  const allocationId = await getFirstAvailableAllocation();
+
   // Fetch egg details
   let resolvedEggConfig = eggConfigs[pkg.serverConfig.eggId];
   if (!resolvedEggConfig) {
@@ -267,19 +293,17 @@ async function createServerFromPackage(user, packageId, serverName) {
     startupCommand: pkg.serverConfig.startupCommand
   });
 
-  const payload = {
+  const basePayload = {
     name,
     user: pteroUserId,
     egg: Number(resolvedEggConfig.id),
-    docker_image: resolvedEggConfig.docker_image,
-    startup: resolvedEggConfig.startup,
     environment: safeEnvironment,
     limits: {
       memory: Number(memory) || 1024,
       swap: 0,
       disk: Number(disk) || 2048,
       io: 500,
-      cpu: cpu,
+      cpu: Number(cpu) || 100,
       oom_disabled: false
     },
     feature_limits: {
@@ -295,7 +319,47 @@ async function createServerFromPackage(user, packageId, serverName) {
     start_on_completion: true
   };
 
-  const response = await appApi.post('/servers', payload);
+  if (resolvedEggConfig.docker_image) {
+    basePayload.docker_image = resolvedEggConfig.docker_image;
+  }
+  if (resolvedEggConfig.startup) {
+    basePayload.startup = resolvedEggConfig.startup;
+  }
+
+  const payloads = [basePayload];
+  if (allocationId) {
+    payloads.push({ ...basePayload, allocation: allocationId });
+  }
+
+  const fallbackPayload = {
+    ...basePayload,
+    deploy: {
+      locations: [locationId],
+      dedicated_ip: false,
+      port_range: []
+    }
+  };
+  delete fallbackPayload.docker_image;
+  delete fallbackPayload.startup;
+  payloads.push(fallbackPayload);
+
+  let response;
+  let lastError;
+
+  for (const payload of payloads) {
+    try {
+      response = await appApi.post('/servers', payload);
+      break;
+    } catch (err) {
+      lastError = err;
+    }
+  }
+
+  if (!response) {
+    const status = lastError?.response?.status;
+    const detail = lastError?.response?.data?.errors?.[0]?.detail || lastError?.response?.data?.message || lastError?.message;
+    throw new Error(detail || 'Pterodactyl rejected the server payload.');
+  }
 
   return {
     success: true,
@@ -308,6 +372,7 @@ module.exports = {
   createServerFromPackage,
   resolvePteroUser,
   getFirstValidLocation,
+  getFirstAvailableAllocation,
   fetchPanelEggOptions,
   buildServerEnvironment,
   sanitizeServer
