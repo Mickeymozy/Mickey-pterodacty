@@ -132,6 +132,22 @@
                 <select id="eggSelect" class="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-4 py-2.5 text-sm text-white outline-none focus:border-indigo-500"></select>
               </div>
 
+              <div class="grid gap-3 md:grid-cols-2">
+                <div>
+                  <label for="dockerImage" class="mb-1 block text-xs font-medium text-slate-300">Docker Image *</label>
+                  <input id="dockerImage" required placeholder="mfano: ghcr.io/parkervcp/yolks:nodejs_21" class="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-4 py-2.5 text-sm text-white outline-none focus:border-indigo-500" />
+                </div>
+                <div>
+                  <label for="startupFile" class="mb-1 block text-xs font-medium text-slate-300">Startup File *</label>
+                  <input id="startupFile" required placeholder="index.js" class="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-4 py-2.5 text-sm text-white outline-none focus:border-indigo-500" />
+                </div>
+              </div>
+
+              <div>
+                <label for="startupCommand" class="mb-1 block text-xs font-medium text-slate-300">Startup Command *</label>
+                <input id="startupCommand" required placeholder="npm start" class="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-4 py-2.5 text-sm text-white outline-none focus:border-indigo-500" />
+              </div>
+
               <div>
                 <label for="packageSelect" class="mb-1 block text-xs font-medium text-slate-300">Chagua Package (Kifurushi) *</label>
                 <select id="packageSelect" onchange="updatePackageSpecsDisplay()" class="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-4 py-2.5 text-sm text-white outline-none focus:border-indigo-500"></select>
@@ -225,6 +241,7 @@
 
   <script>
     let globalPackages = []; // Itahifadhi package zote kutoka API ili kusoma specs live
+    let globalEggs = []; // Itahifadhi egg options kutoka panel ili kujaza defaults za deploy
     let currentCoins = 0; // Salio halisi la coins kutoka mfumo (chanzo kimoja kwa kurasa zote)
 
     // Soma coins kwa namna sawa kila mahali (formatting moja)
@@ -430,6 +447,20 @@
       }
     });
 
+    function applyEggDefaults() {
+      const eggSelect = document.getElementById('eggSelect');
+      const dockerInput = document.getElementById('dockerImage');
+      const startupFileInput = document.getElementById('startupFile');
+      const startupCommandInput = document.getElementById('startupCommand');
+      const selectedEgg = globalEggs.find(e => String(e.id) === String(eggSelect?.value)) || globalEggs[0] || {};
+      const eggId = Number(selectedEgg.id);
+      const defaultFile = eggId === 27 ? 'main.py' : eggId === 28 ? 'server.jar' : 'index.js';
+      const defaultCommand = eggId === 27 ? 'python3 main.py' : eggId === 28 ? 'java -jar server.jar' : 'npm start';
+      if (dockerInput) dockerInput.value = selectedEgg.docker_image || dockerInput.value || '';
+      if (startupFileInput) startupFileInput.value = startupFileInput.value || defaultFile;
+      if (startupCommandInput) startupCommandInput.value = startupCommandInput.value || defaultCommand;
+    }
+
     // PACKAGES & EGGS CONFIGURATION DISPLAYER
     async function fetchConfigs() {
       try {
@@ -437,7 +468,9 @@
         const eggData = await eggRes.json().catch(() => ({}));
         const eggSelect = document.getElementById('eggSelect');
         if (eggData.success && eggData.eggs) {
-          eggSelect.innerHTML = eggData.eggs.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+          globalEggs = eggData.eggs;
+          eggSelect.innerHTML = globalEggs.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+          applyEggDefaults();
         }
 
         const pkgRes = await fetch('/api/packages');
@@ -469,6 +502,7 @@
 
     // FORM COMPILATION AND DEPLOYMENT
     document.getElementById('paymentMode')?.addEventListener('change', toggleManualPaymentFields);
+    document.getElementById('eggSelect')?.addEventListener('change', applyEggDefaults);
     toggleManualPaymentFields();
 
     createForm.addEventListener('submit', async (e) => {
@@ -482,14 +516,24 @@
       const paymentMode = document.getElementById('paymentMode').value;
       const phone = document.getElementById('serverPhone').value.trim();
       const proofText = document.getElementById('paymentProof').value.trim();
+      const dockerImage = document.getElementById('dockerImage').value.trim();
+      const startupFile = document.getElementById('startupFile').value.trim();
+      const startupCommand = document.getElementById('startupCommand').value.trim();
       const paymentMethod = paymentMode === 'coins' ? 'coins' : paymentMode === 'manual' ? 'manual' : 'sonicpesa';
+      if (!dockerImage || !startupFile || !startupCommand) {
+        formMessage.innerHTML = '<span class="text-red-400">❌ Jaza Docker Image, Startup File, na Startup Command kabla ya kuendelea.</span>';
+        return;
+      }
       const payload = {
         packageId,
         serverName: document.getElementById('serverName').value,
         paymentMethod,
         phone,
         proofText,
-        eggId: document.getElementById('eggSelect').value
+        eggId: document.getElementById('eggSelect').value,
+        dockerImage,
+        startupFile,
+        startupCommand
       };
 
       try {

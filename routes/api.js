@@ -539,7 +539,7 @@ router.post('/api/servers/create', requireAuth, async (req, res) => {
   }
 
   try {
-    const { name, egg, cpu, memory, disk, startupFile, startupCommand, mainFile, main_file, environment } = req.body;
+    const { name, egg, cpu, memory, disk, startupFile, startupCommand, mainFile, main_file, environment, dockerImage } = req.body;
     const eggConfig = await resolveEggConfig(egg);
 
     if (!name || !eggConfig) {
@@ -609,11 +609,11 @@ router.post('/api/servers/create', requireAuth, async (req, res) => {
       start_on_completion: true
     };
 
-    if (resolvedEggConfig.docker_image) {
-      basePayload.docker_image = resolvedEggConfig.docker_image;
+    if (dockerImage || resolvedEggConfig.docker_image) {
+      basePayload.docker_image = dockerImage || resolvedEggConfig.docker_image;
     }
-    if (resolvedEggConfig.startup) {
-      basePayload.startup = resolvedEggConfig.startup;
+    if (startupCommand || resolvedEggConfig.startup) {
+      basePayload.startup = startupCommand || resolvedEggConfig.startup;
     }
 
     const payloads = [basePayload];
@@ -822,13 +822,13 @@ router.delete('/api/servers/:id', requireAuth, async (req, res) => {
 // Create server from package
 router.post('/api/servers/from-package', requireAuth, async (req, res) => {
   try {
-    const { packageId, serverName, eggId } = req.body;
+    const { packageId, serverName, eggId, dockerImage, startupFile, startupCommand } = req.body;
     
     if (!packageId) {
       return res.status(400).json({ success: false, error: 'Package ID is required.' });
     }
     
-    const serverData = await createServerFromPackage(req.user, packageId, serverName, { eggId });
+    const serverData = await createServerFromPackage(req.user, packageId, serverName, { eggId, dockerImage, startupFile, startupCommand });
 
     res.json({
       success: true,

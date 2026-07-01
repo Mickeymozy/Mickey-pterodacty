@@ -50,7 +50,7 @@ async function notifyUserAboutPayment(user, transaction, packageDoc, serverData)
  */
 router.post('/checkout', authenticate, async (req, res) => {
   try {
-    const { packageId, paymentMethod, serverName, phone, proofText, eggId } = req.body;
+    const { packageId, paymentMethod, serverName, phone, proofText, eggId, dockerImage, startupFile, startupCommand } = req.body;
     const userId = req.user._id;
 
     if (!packageId) {
@@ -92,7 +92,7 @@ router.post('/checkout', authenticate, async (req, res) => {
         await user.save();
 
         // Create server from package
-        const serverData = await createServerFromPackage(user, packageId, serverName, { eggId });
+        const serverData = await createServerFromPackage(user, packageId, serverName, { eggId, dockerImage, startupFile, startupCommand });
 
         // Record transaction
         const transaction = new Transaction({
@@ -153,6 +153,9 @@ router.post('/checkout', authenticate, async (req, res) => {
           proofText,
           paymentMethod: 'manual',
           eggId,
+          dockerImage,
+          startupFile,
+          startupCommand,
           eggName: pkg?.serverConfig?.eggName || 'Node.js'
         }
       });
@@ -574,7 +577,12 @@ router.post('/admin/:transactionId/approve', requireAdmin, async (req, res) => {
     if (transaction.type === 'purchase' && transaction.packageId) {
       const pkg = await ServerPackage.findById(transaction.packageId);
       const serverName = transaction.metadata?.serverName || `${pkg?.name || 'server'}-${Date.now()}`;
-      const serverData = await createServerFromPackage(user, transaction.packageId, serverName, { eggId: transaction.metadata?.eggId });
+      const serverData = await createServerFromPackage(user, transaction.packageId, serverName, {
+        eggId: transaction.metadata?.eggId,
+        dockerImage: transaction.metadata?.dockerImage,
+        startupFile: transaction.metadata?.startupFile,
+        startupCommand: transaction.metadata?.startupCommand
+      });
       transaction.serverId = serverData?.server?.identifier || serverData?.server?.id;
       transaction.notes = transaction.notes || `Server created after admin approval: ${serverName}`;
       transaction.processedBy = req.user?._id;

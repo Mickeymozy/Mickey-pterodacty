@@ -309,8 +309,9 @@ async function createServerFromPackage(user, packageId, serverName, options = {}
   const cpu = pkg.specifications.cpu * 100; // Convert cores to percentage
 
   const safeEnvironment = buildServerEnvironment(resolvedEggConfig, {
-    startupFile: pkg.serverConfig.startupFile,
-    startupCommand: pkg.serverConfig.startupCommand
+    startupFile: options.startupFile || pkg.serverConfig.startupFile,
+    startupCommand: options.startupCommand || pkg.serverConfig.startupCommand,
+    environment: options.environment
   });
 
   const basePayload = {
@@ -339,11 +340,11 @@ async function createServerFromPackage(user, packageId, serverName, options = {}
     start_on_completion: true
   };
 
-  if (resolvedEggConfig.docker_image) {
-    basePayload.docker_image = resolvedEggConfig.docker_image;
+  if (options.dockerImage || resolvedEggConfig.docker_image) {
+    basePayload.docker_image = options.dockerImage || resolvedEggConfig.docker_image;
   }
-  if (resolvedEggConfig.startup) {
-    basePayload.startup = resolvedEggConfig.startup;
+  if (options.startupCommand || resolvedEggConfig.startup) {
+    basePayload.startup = options.startupCommand || resolvedEggConfig.startup;
   }
 
   const payloads = [basePayload];
