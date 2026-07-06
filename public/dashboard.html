@@ -491,12 +491,12 @@
       const pkg = globalPackages.find(p => (p._id || p.id) === selectedId);
       
       if (pkg) {
+        const specs = pkg.specifications || {};
         document.getElementById('specName').textContent = pkg.name;
-        // Kama data zipo ndani ya object ya pricing au ipo straight forward
-        document.getElementById('specRam').textContent = pkg.memory ? `${pkg.memory} MB` : `${pkg.ram || 1024} MB`;
-        document.getElementById('specCpu').textContent = `${pkg.cpu || 100}% vCore`;
-        document.getElementById('specDisk').textContent = pkg.disk ? `${pkg.disk} MB` : `${pkg.storage || 2048} MB`;
-        document.getElementById('specCost').textContent = `${pkg.coinsCost || pkg.pricing?.coinsCost || 0} Coins/Mo`;
+        document.getElementById('specRam').textContent = `${specs.ram || pkg.memory || 1024} MB`;
+        document.getElementById('specCpu').textContent = `${specs.cpu || pkg.cpu || 100} Core(s)`;
+        document.getElementById('specDisk').textContent = `${specs.disk || pkg.disk || pkg.storage || 2} GB`;
+        document.getElementById('specCost').textContent = `${pkg.pricing?.coinsCost || pkg.coinsCost || 0} Coins/Mo`;
       }
     }
 

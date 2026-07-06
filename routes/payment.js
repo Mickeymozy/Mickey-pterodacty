@@ -10,6 +10,10 @@ const Transaction = require('../models/Transaction');
 const User = require('../models/User');
 const { createServerFromPackage } = require('../utils/serverHelper');
 const sendEmail = require('../utils/email');
+const axios = require('axios');
+const PTERODACTYL_URL = process.env.PTERODACTYL_URL?.replace(/\/$/, '');
+const PTERODACTYL_APP_API_KEY = process.env.PTERODACTYL_APP_API_KEY;
+const appApi = PTERODACTYL_URL && PTERODACTYL_APP_API_KEY ? axios.create({ baseURL: `${PTERODACTYL_URL}/api/application`, headers: { Authorization: `Bearer ${PTERODACTYL_APP_API_KEY}`, 'Content-Type': 'application/json', Accept: 'application/json' }, timeout: 10000 }) : null;
 const { requireAdmin, ADMIN_EMAILS } = require('../middleware/auth');
 
 const authenticate = (req, res, next) => {
@@ -114,22 +118,34 @@ router.post('/checkout', authenticate, async (req, res) => {
       });
     }
 
-    // Handle coin payment separately
+    // Handle coin payment separately: create server first, then atomically deduct coins
     if (useWalletPayment) {
-      if ((user.coins || 0) < coinsCost) {
-        return res.status(400).json({
-          success: false,
-          message: `Insufficient coins. You need ${coinsCost} coins but have ${user.coins || 0}.`
-        });
-      }
-
       try {
-        // Deduct coins
-        user.coins = (user.coins || 0) - coinsCost;
-        await user.save();
-
-        // Create server from package
+        // Create server from package first
         const serverData = await createServerFromPackage(user, packageId, serverName, { eggId, dockerImage, startupFile, startupCommand });
+
+        // Atomically deduct coins: ensure user still has enough
+        const updatedUser = await User.findOneAndUpdate(
+          { _id: userId, coins: { $gte: coinsCost } },
+          { $inc: { coins: -coinsCost } },
+          { new: true }
+        );
+
+        if (!updatedUser) {
+          // Deduction failed - attempt to remove created server as rollback
+          try {
+            if (appApi && serverData?.server?.id) {
+              await appApi.delete(`/servers/${serverData.server.id}`);
+            }
+          } catch (delErr) {
+            console.error('Failed to delete server after insufficient coins:', delErr?.response?.data || delErr.message || delErr);
+          }
+
+          return res.status(400).json({
+            success: false,
+            message: `Insufficient coins at billing time. Server removed.`
+          });
+        }
 
         // Record transaction
         const transaction = new Transaction({
@@ -142,7 +158,8 @@ router.post('/checkout', authenticate, async (req, res) => {
           paymentProvider: 'wallet',
           status: 'completed',
           description: `Purchase of ${pkg.name} package`,
-          completedAt: new Date()
+          completedAt: new Date(),
+          serverId: serverData?.server?.identifier || serverData?.server?.id
         });
         await transaction.save();
 
@@ -152,7 +169,7 @@ router.post('/checkout', authenticate, async (req, res) => {
           data: {
             transactionId: transaction._id,
             coinsDeducted: coinsCost,
-            remainingCoins: user.coins,
+            remainingCoins: updatedUser.coins,
             package: {
               name: pkg.name,
               coins: coinsCost
@@ -161,14 +178,10 @@ router.post('/checkout', authenticate, async (req, res) => {
           }
         });
       } catch (error) {
-        // Refund coins if server creation fails
-        user.coins = (user.coins || 0) + coinsCost;
-        await user.save();
-
-        console.error('Server creation error:', error.message);
+        console.error('Server creation/payment error:', error.message || error);
         return res.status(500).json({
           success: false,
-          message: error.message || 'Failed to create server. Coins refunded.'
+          message: error.message || 'Failed to create server or deduct coins.'
         });
       }
     } else if (useManualPayment) {

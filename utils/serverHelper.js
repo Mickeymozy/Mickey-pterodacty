@@ -266,6 +266,20 @@ function sanitizeServer(server) {
   };
 }
 
+async function deleteServer(serverId) {
+  if (!appApi) {
+    throw new Error('Pterodactyl API is not configured.');
+  }
+
+  try {
+    await appApi.delete(`/servers/${serverId}`);
+    return true;
+  } catch (err) {
+    console.error('Failed to delete server:', err?.response?.data || err.message || err);
+    return false;
+  }
+}
+
 /**
  * Create a server from a package configuration
  * @param {Object} user - The user object
@@ -465,5 +479,6 @@ module.exports = {
   getFirstAvailableAllocation,
   fetchPanelEggOptions,
   buildServerEnvironment,
-  sanitizeServer
+  sanitizeServer,
+  deleteServer
 };
