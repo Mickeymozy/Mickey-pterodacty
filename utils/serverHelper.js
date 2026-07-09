@@ -266,6 +266,33 @@ function sanitizeServer(server) {
   };
 }
 
+function buildPteroLimitsFromPackage(specifications = {}) {
+  const cpuValue = Number(specifications?.cpu ?? specifications?.cores ?? 0);
+  const ramValue = Number(specifications?.ram ?? specifications?.memory ?? 0);
+  const diskValue = Number(specifications?.disk ?? specifications?.storage ?? 0);
+
+  const cpu = Number.isFinite(cpuValue) && cpuValue > 0
+    ? (cpuValue >= 100 ? Math.round(cpuValue) : Math.round(cpuValue * 100))
+    : 100;
+
+  const memory = Number.isFinite(ramValue) && ramValue > 0
+    ? Math.round(ramValue)
+    : 1024;
+
+  const disk = Number.isFinite(diskValue) && diskValue > 0
+    ? (diskValue >= 1024 ? Math.round(diskValue) : Math.round(diskValue * 1024))
+    : 2048;
+
+  return {
+    memory: Math.max(256, memory),
+    swap: 0,
+    disk: Math.max(1024, disk),
+    io: 500,
+    cpu: Math.max(25, cpu),
+    oom_disabled: false
+  };
+}
+
 async function deleteServer(serverId) {
   if (!appApi) {
     throw new Error('Pterodactyl API is not configured.');
@@ -351,9 +378,7 @@ async function createServerFromPackage(user, packageId, serverName, options = {}
   }
 
   const name = serverName || pkg.name + '-' + Date.now();
-  const memory = pkg.specifications.ram;
-  const disk = pkg.specifications.disk * 1024; // Convert GB to MB
-  const cpu = pkg.specifications.cpu * 100; // Convert cores to percentage
+  const limits = buildPteroLimitsFromPackage(pkg.specifications || {});
 
   const safeEnvironment = buildServerEnvironment(resolvedEggConfig, {
     startupFile: options.startupFile || pkg.serverConfig.startupFile,
@@ -366,14 +391,7 @@ async function createServerFromPackage(user, packageId, serverName, options = {}
     user: pteroUserId,
     egg: Number(resolvedEggConfig.id),
     environment: safeEnvironment,
-    limits: {
-      memory: Number(memory) || 1024,
-      swap: 0,
-      disk: Number(disk) || 2048,
-      io: 500,
-      cpu: Number(cpu) || 100,
-      oom_disabled: false
-    },
+    limits,
     feature_limits: {
       databases: pkg.specifications.databases || 0,
       backups: pkg.specifications.backups || 1,
@@ -421,14 +439,7 @@ async function createServerFromPackage(user, packageId, serverName, options = {}
     user: pteroUserId,
     egg: Number(resolvedEggConfig.id),
     environment: safeEnvironment,
-    limits: {
-      memory: Number(memory) || 1024,
-      swap: 0,
-      disk: Number(disk) || 2048,
-      io: 500,
-      cpu: Number(cpu) || 100,
-      oom_disabled: false
-    },
+    limits,
     feature_limits: {
       databases: pkg.specifications.databases || 0,
       backups: pkg.specifications.backups || 1,
@@ -474,6 +485,7 @@ async function createServerFromPackage(user, packageId, serverName, options = {}
 
 module.exports = {
   createServerFromPackage,
+  buildPteroLimitsFromPackage,
   resolvePteroUser,
   getFirstValidLocation,
   getFirstAvailableAllocation,
