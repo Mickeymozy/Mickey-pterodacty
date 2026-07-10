@@ -4,6 +4,7 @@
 
 const axios = require('axios');
 const ServerPackage = require('../models/ServerPackage');
+const sendEmail = require('./email');
 
 const PTERODACTYL_URL = process.env.PTERODACTYL_URL?.replace(/\/$/, '');
 const PTERODACTYL_APP_API_KEY = process.env.PTERODACTYL_APP_API_KEY;
@@ -272,7 +273,7 @@ function buildPteroLimitsFromPackage(specifications = {}) {
   const diskValue = Number(specifications?.disk ?? specifications?.storage ?? 0);
 
   const cpu = Number.isFinite(cpuValue) && cpuValue > 0
-    ? (cpuValue >= 100 ? Math.round(cpuValue) : Math.round(cpuValue * 100))
+    ? (cpuValue < 1 ? Math.round(cpuValue * 100) : Math.round(cpuValue))
     : 100;
 
   const memory = Number.isFinite(ramValue) && ramValue > 0
@@ -476,10 +477,45 @@ async function createServerFromPackage(user, packageId, serverName, options = {}
     throw new Error(detail || 'Pterodactyl rejected the server payload.');
   }
 
+  const createdAttributes = response?.data?.attributes || {};
+  const accessDetails = {
+    panelUrl: process.env.PTERODACTYL_URL || '',
+    username: user?.username || user?.displayName || user?.email || '',
+    email: user?.email || '',
+    password: options.password || process.env.DEFAULT_SERVER_PASSWORD || process.env.SERVER_DEFAULT_PASSWORD || 'MICKEY24@',
+    serverName: createdAttributes.name || name,
+    serverId: createdAttributes.identifier || createdAttributes.uuid || createdAttributes.id || '',
+    ipAddress: '',
+    port: '',
+    sftpHost: process.env.PTERODACTYL_URL || '',
+    sftpUser: user?.username || user?.displayName || ''
+  };
+
+  if (options.sendEmail !== false && user?.email) {
+    const emailBody = `
+      <p>Server yako imeundwa kikamilifu.</p>
+      <p><strong>Package:</strong> ${pkg.name}</p>
+      <p><strong>Server:</strong> ${accessDetails.serverName}</p>
+      <p><strong>Panel:</strong> ${accessDetails.panelUrl}</p>
+      <p><strong>Username:</strong> ${accessDetails.username}</p>
+      <p><strong>Email:</strong> ${accessDetails.email}</p>
+      <p><strong>Password:</strong> ${accessDetails.password}</p>
+      <p>Unaweza kuingia kwenye dashboard yako kuona server yako na taarifa za ufikiaji.</p>
+    `;
+
+    await sendEmail({
+      to: user.email,
+      subject: 'Server created successfully',
+      html: emailBody,
+      text: `Server yako imeundwa. Jina: ${accessDetails.serverName}. Panel: ${accessDetails.panelUrl}.`
+    });
+  }
+
   return {
     success: true,
     server: sanitizeServer(response.data),
-    packageId: packageId
+    packageId: packageId,
+    access: accessDetails
   };
 }
 

@@ -122,7 +122,7 @@ router.post('/checkout', authenticate, async (req, res) => {
     if (useWalletPayment) {
       try {
         // Create server from package first
-        const serverData = await createServerFromPackage(user, packageId, serverName, { eggId, dockerImage, startupFile, startupCommand });
+        const serverData = await createServerFromPackage(user, packageId, serverName, { eggId, dockerImage, startupFile, startupCommand, sendEmail: false });
 
         // Atomically deduct coins: ensure user still has enough
         const updatedUser = await User.findOneAndUpdate(
@@ -453,7 +453,7 @@ router.get('/verify/:transactionId', authenticate, async (req, res) => {
           if (!isTopup && transaction.packageId) {
             try {
               const serverName = transaction.metadata?.serverName || `${transaction.packageId.name}-${Date.now()}`;
-              const serverData = await createServerFromPackage(user, transaction.packageId._id, serverName);
+              const serverData = await createServerFromPackage(user, transaction.packageId._id, serverName, { sendEmail: false });
               transaction.serverId = serverData?.server?.identifier || serverData?.server?.id;
               transaction.notes = `Server created: ${serverName}`;
               await transaction.save();
@@ -635,6 +635,7 @@ router.post('/admin/:transactionId/approve', requireAdmin, async (req, res) => {
       const pkg = await ServerPackage.findById(transaction.packageId);
       const serverName = transaction.metadata?.serverName || `${pkg?.name || 'server'}-${Date.now()}`;
       const serverData = await createServerFromPackage(user, transaction.packageId, serverName, {
+        sendEmail: false,
         eggId: transaction.metadata?.eggId,
         dockerImage: transaction.metadata?.dockerImage,
         startupFile: transaction.metadata?.startupFile,

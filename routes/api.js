@@ -825,11 +825,64 @@ router.delete('/api/servers/:id', requireAuth, async (req, res) => {
   }
 
   try {
-    const resolvedServerId = await resolveServerId(req.params.id);
-    const response = await appApi.delete(`/servers/${encodeURIComponent(resolvedServerId)}`);
+    const serverRef = await resolveServerRef(req.params.id);
+    const serverResponse = await appApi.get(`/servers/${encodeURIComponent(serverRef.id)}`);
+    const serverAttributes = serverResponse.data?.attributes || {};
+    const expectedName = String(serverAttributes.name || serverAttributes.identifier || '').trim();
+    const confirmServerName = String(req.body?.confirmServerName || '').trim();
+
+    if (expectedName && confirmServerName !== expectedName) {
+      return res.status(400).json({ success: false, error: 'Andika jina la server kwa usahihi ili kuithibitisha ufutaji.' });
+    }
+
+    const response = await appApi.delete(`/servers/${encodeURIComponent(serverRef.id)}`);
     res.json({ success: true, data: response.data });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message || 'Failed to delete server.' });
+    const status = err.response?.status;
+    const message = err.response?.data?.errors?.[0]?.detail || err.response?.data?.message || err.message || 'Failed to delete server.';
+    res.status(status && status !== 500 ? status : 500).json({ success: false, error: message });
+  }
+});
+
+// External API endpoint for other websites
+router.get('/api/external/servers/:id', async (req, res) => {
+  const providedKey = req.get('x-api-key') || req.query.apiKey || req.query.key || '';
+  const expectedKey = process.env.EXTERNAL_API_KEY || process.env.API_KEY || process.env.PTERODACTYL_APP_API_KEY;
+
+  if (!expectedKey || providedKey !== expectedKey) {
+    return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  }
+
+  if (!appApi) {
+    return res.status(503).json({ success: false, error: 'Pterodactyl API is not configured.' });
+  }
+
+  try {
+    const ref = await resolveServerRef(req.params.id);
+    const [serverResponse, connectionDetails] = await Promise.all([
+      appApi.get(`/servers/${encodeURIComponent(ref.id)}`),
+      getServerConnectionDetails(ref)
+    ]);
+
+    const attrs = serverResponse.data?.attributes || {};
+    res.json({
+      success: true,
+      server: {
+        id: attrs.id,
+        uuid: attrs.uuid,
+        identifier: attrs.identifier,
+        name: attrs.name,
+        status: attrs.status,
+        limits: attrs.limits || {},
+        ipAddress: connectionDetails.ipAddress || '',
+        port: connectionDetails.port || '',
+        sftpHost: connectionDetails.sftpHost || ''
+      }
+    });
+  } catch (err) {
+    const status = err.response?.status;
+    const message = err.response?.data?.errors?.[0]?.detail || err.response?.data?.message || err.message || 'Failed to load external server details.';
+    res.status(status && status !== 500 ? status : 500).json({ success: false, error: message });
   }
 });
 
