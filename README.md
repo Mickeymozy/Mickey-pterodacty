@@ -125,6 +125,10 @@ project/
 
 ## 🔗 API Endpoints
 
+### Base URL
+- Production: `https://mickey-pterodacty.vercel.app`
+- Local: `http://localhost:3000`
+
 ### Authentication
 - `POST /auth/login` - User login
 - `POST /auth/register` - User registration
@@ -151,6 +155,11 @@ project/
 - `POST /api/payment/webhook` - ZenoPay webhook
 - `GET /api/payment/transactions` - User history
 - `GET /api/payment/methods` - Payment methods
+
+### External integration API
+- `GET /api/external/servers/:id` - Fetch server info for external websites
+
+See [`API_REFERENCE.md`](API_REFERENCE.md) for full endpoint documentation, examples, and auth details.
 
 ## 🔧 Configuration
 
