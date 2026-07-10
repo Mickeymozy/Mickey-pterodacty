@@ -41,7 +41,7 @@ const clientApi = hasClientConfig
     })
   : null;
 
-const DEFAULT_SERVER_PASSWORD = process.env.DEFAULT_SERVER_PASSWORD || process.env.SERVER_DEFAULT_PASSWORD || 'MICKEY24@';
+const DEFAULT_SERVER_PASSWORD = process.env.DEFAULT_SERVER_PASSWORD || process.env.SERVER_DEFAULT_PASSWORD || '';
 
 const eggConfigs = {
   16: {
@@ -450,6 +450,19 @@ async function resolveAndSavePteroId(user) {
   return null;
 }
 
+async function verifyServerOwnership(req, serverRef) {
+  const resolvedPteroId = await resolveAndSavePteroId(req.user);
+  if (!resolvedPteroId) return false;
+
+  try {
+    const serverResponse = await appApi.get(`/servers/${encodeURIComponent(serverRef.id)}`);
+    const serverOwner = Number(serverResponse.data?.attributes?.user);
+    return serverOwner === Number(resolvedPteroId);
+  } catch (err) {
+    return false;
+  }
+}
+
 // Get current user info
 router.get('/api/me', requireAuth, (req, res) => {
   const coins = Number(req.user.coins) || 0;
@@ -712,6 +725,11 @@ router.get('/api/servers/:id/access', requireAuth, async (req, res) => {
 
   try {
     const ref = await resolveServerRef(req.params.id);
+    const isOwner = await verifyServerOwnership(req, ref);
+    if (!isOwner && !isAdminUser(req.user)) {
+      return res.status(403).json({ success: false, error: 'You do not have access to this server.' });
+    }
+
     const serverResponse = await appApi.get(`/servers/${encodeURIComponent(ref.id)}`);
     const attrs = serverResponse.data?.attributes || {};
 
@@ -748,6 +766,11 @@ router.get('/api/servers/:id/details', requireAuth, async (req, res) => {
 
   try {
     const ref = await resolveServerRef(req.params.id);
+    const isOwner = await verifyServerOwnership(req, ref);
+    if (!isOwner && !isAdminUser(req.user)) {
+      return res.status(403).json({ success: false, error: 'You do not have access to this server.' });
+    }
+
     const [serverResponse, resourcesResponse] = await Promise.allSettled([
       appApi.get(`/servers/${encodeURIComponent(ref.id)}`),
       (clientApiUsable && clientApi && ref.identifier)
@@ -803,6 +826,10 @@ router.post('/api/servers/:id/power/:action', requireAuth, async (req, res) => {
     if (!ref.identifier) {
       return res.status(404).json({ success: false, error: 'Server haijapatikana kwenye panel.' });
     }
+    const isOwner = await verifyServerOwnership(req, ref);
+    if (!isOwner && !isAdminUser(req.user)) {
+      return res.status(403).json({ success: false, error: 'You do not have access to this server.' });
+    }
     await clientApi.post(`/servers/${encodeURIComponent(ref.identifier)}/power`, { signal: action });
     res.json({ success: true, data: { signal: action, identifier: ref.identifier } });
   } catch (err) {
@@ -825,8 +852,12 @@ router.delete('/api/servers/:id', requireAuth, async (req, res) => {
   }
 
   try {
-    const resolvedServerId = await resolveServerId(req.params.id);
-    const response = await appApi.delete(`/servers/${encodeURIComponent(resolvedServerId)}`);
+    const ref = await resolveServerRef(req.params.id);
+    const isOwner = await verifyServerOwnership(req, ref);
+    if (!isOwner && !isAdminUser(req.user)) {
+      return res.status(403).json({ success: false, error: 'You do not have access to this server.' });
+    }
+    const response = await appApi.delete(`/servers/${encodeURIComponent(ref.id)}`);
     res.json({ success: true, data: response.data });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message || 'Failed to delete server.' });
