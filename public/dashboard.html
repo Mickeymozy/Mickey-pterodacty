@@ -30,6 +30,24 @@
 </head>
 <body class="min-h-screen bg-[#0a0a14] text-slate-50">
 
+  <div id="uiToast" class="fixed right-5 top-5 z-[100] hidden max-w-sm overflow-hidden rounded-3xl border border-slate-700/60 bg-slate-950/95 p-4 shadow-2xl backdrop-blur-xl text-sm text-white">
+    <div id="uiToastMessage" class="flex items-center gap-3"></div>
+  </div>
+  <div id="uiDialogOverlay" class="fixed inset-0 z-[90] hidden items-center justify-center bg-slate-950/70 px-4 py-8 backdrop-blur-sm">
+    <div id="uiDialog" class="w-full max-w-lg overflow-hidden rounded-[32px] border border-slate-700/80 bg-slate-900/95 shadow-2xl">
+      <div class="p-6 space-y-5">
+        <div>
+          <p id="uiDialogTitle" class="text-lg font-semibold text-white"></p>
+          <p id="uiDialogMessage" class="mt-2 text-sm leading-6 text-slate-300"></p>
+        </div>
+        <div id="uiDialogInputContainer" class="hidden">
+          <input id="uiDialogInput" class="w-full rounded-3xl border border-slate-700 bg-slate-950/80 px-4 py-3 text-white outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20" />
+        </div>
+        <div id="uiDialogButtons" class="flex flex-wrap justify-end gap-3"></div>
+      </div>
+    </div>
+  </div>
+
   <div class="fixed inset-0 overflow-hidden pointer-events-none">
     <div class="absolute -top-40 -right-40 h-96 w-96 rounded-full bg-indigo-500/10 blur-3xl"></div>
     <div class="absolute top-1/2 -left-40 h-96 w-96 rounded-full bg-purple-500/10 blur-3xl"></div>
@@ -263,6 +281,102 @@
       }
     }
 
+    const uiToast = document.getElementById('uiToast');
+    const uiToastMessage = document.getElementById('uiToastMessage');
+    const uiDialogOverlay = document.getElementById('uiDialogOverlay');
+    const uiDialogTitle = document.getElementById('uiDialogTitle');
+    const uiDialogMessage = document.getElementById('uiDialogMessage');
+    const uiDialogInputContainer = document.getElementById('uiDialogInputContainer');
+    const uiDialogInput = document.getElementById('uiDialogInput');
+    const uiDialogButtons = document.getElementById('uiDialogButtons');
+    let uiDialogResolver = null;
+
+    function showToast(message, type = 'info') {
+      if (!uiToast) return;
+      uiToastMessage.textContent = message;
+      uiToast.classList.remove('hidden');
+      uiToast.classList.remove('border-emerald-400/60', 'border-amber-400/60', 'border-red-400/60', 'border-slate-700/60');
+      uiToast.classList.remove('bg-emerald-500/10', 'bg-amber-500/10', 'bg-red-500/10', 'bg-slate-950/95');
+      if (type === 'success') uiToast.classList.add('border-emerald-400/60', 'bg-emerald-500/10');
+      else if (type === 'warning') uiToast.classList.add('border-amber-400/60', 'bg-amber-500/10');
+      else if (type === 'error') uiToast.classList.add('border-red-400/60', 'bg-red-500/10');
+      else uiToast.classList.add('border-slate-700/60', 'bg-slate-950/95');
+      setTimeout(() => uiToast?.classList.add('hidden'), 4200);
+    }
+
+    function closeDialog(result = null) {
+      if (!uiDialogOverlay) return;
+      uiDialogOverlay.classList.add('hidden');
+      uiDialogInputContainer?.classList.add('hidden');
+      uiDialogInput.value = '';
+      uiDialogButtons.innerHTML = '';
+      if (uiDialogResolver) {
+        uiDialogResolver(result);
+        uiDialogResolver = null;
+      }
+    }
+
+    function openDialog({ title = 'Thibitisha', message = '', showInput = false, placeholder = '', defaultValue = '', confirmText = 'Thibitisha', cancelText = 'Ghairi' } = {}) {
+      return new Promise((resolve) => {
+        if (!uiDialogOverlay) return resolve(null);
+        uiDialogTitle.textContent = title;
+        uiDialogMessage.textContent = message;
+        uiDialogInputContainer.classList.toggle('hidden', !showInput);
+        uiDialogInput.value = defaultValue || '';
+        uiDialogInput.placeholder = placeholder || '';
+        uiDialogButtons.innerHTML = '';
+
+        const cancelButton = document.createElement('button');
+        cancelButton.type = 'button';
+        cancelButton.className = 'rounded-2xl border border-slate-700/80 bg-slate-800/90 px-4 py-2 text-sm text-slate-200 transition hover:bg-slate-700';
+        cancelButton.textContent = cancelText;
+        cancelButton.addEventListener('click', () => closeDialog(null));
+
+        const confirmButton = document.createElement('button');
+        confirmButton.type = 'button';
+        confirmButton.className = 'rounded-2xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500';
+        confirmButton.textContent = confirmText;
+        confirmButton.addEventListener('click', () => {
+          if (showInput) return closeDialog(uiDialogInput.value.trim() || '');
+          return closeDialog(true);
+        });
+
+        uiDialogButtons.appendChild(cancelButton);
+        uiDialogButtons.appendChild(confirmButton);
+        uiDialogOverlay.classList.remove('hidden');
+        uiDialogResolver = resolve;
+      });
+    }
+
+    async function confirmDialog(message, options = {}) {
+      const result = await openDialog({
+        title: options.title || 'Thibitisha',
+        message,
+        showInput: false,
+        confirmText: options.confirmText || 'Ndiyo',
+        cancelText: options.cancelText || 'Hapana'
+      });
+      return result === true;
+    }
+
+    async function promptDialog(message, options = {}) {
+      const value = await openDialog({
+        title: options.title || 'Ingiza Taarifa',
+        message,
+        showInput: true,
+        placeholder: options.placeholder || '',
+        defaultValue: options.defaultValue || '',
+        confirmText: options.confirmText || 'Tuma',
+        cancelText: options.cancelText || 'Ghairi'
+      });
+      if (value === null) return null;
+      return String(value);
+    }
+
+    function notify(message, type = 'info') {
+      showToast(message, type);
+    }
+
     const serverList = document.getElementById('serverList');
     const userName = document.getElementById('userName');
     const createForm = document.getElementById('createForm');
@@ -416,10 +530,10 @@
           });
           const data = await res.json().catch(() => ({ success: false }));
           if (!data.success) {
-            alert(data.error || 'Imeshindwa kufuta server.');
+            notify(data.error || 'Imeshindwa kufuta server.', 'error');
           }
         } catch (err) {
-          alert('Hitilafu ya mtandao: Imeshindwa kufuta server.');
+          notify('Hitilafu ya mtandao: Imeshindwa kufuta server.', 'error');
         } finally {
           btn.innerText = originalText;
           btn.disabled = false;
@@ -469,10 +583,10 @@
         const data = await res.json().catch(() => ({ success: false }));
         
         if(!data.success && data.error) {
-          alert(data.error);
+          notify(data.error, 'error');
         }
       } catch(err) {
-        alert("Hitilafu ya mtandao: Imeshindwa kufikia nodi ya kudhibiti.");
+        notify("Hitilafu ya mtandao: Imeshindwa kufikia nodi ya kudhibiti.", 'error');
       } finally {
         btn.innerText = originalText;
         btn.disabled = false;

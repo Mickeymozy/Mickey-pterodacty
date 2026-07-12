@@ -33,6 +33,24 @@
   </style>
 </head>
 <body class="min-h-screen bg-[#0a0a14] text-slate-50">
+  <div id="uiToast" class="fixed right-5 top-5 z-[100] hidden max-w-sm overflow-hidden rounded-3xl border border-slate-700/60 bg-slate-950/95 p-4 shadow-2xl backdrop-blur-xl text-sm text-white">
+    <div id="uiToastMessage" class="flex items-center gap-3"></div>
+  </div>
+  <div id="uiDialogOverlay" class="fixed inset-0 z-[90] hidden items-center justify-center bg-slate-950/70 px-4 py-8 backdrop-blur-sm">
+    <div id="uiDialog" class="w-full max-w-lg overflow-hidden rounded-[32px] border border-slate-700/80 bg-slate-900/95 shadow-2xl">
+      <div class="p-6 space-y-5">
+        <div>
+          <p id="uiDialogTitle" class="text-lg font-semibold text-white"></p>
+          <p id="uiDialogMessage" class="mt-2 text-sm leading-6 text-slate-300"></p>
+        </div>
+        <div id="uiDialogInputContainer" class="hidden">
+          <input id="uiDialogInput" class="w-full rounded-3xl border border-slate-700 bg-slate-950/80 px-4 py-3 text-white outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20" />
+        </div>
+        <div id="uiDialogButtons" class="flex flex-wrap justify-end gap-3"></div>
+      </div>
+    </div>
+  </div>
+
   <div class="fixed inset-0 overflow-hidden pointer-events-none">
     <div class="absolute -top-40 -right-40 h-96 w-96 rounded-full bg-purple-500/10 blur-3xl"></div>
     <div class="absolute top-1/2 -left-40 h-96 w-96 rounded-full bg-indigo-500/10 blur-3xl"></div>
@@ -213,6 +231,101 @@
 
   <script>
     const API_URL = '/api';
+    const uiToast = document.getElementById('uiToast');
+    const uiToastMessage = document.getElementById('uiToastMessage');
+    const uiDialogOverlay = document.getElementById('uiDialogOverlay');
+    const uiDialogTitle = document.getElementById('uiDialogTitle');
+    const uiDialogMessage = document.getElementById('uiDialogMessage');
+    const uiDialogInputContainer = document.getElementById('uiDialogInputContainer');
+    const uiDialogInput = document.getElementById('uiDialogInput');
+    const uiDialogButtons = document.getElementById('uiDialogButtons');
+    let uiDialogResolver = null;
+
+    function showToast(message, type = 'info') {
+      if (!uiToast) return;
+      uiToastMessage.textContent = message;
+      uiToast.classList.remove('hidden');
+      uiToast.classList.remove('border-emerald-400/60', 'border-amber-400/60', 'border-red-400/60', 'border-slate-700/60');
+      uiToast.classList.remove('bg-emerald-500/10', 'bg-amber-500/10', 'bg-red-500/10', 'bg-slate-950/95');
+      if (type === 'success') uiToast.classList.add('border-emerald-400/60', 'bg-emerald-500/10');
+      else if (type === 'warning') uiToast.classList.add('border-amber-400/60', 'bg-amber-500/10');
+      else if (type === 'error') uiToast.classList.add('border-red-400/60', 'bg-red-500/10');
+      else uiToast.classList.add('border-slate-700/60', 'bg-slate-950/95');
+      setTimeout(() => uiToast?.classList.add('hidden'), 4200);
+    }
+
+    function closeDialog(result = null) {
+      if (!uiDialogOverlay) return;
+      uiDialogOverlay.classList.add('hidden');
+      uiDialogInputContainer?.classList.add('hidden');
+      uiDialogInput.value = '';
+      uiDialogButtons.innerHTML = '';
+      if (uiDialogResolver) {
+        uiDialogResolver(result);
+        uiDialogResolver = null;
+      }
+    }
+
+    function openDialog({ title = 'Thibitisha', message = '', showInput = false, placeholder = '', defaultValue = '', confirmText = 'Thibitisha', cancelText = 'Ghairi' } = {}) {
+      return new Promise((resolve) => {
+        if (!uiDialogOverlay) return resolve(false);
+        uiDialogTitle.textContent = title;
+        uiDialogMessage.textContent = message;
+        uiDialogInputContainer.classList.toggle('hidden', !showInput);
+        uiDialogInput.value = defaultValue || '';
+        uiDialogInput.placeholder = placeholder || '';
+        uiDialogButtons.innerHTML = '';
+
+        const cancelButton = document.createElement('button');
+        cancelButton.type = 'button';
+        cancelButton.className = 'rounded-2xl border border-slate-700/80 bg-slate-800/90 px-4 py-2 text-sm text-slate-200 transition hover:bg-slate-700';
+        cancelButton.textContent = cancelText;
+        cancelButton.addEventListener('click', () => closeDialog(null));
+
+        const confirmButton = document.createElement('button');
+        confirmButton.type = 'button';
+        confirmButton.className = 'rounded-2xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500';
+        confirmButton.textContent = confirmText;
+        confirmButton.addEventListener('click', () => {
+          if (showInput) return closeDialog(uiDialogInput.value.trim() || '');
+          return closeDialog(true);
+        });
+
+        uiDialogButtons.appendChild(cancelButton);
+        uiDialogButtons.appendChild(confirmButton);
+        uiDialogOverlay.classList.remove('hidden');
+        uiDialogResolver = resolve;
+      });
+    }
+
+    async function confirmDialog(message, options = {}) {
+      const result = await openDialog({
+        title: options.title || 'Thibitisha',
+        message,
+        showInput: false,
+        confirmText: options.confirmText || 'Ndiyo',
+        cancelText: options.cancelText || 'Hapana'
+      });
+      return result === true;
+    }
+
+    async function promptDialog(message, options = {}) {
+      const value = await openDialog({
+        title: options.title || 'Ingiza Taarifa',
+        message,
+        showInput: true,
+        placeholder: options.placeholder || '',
+        defaultValue: options.defaultValue || '',
+        confirmText: options.confirmText || 'Tuma',
+        cancelText: options.cancelText || 'Ghairi'
+      });
+      if (value === null) return null;
+      return String(value);
+    }
+
+    function notify(message, type = 'info') {
+      showToast(message, type);
+    }
 
     function switchTab(event, tabName) {
       document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
@@ -320,38 +433,38 @@
     }
 
     async function adjustCoins(id, current) {
-      const amount = prompt('Weka tofauti ya coins (mfano: 100 au -50):', '100');
+      const amount = await promptDialog('Weka tofauti ya coins (mfano: 100 au -50):', { placeholder: '100', defaultValue: '100', confirmText: 'Endelea' });
       if (amount === null) return;
       const parsedAmount = parseInt(amount, 10);
       if (Number.isNaN(parsedAmount)) {
-        alert('Kiasi si sahihi');
+        notify('Kiasi si sahihi', 'error');
         return;
       }
-      const reason = prompt('Sababu ya marekebisho:', 'Admin adjustment');
+      const reason = await promptDialog('Sababu ya marekebisho:', { placeholder: 'Admin adjustment', defaultValue: 'Admin adjustment', confirmText: 'Thibitisha' });
       const res = await fetch(`${API_URL}/user/users/${id}/coins`, {
         method: 'PUT',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ amount: parsedAmount, reason: reason || 'Admin adjustment' })
       });
       const d = await res.json();
-      alert(d.message || 'Coins updated');
+      notify(d.message || 'Coins updated', d.success ? 'success' : 'error');
       loadUsers();
     }
 
     async function updatePayment(id) {
-      if (!confirm('Approve payment na uunde server?')) return;
+      if (!await confirmDialog('Approve payment na uunde server?', { title: 'Thibitisha Malipo' })) return;
       const res = await fetch(`${API_URL}/payment/admin/${id}/approve`, { method: 'POST' });
       const d = await res.json();
-      alert(d.message || 'Payment updated');
+      notify(d.message || 'Payment updated', d.success ? 'success' : 'error');
       loadPayments();
     }
 
     async function deleteUser(id) {
       if(!id) return;
-      if(!confirm('Uko karibu kufuta mtumiaji huyu?')) return;
+      if(!await confirmDialog('Uko karibu kufuta mtumiaji huyu?', { title: 'Thibitisha Kufuta' })) return;
       const res = await fetch(`${API_URL}/user/users/${id}`, { method: 'DELETE' });
       const d = await res.json();
-      alert(d.message || 'User deleted');
+      notify(d.message || 'User deleted', d.success ? 'success' : 'error');
       loadUsers(); loadPayments();
     }
 
@@ -376,10 +489,10 @@
     }
 
     async function deletePackage(id) {
-      if (!confirm('Unataka kufuta package hii?')) return;
+      if (!await confirmDialog('Unataka kufuta package hii?', { title: 'Thibitisha Kufuta' })) return;
       const res = await fetch(`${API_URL}/packages/${id}`, { method: 'DELETE' });
       const d = await res.json();
-      alert(d.message || 'Package deleted');
+      notify(d.message || 'Package deleted', d.success ? 'success' : 'error');
       loadPackages(); loadStats();
     }
 
