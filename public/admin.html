@@ -84,20 +84,13 @@
         <h2 id="statActive" class="mt-2 text-2xl sm:text-3xl font-bold text-emerald-400">0</h2>
       </div>
       <div class="glass glass-hover rounded-2xl p-5">
-        <p class="text-xs sm:text-sm text-slate-400 font-medium">Jumla ya Coins</p>
-        <h2 id="statCoins" class="mt-2 text-2xl sm:text-3xl font-bold text-amber-400">🪙 0</h2>
+        <p class="text-xs sm:text-sm text-slate-400 font-medium">Mapato ya USD</p>
+        <h2 id="statRevenue" class="mt-2 text-2xl sm:text-3xl font-bold text-indigo-400">USD 0</h2>
       </div>
       <div class="glass glass-hover rounded-2xl p-5">
-        <p class="text-xs sm:text-sm text-slate-400 font-medium">Mapato Kwa Coins (Tsh)</p>
-        <h2 id="statCoinRevenue" class="mt-2 text-2xl sm:text-3xl font-bold text-cyan-400">Tsh 0</h2>
-      </div>
-      <div class="glass glass-hover rounded-2xl p-5">
-        <p class="text-xs sm:text-sm text-slate-400 font-medium">Mapato Mwezi (Tsh)</p>
+        <p class="text-xs sm:text-sm text-slate-400 font-medium">Mapato ya Mwezi (Tsh)</p>
         <h2 id="statMonthlyRevenue" class="mt-2 text-2xl sm:text-3xl font-bold text-sky-400">Tsh 0</h2>
       </div>
-      <div class="glass glass-hover rounded-2xl p-5">
-              <p class="text-xs sm:text-sm text-slate-400 font-medium">Mapato ya USD</p>
-              <h2 id="statRevenue" class="mt-2 text-xl sm:text-2xl font-bold text-indigo-400">USD 0</h2>
     </section>
 
     <!-- Navigation Tabs -->
@@ -228,12 +221,13 @@
         <div id="adminEmailPanel" class="mt-6 hidden rounded-3xl border border-slate-700/60 bg-slate-950/70 p-6 shadow-xl shadow-black/20">
           <div class="grid gap-4 md:grid-cols-2">
             <div>
-              <label class="block text-xs text-slate-400 mb-2">Chagua mtumiaji au send kwa wote</label>
+              <label class="block text-xs text-slate-400 mb-2">Chagua mtumiaji wa Mickey au Pterodactyl / send kwa wote</label>
               <select id="adminEmailSelectUser" class="w-full rounded-xl bg-slate-950/50 border border-slate-700/50 px-3 py-2 text-white outline-none focus:border-indigo-500">
                 <option value="">-- Chagua mtumiaji --</option>
-                <option value="all">Wote watumiaji</option>
+                <option value="all">Wote watumiaji wa Mickey</option>
+                <option value="ptero_all">Wote watumiaji wa Pterodactyl</option>
               </select>
-              <p class="text-[11px] text-slate-500 mt-2">N.B. chagua mtumiaji maalum kujiuza barua yake, au chagua 'Wote watumiaji' kwa kuwafikia wote.</p>
+              <p class="text-[11px] text-slate-500 mt-2">Chagua mtumiaji wa ndani, au chagua aina ya Pterodactyl, au tumia email ya nje.</p>
             </div>
             <div>
               <label class="block text-xs text-slate-400 mb-2">Email ya Kupokea (kwa nje)</label>
@@ -433,16 +427,37 @@
       if (select.dataset.loaded === 'true') return;
 
       try {
-        const res = await fetch(`${API_URL}/user/users/admin/all`);
-        const d = await res.json();
-        if (d.success && Array.isArray(d.data)) {
-          select.innerHTML = '<option value="">-- Chagua mtumiaji --</option><option value="all">Wote watumiaji</option>' + d.data.map(u => {
-            const email = u.email || '';
-            const label = u.username ? `${u.username} <${email}>` : email;
-            return `<option value="${email}">${label}</option>`;
-          }).join('');
-          select.dataset.loaded = 'true';
-        }
+        const [localRes, pteroRes] = await Promise.all([
+          fetch(`${API_URL}/user/users/admin/all`),
+          fetch(`${API_URL}/user/users/pterodactyl`)
+        ]);
+
+        const localData = await localRes.json();
+        const pteroData = await pteroRes.json();
+
+        const localUsers = localData.success && Array.isArray(localData.data) ? localData.data : [];
+        const pteroUsers = pteroData.success && Array.isArray(pteroData.data) ? pteroData.data : [];
+
+        const localOptions = localUsers.map((u) => {
+          const email = u.email || '';
+          const label = u.username ? `${u.username} <${email}>` : email;
+          return `<option value="${email}">${label}</option>`;
+        }).join('');
+
+        const pteroOptions = pteroUsers.map((u) => {
+          const email = u.email || '';
+          const label = u.username ? `${u.username} <${email}>` : email;
+          return `<option value="${email}">${label}</option>`;
+        }).join('');
+
+        select.innerHTML = `
+          <option value="">-- Chagua mtumiaji --</option>
+          <option value="all">Wote watumiaji wa Mickey</option>
+          <option value="ptero_all">Wote watumiaji wa Pterodactyl</option>
+          ${localOptions ? `<optgroup label="Watumiaji wa LeoNodes">${localOptions}</optgroup>` : ''}
+          ${pteroOptions ? `<optgroup label="Watumiaji wa Pterodactyl">${pteroOptions}</optgroup>` : ''}
+        `;
+        select.dataset.loaded = 'true';
       } catch (error) {
         console.error('Error loading user email options:', error);
       }
@@ -455,7 +470,10 @@
       if (!select || !toInput) return;
       if (select.value === 'all') {
         toInput.value = '';
-        toInput.placeholder = 'Tuma kwa wote watumiaji; email hii itapuuzwa.';
+        toInput.placeholder = 'Tuma kwa wote watumiaji wa Mickey; email hii itapuuzwa.';
+      } else if (select.value === 'ptero_all') {
+        toInput.value = '';
+        toInput.placeholder = 'Tuma kwa wote watumiaji wa Pterodactyl; email hii itapuuzwa.';
       } else if (select.value) {
         toInput.value = select.value;
         toInput.placeholder = 'Email ya mtumiaji imejazwa';
@@ -485,6 +503,8 @@
       const payload = { subject, message };
       if (select?.value === 'all') {
         payload.allUsers = true;
+      } else if (select?.value === 'ptero_all') {
+        payload.pteroAllUsers = true;
       } else if (to) {
         payload.to = to;
       }
@@ -493,7 +513,7 @@
         payload.to = payload.to ? `${payload.to},${extra}` : extra;
       }
 
-      if (!payload.allUsers && !payload.to) {
+      if (!payload.allUsers && !payload.pteroAllUsers && !payload.to) {
         if (statusEl) statusEl.textContent = 'Chagua mtumiaji, au amba email ya kupokea.';
         return;
       }

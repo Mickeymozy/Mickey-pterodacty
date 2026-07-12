@@ -1,10 +1,57 @@
 const express = require('express');
+const axios = require('axios');
 const router = express.Router();
 const User = require('../models/User');
 const ServerPackage = require('../models/ServerPackage');
 const Transaction = require('../models/Transaction');
 const sendEmail = require('../utils/email');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
+
+const PTERODACTYL_URL = process.env.PTERODACTYL_URL?.replace(/\/$/, '');
+const PTERODACTYL_APP_API_KEY = process.env.PTERODACTYL_APP_API_KEY;
+const appApi = PTERODACTYL_URL && PTERODACTYL_APP_API_KEY
+  ? axios.create({
+      baseURL: `${PTERODACTYL_URL}/api/application`,
+      headers: {
+        Authorization: `Bearer ${PTERODACTYL_APP_API_KEY}`,
+        'Content-Type': 'application/json',
+        Accept: 'application/json'
+      },
+      timeout: 10000
+    })
+  : null;
+
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+async function fetchPteroUsers() {
+  if (!appApi) return [];
+  const results = [];
+  let page = 1;
+  const perPage = 100;
+  const maxPages = 20;
+
+  while (page <= maxPages) {
+    const response = await appApi.get(`/users?page=${page}&per_page=${perPage}`);
+    const users = response.data?.data || [];
+    if (!users.length) break;
+
+    users.forEach((entry) => {
+      const attrs = entry?.attributes || {};
+      if (attrs.email && emailRegex.test(attrs.email)) {
+        results.push({
+          id: attrs.id,
+          username: attrs.username,
+          email: attrs.email
+        });
+      }
+    });
+
+    if (users.length < perPage) break;
+    page += 1;
+  }
+
+  return results;
+}
 
 // Get user profile and stats
 router.get('/profile', requireAuth, async (req, res) => {
@@ -51,6 +98,19 @@ router.get('/users/admin/all', requireAuth, requireAdmin, async (req, res) => {
     res.json({ success: true, data: users });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Error fetching users' });
+  }
+});
+
+router.get('/users/pterodactyl', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    if (!appApi) {
+      return res.json({ success: true, data: [] });
+    }
+    const users = await fetchPteroUsers();
+    res.json({ success: true, data: users });
+  } catch (error) {
+    console.error('Error fetching Pterodactyl users:', error.message || error);
+    res.status(500).json({ success: false, message: 'Error fetching Pterodactyl users' });
   }
 });
 
@@ -123,13 +183,12 @@ router.put('/users/:id/coins', requireAuth, requireAdmin, async (req, res) => {
 // Admin: Send email using configured SMTP
 router.post('/admin/send-email', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const { to, subject, message, allUsers, bcc } = req.body;
+    const { to, subject, message, allUsers, pteroAllUsers, bcc } = req.body;
     if (!subject || !message) {
       return res.status(400).json({ success: false, message: 'Subject and message are required.' });
     }
 
     const recipients = [];
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const normalizeList = (value) => {
       return String(value || '')
         .split(',')
@@ -140,6 +199,18 @@ router.post('/admin/send-email', requireAuth, requireAdmin, async (req, res) => 
     if (allUsers) {
       const all = await User.find({ email: { $exists: true, $ne: '' } }).select('email');
       all.forEach((user) => {
+        if (user.email && emailRegex.test(user.email)) {
+          recipients.push(user.email);
+        }
+      });
+    }
+
+    if (pteroAllUsers) {
+      if (!appApi) {
+        return res.status(503).json({ success: false, message: 'Pterodactyl API is not configured.' });
+      }
+      const panelUsers = await fetchPteroUsers();
+      panelUsers.forEach((user) => {
         if (user.email && emailRegex.test(user.email)) {
           recipients.push(user.email);
         }
