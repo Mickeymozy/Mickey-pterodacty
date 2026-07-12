@@ -38,7 +38,7 @@ if (SMTP_HOST && SMTP_USER && SMTP_PASS) {
   console.warn('⚠️ SMTP is not configured. Email delivery is disabled.');
 }
 
-async function sendEmail({ to, subject, html, text }) {
+async function sendEmail({ to, subject, html, text, bcc }) {
   if (!transporter || !to) {
     console.warn(`⚠️ Email not sent to ${to || 'unknown'} because SMTP is not configured.`);
     return false;
@@ -52,6 +52,10 @@ async function sendEmail({ to, subject, html, text }) {
       text,
       priority: 'high'
     };
+
+    if (bcc) {
+      mailOptions.bcc = bcc;
+    }
 
     if (SMTP_FROM) {
       mailOptions.from = `"${SMTP_FROM_NAME}" <${SMTP_FROM}>`;

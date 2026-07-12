@@ -218,23 +218,47 @@
     <!-- Users Tab -->
     <div id="users" class="tab-content">
       <div class="glass rounded-2xl p-6 mb-6">
-        <h2 class="text-xl font-semibold text-white mb-4">✉️ Tuma Email kwa Mtumiaji</h2>
-        <div class="grid gap-4">
-          <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 class="text-xl font-semibold text-white mb-1">✉️ Tuma Email kwa Mtumiaji</h2>
+            <p class="text-sm text-slate-400">Bonyeza kitufe ili kuonyesha fomu ya email. Unaweza kutuma kwa mteja mmoja, kwa email ya nje, au kwa watumiaji wote.</p>
+          </div>
+          <button id="toggleEmailComposerBtn" class="inline-flex items-center justify-center rounded-2xl bg-slate-800/80 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700">Andika Email</button>
+        </div>
+        <div id="adminEmailPanel" class="mt-6 hidden rounded-3xl border border-slate-700/60 bg-slate-950/70 p-6 shadow-xl shadow-black/20">
+          <div class="grid gap-4 md:grid-cols-2">
             <div>
-              <label class="block text-xs text-slate-400 mb-2">Email ya Kupokea</label>
-              <input id="adminEmailTo" type="email" placeholder="mfano@domain.com" class="w-full rounded-xl bg-slate-950/50 border border-slate-700/50 px-3 py-2 text-white outline-none focus:border-indigo-500" />
+              <label class="block text-xs text-slate-400 mb-2">Chagua mtumiaji au send kwa wote</label>
+              <select id="adminEmailSelectUser" class="w-full rounded-xl bg-slate-950/50 border border-slate-700/50 px-3 py-2 text-white outline-none focus:border-indigo-500">
+                <option value="">-- Chagua mtumiaji --</option>
+                <option value="all">Wote watumiaji</option>
+              </select>
+              <p class="text-[11px] text-slate-500 mt-2">N.B. chagua mtumiaji maalum kujiuza barua yake, au chagua 'Wote watumiaji' kwa kuwafikia wote.</p>
             </div>
+            <div>
+              <label class="block text-xs text-slate-400 mb-2">Email ya Kupokea (kwa nje)</label>
+              <input id="adminEmailTo" type="email" placeholder="mfano@domain.com" class="w-full rounded-xl bg-slate-950/50 border border-slate-700/50 px-3 py-2 text-white outline-none focus:border-indigo-500" />
+              <p class="text-[11px] text-slate-500 mt-2">Tuma kwa email maalum ikiwa si mtumiaji wa mfumo.</p>
+            </div>
+          </div>
+
+          <div class="mt-4 grid gap-4 md:grid-cols-2">
             <div>
               <label class="block text-xs text-slate-400 mb-2">Subject</label>
               <input id="adminEmailSubject" type="text" placeholder="Subject ya email" class="w-full rounded-xl bg-slate-950/50 border border-slate-700/50 px-3 py-2 text-white outline-none focus:border-indigo-500" />
             </div>
+            <div>
+              <label class="block text-xs text-slate-400 mb-2">Akitaka, weka BCC / Email nyingine</label>
+              <input id="adminEmailExtra" type="text" placeholder="mfano1@domain.com, mfano2@domain.com" class="w-full rounded-xl bg-slate-950/50 border border-slate-700/50 px-3 py-2 text-white outline-none focus:border-indigo-500" />
+            </div>
           </div>
-          <div>
+
+          <div class="mt-4">
             <label class="block text-xs text-slate-400 mb-2">Ujumbe</label>
             <textarea id="adminEmailMessage" rows="4" placeholder="Andika ujumbe wa email hapa..." class="w-full rounded-2xl bg-slate-950/50 border border-slate-700/50 px-3 py-3 text-white outline-none focus:border-indigo-500"></textarea>
           </div>
-          <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+
+          <div class="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <button id="sendAdminEmailBtn" class="inline-flex items-center justify-center rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-500">Tuma Email</button>
             <p id="adminEmailStatus" class="text-xs text-slate-400"></p>
           </div>
@@ -368,6 +392,10 @@
     }
 
     function prefillAdminEmail(email) {
+      const select = document.getElementById('adminEmailSelectUser');
+      if (select) {
+        select.value = '';
+      }
       const input = document.getElementById('adminEmailTo');
       if (input) {
         input.value = email || '';
@@ -375,22 +403,98 @@
       }
       const usersTabButton = Array.from(document.querySelectorAll('.tab-button')).find(b => b.textContent.toLowerCase().includes('watumiaji'));
       if (usersTabButton) usersTabButton.click();
+      showEmailComposer();
+    }
+
+    function showEmailComposer() {
+      const panel = document.getElementById('adminEmailPanel');
+      if (!panel) return;
+      panel.classList.remove('hidden');
+    }
+
+    function hideEmailComposer() {
+      const panel = document.getElementById('adminEmailPanel');
+      if (!panel) return;
+      panel.classList.add('hidden');
+    }
+
+    function toggleEmailComposer() {
+      const panel = document.getElementById('adminEmailPanel');
+      if (!panel) return;
+      panel.classList.toggle('hidden');
+      if (!panel.classList.contains('hidden')) {
+        loadEmailUserOptions();
+      }
+    }
+
+    async function loadEmailUserOptions() {
+      const select = document.getElementById('adminEmailSelectUser');
+      if (!select) return;
+      if (select.dataset.loaded === 'true') return;
+
+      try {
+        const res = await fetch(`${API_URL}/user/users/admin/all`);
+        const d = await res.json();
+        if (d.success && Array.isArray(d.data)) {
+          select.innerHTML = '<option value="">-- Chagua mtumiaji --</option><option value="all">Wote watumiaji</option>' + d.data.map(u => {
+            const email = u.email || '';
+            const label = u.username ? `${u.username} <${email}>` : email;
+            return `<option value="${email}">${label}</option>`;
+          }).join('');
+          select.dataset.loaded = 'true';
+        }
+      } catch (error) {
+        console.error('Error loading user email options:', error);
+      }
+    }
+
+    function handleAdminEmailUserChange() {
+      const select = document.getElementById('adminEmailSelectUser');
+      const toInput = document.getElementById('adminEmailTo');
+      const extraInput = document.getElementById('adminEmailExtra');
+      if (!select || !toInput) return;
+      if (select.value === 'all') {
+        toInput.value = '';
+        toInput.placeholder = 'Tuma kwa wote watumiaji; email hii itapuuzwa.';
+      } else if (select.value) {
+        toInput.value = select.value;
+        toInput.placeholder = 'Email ya mtumiaji imejazwa';
+      } else {
+        toInput.value = '';
+        toInput.placeholder = 'mfano@domain.com';
+      }
+      if (extraInput) {
+        extraInput.value = '';
+      }
     }
 
     async function sendAdminEmail(event) {
       event.preventDefault();
+      const select = document.getElementById('adminEmailSelectUser');
       const to = document.getElementById('adminEmailTo')?.value?.trim();
       const subject = document.getElementById('adminEmailSubject')?.value?.trim();
       const message = document.getElementById('adminEmailMessage')?.value?.trim();
+      const extra = document.getElementById('adminEmailExtra')?.value?.trim();
       const statusEl = document.getElementById('adminEmailStatus');
 
-      if (!to || !subject || !message) {
-        if (statusEl) statusEl.textContent = 'To, subject, and message are required.';
+      if (!subject || !message) {
+        if (statusEl) statusEl.textContent = 'Subject na message vinahitajika.';
         return;
       }
 
-      if (!/^\S+@\S+\.\S+$/.test(to)) {
-        if (statusEl) statusEl.textContent = 'Email address is not valid.';
+      const payload = { subject, message };
+      if (select?.value === 'all') {
+        payload.allUsers = true;
+      } else if (to) {
+        payload.to = to;
+      }
+
+      if (extra) {
+        payload.to = payload.to ? `${payload.to},${extra}` : extra;
+      }
+
+      if (!payload.allUsers && !payload.to) {
+        if (statusEl) statusEl.textContent = 'Chagua mtumiaji, au amba email ya kupokea.';
         return;
       }
 
@@ -399,7 +503,7 @@
         const res = await fetch(`${API_URL}/user/admin/send-email`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ to, subject, message })
+          body: JSON.stringify(payload)
         });
         const data = await res.json();
         if (data.success) {
@@ -407,6 +511,9 @@
           if (statusEl) statusEl.textContent = 'Email imetumwa.';
           document.getElementById('adminEmailSubject').value = '';
           document.getElementById('adminEmailMessage').value = '';
+          document.getElementById('adminEmailTo').value = '';
+          document.getElementById('adminEmailExtra').value = '';
+          if (select) select.value = '';
         } else {
           notify(data.message || 'Haikuweza kutuma email.', 'error');
           if (statusEl) statusEl.textContent = data.message || 'Haikuweza kutuma email.';
@@ -417,6 +524,8 @@
       }
     }
 
+    document.getElementById('toggleEmailComposerBtn')?.addEventListener('click', toggleEmailComposer);
+    document.getElementById('adminEmailSelectUser')?.addEventListener('change', handleAdminEmailUserChange);
     document.getElementById('sendAdminEmailBtn')?.addEventListener('click', sendAdminEmail);
 
     async function loadStats() {

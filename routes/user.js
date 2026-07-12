@@ -123,23 +123,59 @@ router.put('/users/:id/coins', requireAuth, requireAdmin, async (req, res) => {
 // Admin: Send email using configured SMTP
 router.post('/admin/send-email', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const { to, subject, message } = req.body;
-    if (!to || !subject || !message) {
-      return res.status(400).json({ success: false, message: 'To, subject and message are required.' });
+    const { to, subject, message, allUsers, bcc } = req.body;
+    if (!subject || !message) {
+      return res.status(400).json({ success: false, message: 'Subject and message are required.' });
     }
 
+    const recipients = [];
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(to)) {
-      return res.status(400).json({ success: false, message: 'Email address is not valid.' });
+    const normalizeList = (value) => {
+      return String(value || '')
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean);
+    };
+
+    if (allUsers) {
+      const all = await User.find({ email: { $exists: true, $ne: '' } }).select('email');
+      all.forEach((user) => {
+        if (user.email && emailRegex.test(user.email)) {
+          recipients.push(user.email);
+        }
+      });
     }
 
-    const sent = await sendEmail({
-      to,
-      subject,
-      html: `<div>${message.replace(/\n/g, '<br/>')}</div>`,
-      text: message
-    });
+    const toList = normalizeList(to);
+    const bccList = normalizeList(bcc);
 
+    for (const email of toList) {
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ success: false, message: `Invalid recipient email: ${email}` });
+      }
+      recipients.push(email);
+    }
+
+    if (!recipients.length) {
+      return res.status(400).json({ success: false, message: 'No recipient email address was provided.' });
+    }
+
+    const sendOptions = {
+      to: Array.from(new Set(recipients)).join(', '),
+      subject,
+      html: `<div>${String(message).replace(/\n/g, '<br/>')}</div>`,
+      text: String(message)
+    };
+
+    if (bccList.length) {
+      const invalidBcc = bccList.find((email) => !emailRegex.test(email));
+      if (invalidBcc) {
+        return res.status(400).json({ success: false, message: `Invalid BCC email: ${invalidBcc}` });
+      }
+      sendOptions.bcc = Array.from(new Set(bccList)).join(', ');
+    }
+
+    const sent = await sendEmail(sendOptions);
     if (!sent) {
       return res.status(500).json({ success: false, message: 'Email could not be sent. Check SMTP configuration.' });
     }
