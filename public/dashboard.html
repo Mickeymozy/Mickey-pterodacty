@@ -512,10 +512,10 @@
       
       if (signal === 'delete') {
         const serverName = btn.dataset.name || '';
-        const typedName = window.prompt(serverName ? `Andika jina la server "${serverName}" ili kuifuta:` : 'Andika jina la server ili kuifuta:');
+        const typedName = await promptDialog(serverName ? `Andika jina la server "${serverName}" ili kuifuta:` : 'Andika jina la server ili kuifuta:', { placeholder: serverName || '', defaultValue: '', confirmText: 'Futa', cancelText: 'Ghairi' });
         if (typedName === null) return;
         if (serverName && typedName.trim() !== serverName.trim()) {
-          alert('Jina halisami. Kufuta kumesitishwa.');
+          notify('Jina halisami. Kufuta kumesitishwa.', 'error');
           return;
         }
 
