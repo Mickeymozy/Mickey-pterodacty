@@ -88,9 +88,16 @@
         <h2 id="statCoins" class="mt-2 text-2xl sm:text-3xl font-bold text-amber-400">🪙 0</h2>
       </div>
       <div class="glass glass-hover rounded-2xl p-5">
-        <p class="text-xs sm:text-sm text-slate-400 font-medium">Mapato/Mwezi</p>
-        <h2 id="statRevenue" class="mt-2 text-xl sm:text-2xl font-bold text-indigo-400">Tsh 0</h2>
+        <p class="text-xs sm:text-sm text-slate-400 font-medium">Mapato Kwa Coins (Tsh)</p>
+        <h2 id="statCoinRevenue" class="mt-2 text-2xl sm:text-3xl font-bold text-cyan-400">Tsh 0</h2>
       </div>
+      <div class="glass glass-hover rounded-2xl p-5">
+        <p class="text-xs sm:text-sm text-slate-400 font-medium">Mapato Mwezi (Tsh)</p>
+        <h2 id="statMonthlyRevenue" class="mt-2 text-2xl sm:text-3xl font-bold text-sky-400">Tsh 0</h2>
+      </div>
+      <div class="glass glass-hover rounded-2xl p-5">
+              <p class="text-xs sm:text-sm text-slate-400 font-medium">Mapato ya USD</p>
+              <h2 id="statRevenue" class="mt-2 text-xl sm:text-2xl font-bold text-indigo-400">USD 0</h2>
     </section>
 
     <!-- Navigation Tabs -->
@@ -210,6 +217,30 @@
 
     <!-- Users Tab -->
     <div id="users" class="tab-content">
+      <div class="glass rounded-2xl p-6 mb-6">
+        <h2 class="text-xl font-semibold text-white mb-4">✉️ Tuma Email kwa Mtumiaji</h2>
+        <div class="grid gap-4">
+          <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+              <label class="block text-xs text-slate-400 mb-2">Email ya Kupokea</label>
+              <input id="adminEmailTo" type="email" placeholder="mfano@domain.com" class="w-full rounded-xl bg-slate-950/50 border border-slate-700/50 px-3 py-2 text-white outline-none focus:border-indigo-500" />
+            </div>
+            <div>
+              <label class="block text-xs text-slate-400 mb-2">Subject</label>
+              <input id="adminEmailSubject" type="text" placeholder="Subject ya email" class="w-full rounded-xl bg-slate-950/50 border border-slate-700/50 px-3 py-2 text-white outline-none focus:border-indigo-500" />
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs text-slate-400 mb-2">Ujumbe</label>
+            <textarea id="adminEmailMessage" rows="4" placeholder="Andika ujumbe wa email hapa..." class="w-full rounded-2xl bg-slate-950/50 border border-slate-700/50 px-3 py-3 text-white outline-none focus:border-indigo-500"></textarea>
+          </div>
+          <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <button id="sendAdminEmailBtn" class="inline-flex items-center justify-center rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-500">Tuma Email</button>
+            <p id="adminEmailStatus" class="text-xs text-slate-400"></p>
+          </div>
+        </div>
+      </div>
+
       <div class="glass rounded-2xl p-6">
         <h2 class="text-xl font-semibold text-white mb-4">👥 Usimamizi wa Watumiaji</h2>
         <div class="overflow-x-auto">
@@ -336,6 +367,58 @@
       if(tabName === 'users') loadUsers();
     }
 
+    function prefillAdminEmail(email) {
+      const input = document.getElementById('adminEmailTo');
+      if (input) {
+        input.value = email || '';
+        input.focus();
+      }
+      const usersTabButton = Array.from(document.querySelectorAll('.tab-button')).find(b => b.textContent.toLowerCase().includes('watumiaji'));
+      if (usersTabButton) usersTabButton.click();
+    }
+
+    async function sendAdminEmail(event) {
+      event.preventDefault();
+      const to = document.getElementById('adminEmailTo')?.value?.trim();
+      const subject = document.getElementById('adminEmailSubject')?.value?.trim();
+      const message = document.getElementById('adminEmailMessage')?.value?.trim();
+      const statusEl = document.getElementById('adminEmailStatus');
+
+      if (!to || !subject || !message) {
+        if (statusEl) statusEl.textContent = 'To, subject, and message are required.';
+        return;
+      }
+
+      if (!/^\S+@\S+\.\S+$/.test(to)) {
+        if (statusEl) statusEl.textContent = 'Email address is not valid.';
+        return;
+      }
+
+      if (statusEl) statusEl.textContent = 'Inatuma email...';
+      try {
+        const res = await fetch(`${API_URL}/user/admin/send-email`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ to, subject, message })
+        });
+        const data = await res.json();
+        if (data.success) {
+          notify('Email imetumwa kwa mafanikio.', 'success');
+          if (statusEl) statusEl.textContent = 'Email imetumwa.';
+          document.getElementById('adminEmailSubject').value = '';
+          document.getElementById('adminEmailMessage').value = '';
+        } else {
+          notify(data.message || 'Haikuweza kutuma email.', 'error');
+          if (statusEl) statusEl.textContent = data.message || 'Haikuweza kutuma email.';
+        }
+      } catch (err) {
+        notify('Hitilafu wakati wa kutuma email.', 'error');
+        if (statusEl) statusEl.textContent = 'Hitilafu wakati wa kutuma email.';
+      }
+    }
+
+    document.getElementById('sendAdminEmailBtn')?.addEventListener('click', sendAdminEmail);
+
     async function loadStats() {
       try {
         const [pRes, uRes] = await Promise.all([fetch(`${API_URL}/packages/admin/stats`), fetch(`${API_URL}/user/admin/stats`)]);
@@ -343,12 +426,14 @@
         if(pData.success) {
           document.getElementById('statTotal').textContent = pData.data.totalPackages || 0;
           document.getElementById('statActive').textContent = pData.data.activePackages || 0;
-          document.getElementById('statRevenue').textContent = 'Tsh ' + Number(pData.data.totalRevenuePotential || 0).toLocaleString();
         }
         if(uData.success) {
+          document.getElementById('statRevenue').textContent = 'USD ' + Number(uData.data.totalRevenueUsd || 0).toLocaleString();
           document.getElementById('adminCount').textContent = uData.data.totalAdmins || 0;
           document.getElementById('totalUsers').textContent = uData.data.totalUsers || 0;
           document.getElementById('statCoins').textContent = '🪙 ' + Number(uData.data.totalCoinsDistributed || 0).toLocaleString();
+          document.getElementById('statCoinRevenue').textContent = 'Tsh ' + Number(uData.data.totalRevenueFromCoinsTzs || 0).toLocaleString();
+          document.getElementById('statMonthlyRevenue').textContent = 'Tsh ' + Number(uData.data.monthlyRevenueTzs || 0).toLocaleString();
           const totalCoinsEl = document.getElementById('totalCoins');
           if (totalCoinsEl) totalCoinsEl.textContent = '🪙 ' + Number(uData.data.totalCoinsDistributed || 0).toLocaleString();
         }
@@ -421,10 +506,12 @@
           tbody.innerHTML = d.data.map(u => `
             <tr class="border-b border-slate-800/40 text-xs">
               <td class="py-2 px-4">${u.username || u.email}</td>
+              <td class="py-2 px-4 text-slate-300">${u.role === 'admin' || u.isAdmin ? 'Admin' : 'User'}</td>
               <td class="py-2 px-4 text-amber-400">🪙 ${Number(u.coins || 0).toLocaleString()}</td>
-              <td class="py-2 px-4 flex gap-2">
+              <td class="py-2 px-4 flex flex-wrap gap-2">
                 <button onclick="adjustCoins('${u._id||u.id}', ${u.coins||0})" class="bg-slate-700 px-2 py-1 rounded text-white text-[10px]">Edit Coins</button>
                 <button onclick="deleteUser('${u._id||u.id}')" class="bg-red-500/20 text-red-400 px-2 py-1 rounded text-[10px]">Futa</button>
+                <button onclick="prefillAdminEmail('${u.email || ''}')" class="bg-sky-500/20 text-sky-300 px-2 py-1 rounded text-[10px]">Email</button>
               </td>
             </tr>
           `).join('');

@@ -3,6 +3,7 @@ const router = express.Router();
 const User = require('../models/User');
 const ServerPackage = require('../models/ServerPackage');
 const Transaction = require('../models/Transaction');
+const sendEmail = require('../utils/email');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
 
 // Get user profile and stats
@@ -119,6 +120,37 @@ router.put('/users/:id/coins', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
+// Admin: Send email using configured SMTP
+router.post('/admin/send-email', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { to, subject, message } = req.body;
+    if (!to || !subject || !message) {
+      return res.status(400).json({ success: false, message: 'To, subject and message are required.' });
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(to)) {
+      return res.status(400).json({ success: false, message: 'Email address is not valid.' });
+    }
+
+    const sent = await sendEmail({
+      to,
+      subject,
+      html: `<div>${message.replace(/\n/g, '<br/>')}</div>`,
+      text: message
+    });
+
+    if (!sent) {
+      return res.status(500).json({ success: false, message: 'Email could not be sent. Check SMTP configuration.' });
+    }
+
+    res.json({ success: true, message: 'Email sent successfully.' });
+  } catch (error) {
+    console.error('Error sending admin email:', error);
+    res.status(500).json({ success: false, message: 'Error sending email' });
+  }
+});
+
 // Admin: Delete user
 router.delete('/users/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
@@ -142,11 +174,39 @@ router.get('/admin/stats', requireAuth, requireAdmin, async (req, res) => {
     const totalPackages = await ServerPackage.countDocuments();
     const activePackages = await ServerPackage.countDocuments({ isActive: true });
 
-    // Revenue from completed transactions
+    const coinRateTzs = Number(process.env.COIN_TOPUP_RATE_TZS || 250);
+    const now = new Date();
+    const monthAgo = new Date(now);
+    monthAgo.setDate(monthAgo.getDate() - 30);
+
     const revenueData = await Transaction.aggregate([
-      { $match: { status: 'completed', currency: 'USD' } },
-      { $group: { _id: null, total: { $sum: '$amount' } } }
+      { $match: { status: 'completed' } },
+      {
+        $group: {
+          _id: null,
+          totalUsd: { $sum: { $cond: [{ $eq: ['$currency', 'USD'] }, '$amount', 0] } },
+          totalCoins: { $sum: { $cond: [{ $eq: ['$currency', 'coins'] }, '$amount', 0] } }
+        }
+      }
     ]);
+
+    const monthlyRevenueData = await Transaction.aggregate([
+      { $match: { status: 'completed', createdAt: { $gte: monthAgo } } },
+      {
+        $group: {
+          _id: null,
+          totalUsd: { $sum: { $cond: [{ $eq: ['$currency', 'USD'] }, '$amount', 0] } },
+          totalCoins: { $sum: { $cond: [{ $eq: ['$currency', 'coins'] }, '$amount', 0] } }
+        }
+      }
+    ]);
+
+    const totalCoins = revenueData[0]?.totalCoins || 0;
+    const totalUsd = revenueData[0]?.totalUsd || 0;
+    const totalRevenueFromCoinsTzs = totalCoins * coinRateTzs;
+    const monthlyCoins = monthlyRevenueData[0]?.totalCoins || 0;
+    const monthlyUsd = monthlyRevenueData[0]?.totalUsd || 0;
+    const monthlyRevenueTzs = monthlyCoins * coinRateTzs;
 
     res.json({
       success: true,
@@ -157,7 +217,11 @@ router.get('/admin/stats', requireAuth, requireAdmin, async (req, res) => {
         totalTransactions,
         totalPackages,
         activePackages,
-        totalRevenue: revenueData[0]?.total || 0
+        totalRevenueUsd: totalUsd,
+        totalRevenueFromCoinsTzs,
+        monthlyRevenueUsd: monthlyUsd,
+        monthlyRevenueTzs,
+        smtpConfigured: Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS)
       }
     });
   } catch (error) {
