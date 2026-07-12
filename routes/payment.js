@@ -163,6 +163,8 @@ router.post('/checkout', authenticate, async (req, res) => {
         });
         await transaction.save();
 
+        await notifyUserAboutPayment(user, transaction, pkg, serverData);
+
         res.json({
           success: true,
           message: 'Package purchased and server created successfully!',
