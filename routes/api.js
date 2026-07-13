@@ -1,7 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const axios = require('axios');
-const { requireAuth, isAdminUser } = require('../middleware/auth');
+const User = require('../models/User');
+const sendEmail = require('../utils/email');
+const { requireAuth, requireAdmin, isAdminUser } = require('../middleware/auth');
 const { createServerFromPackage } = require('../utils/serverHelper');
 
 const PTERODACTYL_URL = process.env.PTERODACTYL_URL?.replace(/\/$/, '');
@@ -41,6 +43,7 @@ const clientApi = hasClientConfig
     })
   : null;
 
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DEFAULT_SERVER_PASSWORD = process.env.DEFAULT_SERVER_PASSWORD || process.env.SERVER_DEFAULT_PASSWORD || 'MICKEY24@';
 
 const eggConfigs = {
@@ -449,6 +452,132 @@ async function resolveAndSavePteroId(user) {
 
   return null;
 }
+
+async function fetchPteroUserById(pteroUserId) {
+  if (!appApi || !pteroUserId) return null;
+  try {
+    const response = await appApi.get(`/users/${encodeURIComponent(pteroUserId)}`);
+    return response.data?.attributes || null;
+  } catch (err) {
+    return null;
+  }
+}
+
+async function getServerOwnerContact(pteroUserId) {
+  if (!pteroUserId) return null;
+  const numericId = Number(pteroUserId);
+  if (!Number.isFinite(numericId)) return null;
+
+  const localOwner = await User.findOne({ pteroId: numericId }).select('username email');
+  if (localOwner?.email) {
+    return { email: localOwner.email, username: localOwner.username || null };
+  }
+
+  const pteroUser = await fetchPteroUserById(numericId);
+  if (pteroUser?.email && emailRegex.test(pteroUser.email)) {
+    return { email: pteroUser.email, username: pteroUser.username || null };
+  }
+
+  return null;
+}
+
+// Admin: List all Pterodactyl servers for management
+router.get('/admin/servers', requireAuth, requireAdmin, async (req, res) => {
+  if (!appApi) {
+    return res.status(503).json({ success: false, error: 'Pterodactyl API is not configured.' });
+  }
+
+  try {
+    const response = await appApi.get('/servers?per_page=1000');
+    const servers = response.data?.data || [];
+    const localUsers = await User.find({ pteroId: { $exists: true, $ne: null } }).select('pteroId username email');
+    const userMap = new Map(localUsers.map((user) => [Number(user.pteroId), user]));
+
+    const serverList = servers.map((server) => {
+      const attrs = server?.attributes || {};
+      const ownerId = Number(attrs.user) || null;
+      const owner = ownerId ? userMap.get(ownerId) : null;
+
+      return {
+        id: String(attrs.id || ''),
+        identifier: attrs.identifier || attrs.uuid || '',
+        name: attrs.name || '',
+        status: String(attrs.status || '').toLowerCase(),
+        ownerId,
+        ownerEmail: owner?.email || '',
+        ownerUsername: owner?.username || '',
+        node: attrs.node || attrs.node_id || ''
+      };
+    });
+
+    res.json({ success: true, data: serverList });
+  } catch (err) {
+    console.error('Error fetching admin server list:', err);
+    res.status(500).json({ success: false, error: 'Error fetching servers.' });
+  }
+});
+
+router.post('/admin/servers/:id/:action', requireAuth, requireAdmin, async (req, res) => {
+  if (!appApi) {
+    return res.status(503).json({ success: false, error: 'Pterodactyl API is not configured.' });
+  }
+
+  const { action } = req.params;
+  const validActions = ['suspend', 'unsuspend'];
+
+  if (!validActions.includes(action)) {
+    return res.status(400).json({ success: false, error: 'Invalid server action.' });
+  }
+
+  try {
+    const ref = await resolveServerRef(req.params.id);
+    await appApi.post(`/servers/${encodeURIComponent(ref.id)}/${action}`);
+    const serverResponse = await appApi.get(`/servers/${encodeURIComponent(ref.id)}`);
+    const attrs = serverResponse.data?.attributes || {};
+    const ownerContact = await getServerOwnerContact(attrs.user);
+    const serverName = attrs.name || attrs.identifier || `Server ${ref.id}`;
+    const reason = String(req.body?.reason || '').trim();
+
+    if (ownerContact?.email) {
+      let subject;
+      let html;
+      let text;
+
+      if (action === 'suspend') {
+        subject = `Server yako "${serverName}" imekatishwa`;
+        html = `
+          <p>Habari,</p>
+          <p>Server yako <strong>${serverName}</strong> imekatishwa kwa sasa.</p>
+          <p><strong>Sababu:</strong> ${reason || 'Malipo hayakamilika au ukaguzi wa malipo haujakamilika.'}</p>
+          <p>Ikiwa server imekatishwa kimkoa, tafadhali wasiliana na developer au admin ili ikarabatiwe.</p>
+          <p>Asante.</p>
+        `;
+        text = `Server yako ${serverName} imekatishwa. Sababu: ${reason || 'Malipo hayakamilika au ukaguzi wa malipo haujakamilika.'} Ikiwa server imekatishwa kimkoa, tafadhali wasiliana na developer au admin.`;
+      } else {
+        subject = `Server yako "${serverName}" imefunguliwa tena`;
+        html = `
+          <p>Habari,</p>
+          <p>Server yako <strong>${serverName}</strong> imefunguliwa tena.</p>
+          <p>Asante kwa kusuluhisha malipo yake.</p>
+        `;
+        text = `Server yako ${serverName} imefunguliwa tena. Asante kwa kusuluhisha malipo yake.`;
+      }
+
+      await sendEmail({
+        to: ownerContact.email,
+        subject,
+        html,
+        text
+      });
+    }
+
+    res.json({ success: true, message: `Server ${action} operation completed.`, data: { server: attrs, owner: ownerContact } });
+  } catch (err) {
+    const status = err.response?.status;
+    const detail = err.response?.data?.errors?.[0]?.detail || err.response?.data?.message || err.message;
+    res.status(status && status !== 500 ? status : 500).json({ success: false, error: detail || 'Failed to update server state.' });
+  }
+});
 
 // Get current user info
 router.get('/api/me', requireAuth, (req, res) => {

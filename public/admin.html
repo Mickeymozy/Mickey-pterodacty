@@ -99,6 +99,7 @@
         <button class="tab-button active px-4 py-2 rounded-lg border border-slate-700/50 text-sm font-medium transition" onclick="switchTab(event, 'overview')">📊 Overview</button>
         <button class="tab-button px-4 py-2 rounded-lg border border-slate-700/50 text-sm font-medium transition" onclick="switchTab(event, 'packages')">📦 Packages</button>
         <button class="tab-button px-4 py-2 rounded-lg border border-slate-700/50 text-sm font-medium transition" onclick="switchTab(event, 'payments')">💳 Malipo</button>
+        <button class="tab-button px-4 py-2 rounded-lg border border-slate-700/50 text-sm font-medium transition" onclick="switchTab(event, 'adminServers')">🖥️ Servers</button>
         <button class="tab-button px-4 py-2 rounded-lg border border-slate-700/50 text-sm font-medium transition" onclick="switchTab(event, 'users')">👥 Watumiaji</button>
       </div>
     </div>
@@ -203,6 +204,34 @@
               </tr>
             </thead>
             <tbody id="paymentsList"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Servers Tab -->
+    <div id="adminServers" class="tab-content">
+      <div class="glass rounded-2xl p-6 mb-6">
+        <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 class="text-xl font-semibold text-white mb-1">🖥️ Usimamizi wa Server</h2>
+            <p class="text-sm text-slate-400">Ona server zote za Pterodactyl na suspend/unsuspend kwa admin.</p>
+          </div>
+          <button id="refreshServersBtn" onclick="loadAdminServers()" class="inline-flex items-center justify-center rounded-2xl bg-slate-800/80 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700">Refresh Servers</button>
+        </div>
+      </div>
+      <div class="glass rounded-2xl p-6">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm border-collapse">
+            <thead>
+              <tr class="border-b border-slate-800 text-slate-400 text-xs">
+                <th class="py-2 px-4">Server</th>
+                <th class="py-2 px-4">Hali</th>
+                <th class="py-2 px-4">Owner</th>
+                <th class="py-2 px-4">Action</th>
+              </tr>
+            </thead>
+            <tbody id="adminServersList"></tbody>
           </table>
         </div>
       </div>
@@ -382,6 +411,7 @@
       document.getElementById(tabName).classList.add('active');
       event.currentTarget.classList.add('active');
       if(tabName === 'payments') loadPayments();
+      if(tabName === 'adminServers') loadAdminServers();
       if(tabName === 'users') loadUsers();
     }
 
@@ -646,6 +676,56 @@
           `).join('');
         }
       } catch(e) { console.error(e); }
+    }
+
+    async function loadAdminServers() {
+      try {
+        const res = await fetch(`${API_URL}/admin/servers`);
+        const d = await res.json();
+        const tbody = document.getElementById('adminServersList');
+        if (!tbody) return;
+        if (d.success && Array.isArray(d.data)) {
+          tbody.innerHTML = d.data.map(server => {
+            const status = server.status || 'unknown';
+            const lowerStatus = String(status).toLowerCase();
+            const suspendLabel = lowerStatus === 'suspended' ? 'Fungua' : 'Suspend';
+            const action = lowerStatus === 'suspended' ? 'unsuspend' : 'suspend';
+            const ownerLabel = server.ownerUsername ? `${server.ownerUsername} (${server.ownerEmail})` : server.ownerEmail || 'Unknown';
+            return `
+              <tr class="border-b border-slate-800/40 text-xs">
+                <td class="py-2 px-4">${server.name || server.identifier}</td>
+                <td class="py-2 px-4 text-slate-200">${status}</td>
+                <td class="py-2 px-4 text-slate-300">${ownerLabel}</td>
+                <td class="py-2 px-4 flex flex-wrap gap-2">
+                  <button onclick="performServerAction('${server.id}', '${action}')" class="bg-indigo-600 px-2 py-1 rounded text-white text-[10px]">${suspendLabel}</button>
+                </td>
+              </tr>
+            `;
+          }).join('');
+        } else {
+          tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-slate-500">Hakuna server zilizopatikana.</td></tr>';
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function performServerAction(serverId, action) {
+      const confirmed = await confirmDialog(`Una uhakika unataka ${action === 'suspend' ? 'kususpend' : 'kufungua'} server hii?`, { title: 'Thibitisha' });
+      if (!confirmed) return;
+      const reason = action === 'suspend' ? await promptDialog('Sababu ya kususpend server:', { placeholder: 'Malipo hayakamilika', confirmText: 'Tuma' }) : '';
+      try {
+        const res = await fetch(`${API_URL}/admin/servers/${encodeURIComponent(serverId)}/${action}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason: reason || '' })
+        });
+        const d = await res.json();
+        notify(d.message || 'Server action completed.', d.success ? 'success' : 'error');
+        loadAdminServers();
+      } catch (err) {
+        notify('Hitilafu wakati wa kubadilisha server.', 'error');
+      }
     }
 
     async function adjustCoins(id, current) {
