@@ -95,7 +95,7 @@
 
     <!-- Navigation Tabs -->
     <div class="glass rounded-2xl p-4 mb-6">
-      <div class="flex gap-2 flex-wrap">
+      <div class="flex flex-wrap gap-2">
         <button class="tab-button active px-4 py-2 rounded-lg border border-slate-700/50 text-sm font-medium transition" onclick="switchTab(event, 'overview')">📊 Overview</button>
         <button class="tab-button px-4 py-2 rounded-lg border border-slate-700/50 text-sm font-medium transition" onclick="switchTab(event, 'packages')">📦 Packages</button>
         <button class="tab-button px-4 py-2 rounded-lg border border-slate-700/50 text-sm font-medium transition" onclick="switchTab(event, 'payments')">💳 Malipo</button>
@@ -192,7 +192,12 @@
     <!-- Payments Tab -->
     <div id="payments" class="tab-content">
       <div class="glass rounded-2xl p-6">
-        <h2 class="text-xl font-semibold text-white mb-4">💳 Maombi ya Malipo</h2>
+        <div class="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 class="text-xl font-semibold text-white">💳 Maombi ya Malipo</h2>
+            <p class="text-sm text-slate-400">Angalia na uthibitishe malipo ya watumiaji kwa haraka.</p>
+          </div>
+        </div>
         <div class="overflow-x-auto">
           <table class="w-full text-left text-sm border-collapse">
             <thead>
@@ -243,7 +248,7 @@
         <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <h2 class="text-xl font-semibold text-white mb-1">✉️ Tuma Email kwa Mtumiaji</h2>
-            <p class="text-sm text-slate-400">Bonyeza kitufe ili kuonyesha fomu ya email. Unaweza kutuma kwa mteja mmoja, kwa email ya nje, au kwa watumiaji wote.</p>
+            <p class="text-sm text-slate-400">Tuma ujumbe kwa mtumiaji mmoja, email ya nje, au kwa watumiaji wote kwa haraka.</p>
           </div>
           <button id="toggleEmailComposerBtn" class="inline-flex items-center justify-center rounded-2xl bg-slate-800/80 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700">Andika Email</button>
         </div>
@@ -289,7 +294,12 @@
       </div>
 
       <div class="glass rounded-2xl p-6">
-        <h2 class="text-xl font-semibold text-white mb-4">👥 Usimamizi wa Watumiaji</h2>
+        <div class="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 class="text-xl font-semibold text-white">👥 Usimamizi wa Watumiaji</h2>
+            <p class="text-sm text-slate-400">Rekebisha coins, tuma email, au futa akaunti kwa urahisi.</p>
+          </div>
+        </div>
         <div class="overflow-x-auto">
           <table class="w-full text-left text-sm border-collapse">
             <thead>
@@ -645,9 +655,11 @@
                   <div class="${p.status === 'pending' ? 'text-amber-400' : p.status === 'completed' ? 'text-emerald-400' : 'text-red-400'}">${p.status}</div>
                   ${proofText ? `<div class="mt-1 text-[10px] text-slate-500">${proofText}</div>` : ''}
                 </td>
-                <td class="py-2 px-4 flex gap-2 flex-wrap">
-                  ${p.status === 'pending' ? `<button onclick="updatePayment('${p._id||p.id}', 'approve')" class="bg-emerald-600 px-2 py-0.5 rounded text-white">Approve & Create</button>` : '—'}
-                  <button onclick="deleteUser('${p.userId?._id || p.userId || ''}')" class="bg-red-500/20 text-red-400 px-2 py-0.5 rounded">Delete User</button>
+                <td class="py-2 px-4">
+                  <div class="flex flex-wrap gap-2">
+                    ${p.status === 'pending' ? `<button onclick="updatePayment('${p._id||p.id}', 'approve')" class="rounded-lg bg-emerald-600 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-emerald-500">Approve & Create</button>` : '—'}
+                    <button onclick="deleteUser('${p.userId?._id || p.userId || ''}')" class="rounded-lg bg-red-500/20 px-3 py-1.5 text-[11px] font-semibold text-red-400 transition hover:bg-red-500/30">Delete User</button>
+                  </div>
                 </td>
               </tr>
             `;
@@ -667,10 +679,12 @@
               <td class="py-2 px-4">${u.username || u.email}</td>
               <td class="py-2 px-4 text-slate-300">${u.role === 'admin' || u.isAdmin ? 'Admin' : 'User'}</td>
               <td class="py-2 px-4 text-amber-400">🪙 ${Number(u.coins || 0).toLocaleString()}</td>
-              <td class="py-2 px-4 flex flex-wrap gap-2">
-                <button onclick="adjustCoins('${u._id||u.id}', ${u.coins||0})" class="bg-slate-700 px-2 py-1 rounded text-white text-[10px]">Edit Coins</button>
-                <button onclick="deleteUser('${u._id||u.id}')" class="bg-red-500/20 text-red-400 px-2 py-1 rounded text-[10px]">Futa</button>
-                <button onclick="prefillAdminEmail('${u.email || ''}')" class="bg-sky-500/20 text-sky-300 px-2 py-1 rounded text-[10px]">Email</button>
+              <td class="py-2 px-4">
+                <div class="flex flex-wrap gap-2">
+                  <button onclick="adjustCoins('${u._id||u.id}', ${u.coins||0})" class="rounded-lg bg-slate-700 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-slate-600">Edit Coins</button>
+                  <button onclick="deleteUser('${u._id||u.id}')" class="rounded-lg bg-red-500/20 px-3 py-1.5 text-[11px] font-semibold text-red-400 transition hover:bg-red-500/30">Futa</button>
+                  <button onclick="prefillAdminEmail('${u.email || ''}')" class="rounded-lg bg-sky-500/20 px-3 py-1.5 text-[11px] font-semibold text-sky-300 transition hover:bg-sky-500/30">Email</button>
+                </div>
               </td>
             </tr>
           `).join('');
@@ -696,8 +710,10 @@
                 <td class="py-2 px-4">${server.name || server.identifier}</td>
                 <td class="py-2 px-4 text-slate-200">${status}</td>
                 <td class="py-2 px-4 text-slate-300">${ownerLabel}</td>
-                <td class="py-2 px-4 flex flex-wrap gap-2">
-                  <button onclick="performServerAction('${server.id}', '${action}')" class="bg-indigo-600 px-2 py-1 rounded text-white text-[10px]">${suspendLabel}</button>
+                <td class="py-2 px-4">
+                  <div class="flex flex-wrap gap-2">
+                    <button onclick="performServerAction('${server.id}', '${action}')" class="rounded-lg bg-indigo-600 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-indigo-500">${suspendLabel}</button>
+                  </div>
                 </td>
               </tr>
             `;
