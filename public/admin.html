@@ -703,10 +703,16 @@
             `;
           }).join('');
         } else {
-          tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-slate-500">Hakuna server zilizopatikana.</td></tr>';
+          tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-500">${d.error || 'Hakuna server zilizopatikana.'}</td></tr>`;
+          if (!d.success) notify(d.error || 'Hitilafu wakati wa kupakia server.', 'error');
         }
       } catch (e) {
         console.error(e);
+        const tbody = document.getElementById('adminServersList');
+        if (tbody) {
+          tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-slate-500">Hitilafu: server hazikuweza kupakuliwa.</td></tr>';
+        }
+        notify('Hitilafu wakati wa kupakia server.', 'error');
       }
     }
 
@@ -827,7 +833,7 @@
       }
     });
 
-    loadStats(); loadPackages(); loadPayments(); loadUsers();
+    loadStats(); loadPackages(); loadPayments(); loadUsers(); loadAdminServers();
   </script>
 </body>
 </html>

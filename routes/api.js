@@ -482,7 +482,7 @@ async function getServerOwnerContact(pteroUserId) {
 }
 
 // Admin: List all Pterodactyl servers for management
-router.get('/admin/servers', requireAuth, requireAdmin, async (req, res) => {
+router.get(['/admin/servers', '/api/admin/servers'], requireAuth, requireAdmin, async (req, res) => {
   if (!appApi) {
     return res.status(503).json({ success: false, error: 'Pterodactyl API is not configured.' });
   }
@@ -517,7 +517,7 @@ router.get('/admin/servers', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-router.post('/admin/servers/:id/:action', requireAuth, requireAdmin, async (req, res) => {
+router.post(['/admin/servers/:id/:action', '/api/admin/servers/:id/:action'], requireAuth, requireAdmin, async (req, res) => {
   if (!appApi) {
     return res.status(503).json({ success: false, error: 'Pterodactyl API is not configured.' });
   }
