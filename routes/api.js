@@ -147,11 +147,11 @@ async function getServerConnectionDetails(ref) {
         ipAddress: attrs.ip || attrs.address || attrs.ipv4 || attrs.ip_address || '',
         port: attrs.port ? String(attrs.port) : '',
         sftpHost: resolvedHost || process.env.PTERODACTYL_URL || '',
-        sftpUser: String(serverId)
+        sftpUser: String(id)
       };
     }
   } catch (err) {
-    // fall back to the application-level attributes if the client endpoint is unavailable
+    console.warn('Failed to fetch server connection details, using fallback:', err.message);
   }
 
   return extractConnectionDetails({});
@@ -418,7 +418,7 @@ async function resolveAndSavePteroId(user) {
         return currentId;
       }
     } catch (err) {
-      // ignore and continue lookup by username/email below
+      console.warn(`Stored pteroId ${currentId} not found, resolving by username/email:`, err.message);
     }
   }
 
@@ -636,6 +636,7 @@ router.get('/api/servers', requireAuth, async (req, res) => {
           const resourceAttrs = resourcesResponse?.data?.attributes || {};
           return sanitizeServer(server, resourceAttrs, req.user, connectionDetails);
         } catch (resourceErr) {
+          console.warn(`Failed to fetch resources for server ${clientId || numericId}:`, resourceErr.message);
           return sanitizeServer(server, {}, req.user);
         }
       })
@@ -805,6 +806,7 @@ router.post('/api/servers/create', requireAuth, async (req, res) => {
         response = await appApi.post('/servers', payload);
         break;
       } catch (err) {
+        console.warn(`Server creation attempt failed (payload variant ${payloads.indexOf(payload) + 1}/${payloads.length}):`, err.response?.data?.errors?.[0]?.detail || err.message);
         lastError = err;
       }
     }
