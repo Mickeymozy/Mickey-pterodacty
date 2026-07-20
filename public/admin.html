@@ -640,7 +640,7 @@
           tbody.innerHTML = d.data.map(p => {
             const proofText = p.metadata?.proofText || p.metadata?.paymentProof || p.metadata?.description || '';
             const phone = p.metadata?.phone || '';
-            const source = p.metadata?.paymentMethod === 'manual' ? 'Manual' : (p.paymentMethod || 'SonicPesa');
+            const source = p.metadata?.paymentMethod === 'manual' ? 'Manual' : (p.paymentMethod ? (p.paymentMethod === 'palmpesa' ? 'PalmPesa' : p.paymentMethod) : 'PalmPesa');
             return `
               <tr class="border-b border-slate-800/40 text-xs align-top">
                 <td class="py-2 px-4">

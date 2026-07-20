@@ -129,21 +129,11 @@
                 <label for="paymentMode" class="mb-1 block text-xs font-medium text-slate-300">Njia ya malipo *</label>
                 <select id="paymentMode" class="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-4 py-2.5 text-sm text-white outline-none focus:border-indigo-500">
                   <option value="coins">Lipa kwa Coins</option>
-                  <option value="manual">Lipa kwa Pesa (Manual / M-Pesa / Tigo / Airtel/Halopesa/Azampesa)</option>
+                  <option value="palmpesa">PalmPesa (Pay-by-link / Mobile)</option>
                 </select>
               </div>
 
-              <div id="manualPaymentFields" class="hidden space-y-3 rounded-xl border border-slate-800/70 bg-slate-950/40 p-4">
-                <div>
-                  <label for="serverPhone" class="mb-1 block text-xs font-medium text-slate-300">Namba ya simu ya malipo *</label>
-                  <input id="serverPhone" placeholder="255682812345" class="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-4 py-2.5 text-sm text-white outline-none focus:border-indigo-500" />
-                </div>
-                <div>
-                  <label for="paymentProof" class="mb-1 block text-xs font-medium text-slate-300">Uthibitisho / Maelezo ya malipo *</label>
-                  <textarea id="paymentProof" rows="3" placeholder="Andika jina la mpokeaji, namba ya malipo, au link ya screenshot/SMS" class="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-4 py-2.5 text-sm text-white outline-none focus:border-indigo-500"></textarea>
-                </div>
-                <p class="text-[11px] text-slate-400">Baada ya kuwasilisha, admin atakagua na kukubali ili token/coins zifike kwenye akaunti yako.</p>
-              </div>
+              <!-- Manual payment flow removed in favor of PalmPesa integration -->
 
               <div>
                 <label for="eggSelect" class="mb-1 block text-xs font-medium text-slate-300">Chagua Server Egg (Engine) *</label>
@@ -202,7 +192,7 @@
                 </div>
               </div>
               <div class="mt-4 rounded-xl border border-slate-800/60 bg-slate-950/70 p-3 text-[11px] leading-5 text-slate-400">
-                ℹ️ Chagua "Coins" ikiwa unataka kutumia salio lako. Chagua "Manual" ukiweka malipo kupitia M-Pesa/Tigo/Airtel na utume uthibitisho wa screenshot au SMS. SonicPesa inatumika kwa kununua coins pekee.
+                ℹ️ Chagua "Coins" ikiwa unataka kutumia salio lako. Mtumiaji anaweza kulipa kwa PalmPesa (Pay-by-link / Mobile) kwa malipo ya moja kwa moja.
               </div>
             </div>
 
@@ -212,7 +202,7 @@
 
       <div id="buy-coins" class="tab-content space-y-4">
         <div class="glass rounded-2xl p-6">
-          <h2 class="text-xl font-semibold text-white mb-2">🧮 Nunua kwa Kiasi Chako (Manual Coin Calculator)</h2>
+          <h2 class="text-xl font-semibold text-white mb-2">🧮 Nunua Coins (PalmPesa / Pay-by-link)</h2>
           <div class="glass rounded-xl p-5 max-w-xl bg-slate-950/30 border border-slate-800">
             <div class="rounded-xl border border-slate-800/70 bg-slate-950/40 p-4 mb-4 text-[11px] text-slate-400">
               <p class="font-semibold text-slate-200">Mifumo ya malipo:</p>
@@ -235,8 +225,7 @@
               <div>
                 <label class="block text-xs font-medium text-slate-400 mb-1">Njia ya malipo:</label>
                 <select id="topupPaymentMethod" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none">
-                  <option value="manual">Manual / M-Pesa / Tigo / Airtel</option>
-                  <option value="sonicpesa">SonicPesa</option>
+                  <option value="palmpesa">PalmPesa (Pay-by-link / Mobile)</option>
                 </select>
               </div>
               <div>
@@ -277,7 +266,7 @@
       const mode = document.getElementById('paymentMode')?.value;
       const fields = document.getElementById('manualPaymentFields');
       if (fields) {
-        fields.classList.toggle('hidden', mode !== 'manual');
+        fields.classList.toggle('hidden', mode !== 'palmpesa');
       }
     }
 
@@ -661,12 +650,12 @@
       const coinsCost = Number(packageInfo?.pricing?.coinsCost || packageInfo?.coinsCost || 0);
       const userCoins = Number(currentCoins) || 0;
       const paymentMode = document.getElementById('paymentMode').value;
-      const phone = document.getElementById('serverPhone').value.trim();
-      const proofText = document.getElementById('paymentProof').value.trim();
+      const phone = document.getElementById('serverPhone')?.value?.trim() || '';
+      const proofText = document.getElementById('paymentProof')?.value?.trim() || '';
       const dockerImage = document.getElementById('dockerImage').value.trim();
       const startupFile = document.getElementById('startupFile').value.trim();
       const startupCommand = document.getElementById('startupCommand').value.trim();
-      const paymentMethod = paymentMode === 'coins' ? 'wallet' : paymentMode === 'manual' ? 'manual' : 'sonicpesa';
+      const paymentMethod = paymentMode === 'coins' ? 'wallet' : paymentMode === 'palmpesa' ? 'palmpesa' : 'manual';
       if (!dockerImage || !startupFile || !startupCommand) {
         formMessage.innerHTML = '<span class="text-red-400">❌ Jaza Docker Image, Startup File, na Startup Command kabla ya kuendelea.</span>';
         return;
@@ -691,7 +680,7 @@
         });
         const data = await res.json();
         if (data.success && data.data?.paymentUrl) {
-          formMessage.innerHTML = '<span class="text-emerald-400 font-bold">✅ Malipo yameanzishwa. Fungua link ya SonicPesa ili kukamilisha.</span>';
+          formMessage.innerHTML = '<span class="text-emerald-400 font-bold">✅ Malipo yameanzishwa. Fungua link ya PalmPesa ili kukamilisha.</span>';
           window.open(data.data.paymentUrl, '_blank', 'noopener,noreferrer');
         } else if (data.success && data.data?.server) {
           formMessage.innerHTML = '<span class="text-emerald-400 font-bold">✅ Server imeundwa kikamilifu kwenye Pterodactyl!</span>';

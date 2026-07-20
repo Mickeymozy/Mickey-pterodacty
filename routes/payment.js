@@ -4,7 +4,7 @@
 
 const express = require('express');
 const router = express.Router();
-const sonicPesaService = require('../services/sonicPesaService');
+const palmPesaService = require('../services/palmPesaService');
 const ServerPackage = require('../models/ServerPackage');
 const Transaction = require('../models/Transaction');
 const User = require('../models/User');
@@ -93,6 +93,10 @@ router.post('/checkout', authenticate, async (req, res) => {
     const useWalletPayment = normalizedPaymentMethod === 'wallet' || normalizedPaymentMethod === 'coins';
     const useManualPayment = normalizedPaymentMethod === 'manual';
 
+    if (normalizedPaymentMethod === 'manual') {
+      return res.status(400).json({ success: false, message: 'Manual payment option has been removed. Use PalmPesa or Coins (wallet) instead.' });
+    }
+
     if (!packageId) {
       return res.status(400).json({ success: false, message: 'Package ID required' });
     }
@@ -111,12 +115,7 @@ router.post('/checkout', authenticate, async (req, res) => {
     const coinsCost = Number(pricing.coinsCost ?? pkg?.coinsCost ?? 0);
     const usdCost = Number(pricing.usdCost ?? pkg?.usdCost ?? 0);
 
-    if (normalizedPaymentMethod === 'sonicpesa') {
-      return res.status(400).json({
-        success: false,
-        message: 'SonicPesa inatumika kwa kununua coins pekee. Tafadhali chagua Coins au Manual kwa server.'
-      });
-    }
+    // Disallow old manual/sonic options on the checkout form; use `palmpesa` or `wallet`.
 
     // Handle coin payment separately: create server first, then atomically deduct coins
     if (useWalletPayment) {
@@ -239,7 +238,7 @@ router.post('/checkout', authenticate, async (req, res) => {
         amount: usdCost || coinsCost,
         currency: 'USD',
         packageId,
-        paymentMethod: normalizedPaymentMethod || 'sonicpesa',
+        paymentMethod: normalizedPaymentMethod || 'palmpesa',
         status: 'pending',
         description: `Purchase of ${pkg.name} package`
       });
@@ -262,14 +261,28 @@ router.post('/checkout', authenticate, async (req, res) => {
         }
       };
 
-      const paymentResult = await sonicPesaService.createPayment(paymentData);
+      const paymentResult = await palmPesaService.createPayment({
+        user_id: process.env.PALMPESA_USER_ID,
+        vendor: process.env.PALMPESA_VENDOR,
+        order_id: transaction._id.toString(),
+        customerEmail: paymentData.customerEmail,
+        customerName: paymentData.customerName,
+        customerPhone: paymentData.customerPhone,
+        amount: paymentData.amount,
+        currency: 'TZS',
+        redirectUrl: process.env.PALMPESA_REDIRECT_URL || process.env.APP_URL,
+        cancelUrl: process.env.PALMPESA_CANCEL_URL || `${process.env.APP_URL || ''}/cancel`,
+        webhookUrl: process.env.PALMPESA_WEBHOOK_URL || `${process.env.APP_URL || ''}/api/payment/webhook`,
+        description: paymentData.description,
+        metadata: paymentData.metadata
+      });
 
       if (paymentResult.success) {
         transaction.zenopayTransactionId = paymentResult.orderId || paymentResult.transactionId;
         transaction.zenopayReference = paymentResult.reference;
         transaction.metadata = {
           ...(transaction.metadata || {}),
-          sonicpesaOrderId: paymentResult.orderId || paymentResult.transactionId,
+          palmpesaOrderId: paymentResult.orderId || paymentResult.transactionId,
           paymentUrl: paymentResult.paymentUrl
         };
         await transaction.save();
@@ -279,7 +292,7 @@ router.post('/checkout', authenticate, async (req, res) => {
           message: 'Payment initialized',
           data: {
             paymentUrl: paymentResult.paymentUrl,
-            provider: 'sonicpesa',
+            provider: 'palmpesa',
             transactionId: transaction._id,
             package: {
               name: pkg.name,
@@ -310,7 +323,7 @@ router.post('/checkout', authenticate, async (req, res) => {
  */
 router.post('/topup', authenticate, async (req, res) => {
   try {
-    const { coins, phone, paymentMethod = 'manual', proofText } = req.body;
+    const { coins, phone, paymentMethod = 'palmpesa', proofText } = req.body;
     const userId = req.user._id;
     const coinAmount = Number(coins);
 
@@ -329,8 +342,8 @@ router.post('/topup', authenticate, async (req, res) => {
       type: 'payment',
       amount: coinAmount,
       currency: 'coins',
-      paymentMethod: paymentMethod === 'sonicpesa' ? 'sonicpesa' : 'manual',
-      paymentProvider: paymentMethod === 'sonicpesa' ? 'sonicpesa' : 'manual',
+      paymentMethod: paymentMethod === 'palmpesa' ? 'palmpesa' : 'manual',
+      paymentProvider: paymentMethod === 'palmpesa' ? 'palmpesa' : 'manual',
       status: 'pending',
       description: `Coin top-up for ${coinAmount} coins`,
       metadata: {
@@ -339,7 +352,7 @@ router.post('/topup', authenticate, async (req, res) => {
         phone,
         proofText,
         amountTzs,
-        paymentMethod: paymentMethod === 'sonicpesa' ? 'sonicpesa' : 'manual'
+        paymentMethod: paymentMethod === 'palmpesa' ? 'palmpesa' : 'manual'
       }
     });
 
@@ -348,7 +361,7 @@ router.post('/topup', authenticate, async (req, res) => {
     await notifyUserAboutPendingPayment(user, transaction, { name: 'Coins Top-up' }, 'coin top-up');
     await notifyAdminAboutPendingPayment(user, transaction, { name: 'Coins Top-up' }, 'coin top-up');
 
-    if (paymentMethod === 'sonicpesa') {
+    if (paymentMethod === 'palmpesa') {
       const paymentData = {
         amount: amountTzs,
         currency: 'TZS',
@@ -365,14 +378,26 @@ router.post('/topup', authenticate, async (req, res) => {
         }
       };
 
-      const paymentResult = await sonicPesaService.createPayment(paymentData);
+      const paymentResult = await palmPesaService.createPayment({
+        user_id: process.env.PALMPESA_USER_ID,
+        vendor: process.env.PALMPESA_VENDOR,
+        order_id: transaction._id.toString(),
+        customerEmail: paymentData.customerEmail,
+        customerName: paymentData.customerName,
+        customerPhone: paymentData.customerPhone || paymentData.customerPhone,
+        amount: paymentData.amount,
+        currency: 'TZS',
+        webhookUrl: process.env.PALMPESA_WEBHOOK_URL || `${process.env.APP_URL || ''}/api/payment/webhook`,
+        description: paymentData.description,
+        metadata: paymentData.metadata
+      });
 
       if (paymentResult.success) {
         transaction.zenopayTransactionId = paymentResult.orderId || paymentResult.transactionId;
         transaction.zenopayReference = paymentResult.reference;
         transaction.metadata = {
           ...(transaction.metadata || {}),
-          sonicpesaOrderId: paymentResult.orderId || paymentResult.transactionId,
+          palmpesaOrderId: paymentResult.orderId || paymentResult.transactionId,
           paymentUrl: paymentResult.paymentUrl
         };
         await transaction.save();
@@ -383,7 +408,7 @@ router.post('/topup', authenticate, async (req, res) => {
           data: {
             paymentUrl: paymentResult.paymentUrl,
             transactionId: transaction._id,
-            provider: 'sonicpesa',
+            provider: 'palmpesa',
             coins: coinAmount,
             amountTzs: amountTzs
           }
@@ -424,7 +449,7 @@ router.get('/verify/:transactionId', authenticate, async (req, res) => {
       return res.status(404).json({ success: false, message: 'Transaction not found' });
     }
 
-    const verificationResult = await sonicPesaService.verifyPayment(
+    const verificationResult = await palmPesaService.verifyPayment(
       transaction.zenopayTransactionId
     );
 
@@ -510,18 +535,19 @@ router.get('/verify/:transactionId', authenticate, async (req, res) => {
 });
 
 /**
- * Webhook endpoint for SonicPesa callbacks
+ * Webhook endpoint for PalmPesa callbacks
  */
 router.post('/webhook', async (req, res) => {
   try {
-    const signature = req.headers['x-sonicpesa-signature'] || req.headers['signature'];
+    const signature = req.headers['x-palmpesa-signature'] || req.headers['x-signature'] || req.headers['signature'];
     const payload = JSON.stringify(req.body || {});
 
-    if (signature && !sonicPesaService.validateWebhookSignature(payload, signature)) {
+    // PalmPesa service validator currently accepts webhooks by default
+    if (signature && !palmPesaService.validateWebhookSignature(payload, signature)) {
       return res.status(400).json({ success: false, message: 'Invalid signature' });
     }
 
-    const reference = req.body?.reference || req.body?.order_id || req.body?.data?.reference;
+    const reference = req.body?.reference || req.body?.order_id || req.body?.data?.reference || req.body?.orderId;
     const transaction = await Transaction.findById(reference).catch(() => null);
     const fallbackTransaction = reference
       ? await Transaction.findOne({ zenopayReference: reference }).catch(() => null)
@@ -533,7 +559,7 @@ router.post('/webhook', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Transaction not found' });
     }
 
-    const status = String(req.body?.status || req.body?.payment_status || '').toLowerCase();
+    const status = String(req.body?.status || req.body?.payment_status || req.body?.paymentStatus || '').toLowerCase();
     const shouldCredit = status === 'success' || status === 'completed' || status === 'succeeded';
 
     if (shouldCredit) {
@@ -600,7 +626,7 @@ router.get('/transactions', authenticate, async (req, res) => {
  */
 router.get('/methods', (req, res) => {
   try {
-    const methods = sonicPesaService.getAvailablePaymentMethods();
+    const methods = palmPesaService.getAvailablePaymentMethods();
     res.json({ success: true, data: methods });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
