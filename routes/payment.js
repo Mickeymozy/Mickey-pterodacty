@@ -683,6 +683,49 @@ router.get('/debug/config', (req, res) => {
   res.json({ success: true, data: config });
 });
 
+router.post('/debug/test-payment', authenticate, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const testPayload = {
+      user_id: process.env.PALMPESA_USER_ID,
+      vendor: process.env.PALMPESA_VENDOR,
+      order_id: `TEST-${Date.now()}`,
+      customerEmail: user.email,
+      customerName: user.username,
+      customerPhone: '255744000000',
+      amount: 1000, // 1000 TZS for testing
+      currency: 'TZS',
+      webhookUrl: process.env.PALMPESA_WEBHOOK_URL || `${process.env.APP_URL || ''}/api/payment/webhook`,
+      description: 'Test payment to verify PalmPesa configuration'
+    };
+
+    console.log('Testing PalmPesa with payload:', testPayload);
+    const result = await palmPesaService.createPayment(testPayload);
+    
+    res.json({
+      success: true,
+      message: 'Test payment result',
+      data: {
+        result,
+        payload: testPayload,
+        configStatus: {
+          hasApiToken: !!process.env.PALMPESA_API_TOKEN,
+          hasUserId: !!process.env.PALMPESA_USER_ID,
+          hasVendor: !!process.env.PALMPESA_VENDOR,
+          hasWebhook: !!process.env.PALMPESA_WEBHOOK_URL
+        }
+      }
+    });
+  } catch (err) {
+    console.error('Test payment error:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 router.get('/admin/all', requireAdmin, async (req, res) => {
   try {
     const transactions = await Transaction.find()

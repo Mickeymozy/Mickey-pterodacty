@@ -43,14 +43,21 @@ class PalmPesaService {
 
       console.log('PalmPesa createPayment request:', { url: `${this.baseUrl}/api/process-payment`, payload });
 
-      const response = await axios.post(`${this.baseUrl}/api/process-payment`, payload, {
-        headers: {
-          Authorization: `Bearer ${this.apiToken}`,
-          'Content-Type': 'application/json',
-          Accept: 'application/json'
-        },
-        timeout: 20000
-      });
+      let response;
+      try {
+        response = await axios.post(`${this.baseUrl}/api/process-payment`, payload, {
+          headers: {
+            Authorization: `Bearer ${this.apiToken}`,
+            'Content-Type': 'application/json',
+            Accept: 'application/json'
+          },
+          timeout: 20000,
+          validateStatus: () => true // Accept all status codes
+        });
+      } catch (axiosError) {
+        console.error('Axios request failed:', axiosError.message);
+        return { success: false, error: axiosError.message };
+      }
 
       const data = response.data || {};
       console.log('PalmPesa response:', { status: response.status, data });
@@ -66,7 +73,10 @@ class PalmPesaService {
         };
       }
 
-      return { success: false, error: data?.message || 'PalmPesa initialization failed' };
+      // Handle error response from PalmPesa
+      const errorMsg = data?.message || data?.error || data?.error_description || 'PalmPesa request failed';
+      console.error('PalmPesa error response:', { status: response.status, message: errorMsg, fullData: data });
+      return { success: false, error: errorMsg };
     } catch (error) {
       const errorResponse = error?.response?.data || {};
       const errorMessage = errorResponse.message || errorResponse.error || error.message || 'PalmPesa initialization failed';
@@ -74,7 +84,8 @@ class PalmPesaService {
         message: errorMessage,
         status: error?.response?.status,
         data: errorResponse,
-        url: error?.config?.url
+        url: error?.config?.url,
+        type: 'network_or_parsing_error'
       };
       console.error('PalmPesa Error:', errorDetails);
       return { success: false, error: errorMessage };

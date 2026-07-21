@@ -761,10 +761,12 @@
             messageBox.innerHTML = '<span class="text-emerald-400">✅ Maombi yako yamepokelewa. Admin ataapprove baada ya kuthibitisha malipo yako.</span>';
           }
         } else {
-          messageBox.innerHTML = `<span class="text-red-400">❌ ${data.message || 'Imeshindwa kuanzisha malipo.'}</span>`;
+          const errorMsg = data.message || 'Imeshindwa kuanzisha malipo';
+          console.error('Payment API Error:', { status: res.status, message: errorMsg, data });
+          messageBox.innerHTML = `<span class="text-red-400">❌ ${errorMsg}</span>`;
         }
       } catch (err) {
-        console.error('Payment error:', err);
+        console.error('Payment fetch error:', err);
         messageBox.innerHTML = '<span class="text-red-400">❌ Hitilafu ya mtandao wakati wa kuanzisha malipo.</span>';
       }
     }
