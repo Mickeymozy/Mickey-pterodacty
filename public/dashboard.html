@@ -264,9 +264,8 @@
 
     function togglePaymentFields() {
       const mode = document.getElementById('paymentMode')?.value;
-      const fields = document.getElementById('manualPaymentFields');
-      if (fields) {
-        fields.classList.toggle('hidden', mode !== 'palmpesa');
+      if (mode === 'palmpesa') {
+        return;
       }
     }
 

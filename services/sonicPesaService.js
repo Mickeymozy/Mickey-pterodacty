@@ -1,6 +1,5 @@
 /**
- * Legacy SonicPesa service file retained as a stub to avoid runtime require failures.
- * The application now uses the PalmPesa service instead.
+  
  */
 
 module.exports = {
