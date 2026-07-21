@@ -16,32 +16,62 @@ class PalmPesaService {
     this.webhookUrl = process.env.PALMPESA_WEBHOOK_URL || `${this.redirectUrl}/api/payment/webhook`;
   }
 
+  formatPhoneNumber(phone) {
+    // Convert phone to Tanzania format without + sign
+    if (!phone) return '';
+    const cleaned = phone.replace(/\D/g, '');
+    if (cleaned.startsWith('255')) {
+      return cleaned; // 255744000000
+    }
+    if (cleaned.startsWith('07') || cleaned.startsWith('06')) {
+      return '255' + cleaned.substring(1); // 07... or 06... → 255...
+    }
+    if (cleaned.startsWith('7') || cleaned.startsWith('6')) {
+      return '255' + cleaned; // 7... or 6... → 2557... or 2556...
+    }
+    return cleaned;
+  }
+
   async createPayment(paymentData = {}) {
     try {
+      // Validate required fields
+      const buyerEmail = paymentData.customerEmail || paymentData.buyer_email || '';
+      const buyerName = paymentData.customerName || paymentData.buyer_name || 'Customer';
+      const buyerPhone = this.formatPhoneNumber(paymentData.customerPhone || paymentData.buyer_phone || '');
+      const amount = Number(paymentData.amount || 0);
+      const orderId = paymentData.order_id || (paymentData.reference || `ORDER-${Date.now()}`);
+
+      if (!buyerEmail) {
+        return { success: false, error: 'Buyer email is required' };
+      }
+      if (!buyerName) {
+        return { success: false, error: 'Buyer name is required' };
+      }
+      if (!buyerPhone) {
+        return { success: false, error: 'Buyer phone (TZ format: 255...) is required' };
+      }
+      if (!amount || amount < 1) {
+        return { success: false, error: 'Valid amount (min 1 TZS) is required' };
+      }
+
       const payload = {
-        user_id: Number(this.userId) || Number(paymentData.user_id) || 0,
+        user_id: Number(this.userId),
         vendor: paymentData.vendor || this.vendor,
-        order_id: paymentData.order_id || (paymentData.reference || `ORDER-${Date.now()}`),
-        buyer_email: paymentData.customerEmail || paymentData.buyer_email || '',
-        buyer_name: paymentData.customerName || paymentData.buyer_name || 'Customer',
-        buyer_phone: paymentData.customerPhone || paymentData.buyer_phone || '',
-        amount: Number(paymentData.amount || 0),
-        currency: paymentData.currency || 'TZS',
+        order_id: orderId,
+        buyer_email: buyerEmail,
+        buyer_name: buyerName,
+        buyer_phone: buyerPhone,
+        amount: amount,
+        currency: 'TZS',
         redirect_url: paymentData.redirectUrl || this.redirectUrl,
         cancel_url: paymentData.cancelUrl || this.cancelUrl,
         webhook: paymentData.webhookUrl || this.webhookUrl,
-        buyer_remarks: paymentData.buyer_remarks || paymentData.metadata?.buyer_remarks || '',
-        merchant_remarks: paymentData.merchant_remarks || paymentData.description || '',
-        no_of_items: paymentData.no_of_items || 1,
-        metadata: paymentData.metadata || {}
+        buyer_remarks: paymentData.buyer_remarks || 'Purchase',
+        merchant_remarks: paymentData.merchant_remarks || paymentData.description || 'Transaction',
+        no_of_items: paymentData.no_of_items || 1
       };
 
-      if (!payload.buyer_email) {
-        // PalmPesa may allow phone-only payments, but keep a warning consistent with previous logic
-        // return { success: false, error: 'Customer email is required' };
-      }
-
-      console.log('PalmPesa createPayment request:', { url: `${this.baseUrl}/api/process-payment`, payload });
+      console.log('PalmPesa /api/process-payment request:', { url: `${this.baseUrl}/api/process-payment`, payload });
 
       let response;
       try {
@@ -60,32 +90,33 @@ class PalmPesaService {
       }
 
       const data = response.data || {};
-      console.log('PalmPesa response:', { status: response.status, data });
+      console.log('PalmPesa response:', { status: response.status, statusText: response.statusText, data });
       
-      if (response.status === 200) {
+      // PalmPesa returns 200 with "error": "sharable payment link" on success
+      if (response.status === 200 && (data?.raw?.payment_gateway_url || data?.error === 'sharable payment link')) {
         return {
           success: true,
-          paymentUrl: data?.raw?.payment_gateway_url || data?.raw?.payment_url || data?.paymentUrl || data?.payment_url || data?.paymentUrl || null,
-          orderId: data?.raw?.order_id || data?.order_id || data?.orderId || payload.order_id,
-          transactionId: data?.raw?.transid || data?.transaction_id || payload.order_id,
-          reference: payload.order_id,
+          paymentUrl: data?.raw?.payment_gateway_url || null,
+          orderId: data?.raw?.order_id || orderId,
+          transactionId: data?.raw?.transid || orderId,
+          reference: orderId,
           raw: data
         };
       }
 
       // Handle error response from PalmPesa
-      const errorMsg = data?.message || data?.error || data?.error_description || 'PalmPesa request failed';
-      console.error('PalmPesa error response:', { status: response.status, message: errorMsg, fullData: data });
+      const errorMsg = data?.message || data?.result || 'PalmPesa order creation failed';
+      console.error('PalmPesa error response:', { status: response.status, statusText: response.statusText, message: errorMsg, fullData: data });
       return { success: false, error: errorMsg };
     } catch (error) {
       const errorResponse = error?.response?.data || {};
-      const errorMessage = errorResponse.message || errorResponse.error || error.message || 'PalmPesa initialization failed';
+      const errorMessage = errorResponse.message || errorResponse.error || error.message || 'PalmPesa payment creation failed';
       const errorDetails = {
         message: errorMessage,
         status: error?.response?.status,
         data: errorResponse,
         url: error?.config?.url,
-        type: 'network_or_parsing_error'
+        type: 'network_error'
       };
       console.error('PalmPesa Error:', errorDetails);
       return { success: false, error: errorMessage };
