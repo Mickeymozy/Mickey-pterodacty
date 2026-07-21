@@ -214,7 +214,7 @@
             <div class="flex flex-col sm:flex-row items-center gap-4">
               <div class="w-full">
                 <label class="block text-xs font-medium text-slate-400 mb-1">Ingiza Coins:</label>
-                <input id="manualCoinsInput" type="number" min="1" value="10" oninput="calculatePrice()" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none" />
+                <input id="palmpesaCoinsInput" type="number" min="1" value="10" oninput="calculatePrice()" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none" />
               </div>
               <div class="w-full">
                 <span class="block text-xs font-medium text-slate-400 mb-1">Gharama (Tsh):</span>
@@ -262,7 +262,7 @@
       if (el) el.textContent = formatCoins(currentCoins);
     }
 
-    function toggleManualPaymentFields() {
+    function togglePaymentFields() {
       const mode = document.getElementById('paymentMode')?.value;
       const fields = document.getElementById('manualPaymentFields');
       if (fields) {
@@ -637,9 +637,9 @@
     }
 
     // FORM COMPILATION AND DEPLOYMENT
-    document.getElementById('paymentMode')?.addEventListener('change', toggleManualPaymentFields);
+    document.getElementById('paymentMode')?.addEventListener('change', togglePaymentFields);
     document.getElementById('eggSelect')?.addEventListener('change', applyEggDefaults);
-    toggleManualPaymentFields();
+    togglePaymentFields();
 
     createForm.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -696,12 +696,12 @@
     });
 
     function calculatePrice() {
-      const coins = parseInt(document.getElementById('manualCoinsInput').value) || 0;
+      const coins = parseInt(document.getElementById('palmpesaCoinsInput').value) || 0;
       document.getElementById('calculatedTsh').textContent = `Tsh ${(coins * 250).toLocaleString()}`;
     }
 
     async function payProcessor() {
-      const coins = parseInt(document.getElementById('manualCoinsInput').value) || 0;
+      const coins = parseInt(document.getElementById('palmpesaCoinsInput').value) || 0;
       const phone = document.getElementById('topupPhone').value.trim();
       const proofText = document.getElementById('topupProof').value.trim();
       const paymentMethod = document.getElementById('topupPaymentMethod').value;

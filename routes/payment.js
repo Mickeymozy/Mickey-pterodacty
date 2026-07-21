@@ -91,7 +91,7 @@ router.post('/checkout', authenticate, async (req, res) => {
     const userId = req.user._id;
     const normalizedPaymentMethod = String(paymentMethod || '').toLowerCase();
     const useWalletPayment = normalizedPaymentMethod === 'wallet' || normalizedPaymentMethod === 'coins';
-    const useManualPayment = normalizedPaymentMethod === 'manual';
+    const usePalmPesaPayment = normalizedPaymentMethod === 'palmpesa';
 
     if (normalizedPaymentMethod === 'manual') {
       return res.status(400).json({ success: false, message: 'Manual payment option has been removed. Use PalmPesa or Coins (wallet) instead.' });
@@ -114,8 +114,6 @@ router.post('/checkout', authenticate, async (req, res) => {
     const pricing = pkg?.pricing || {};
     const coinsCost = Number(pricing.coinsCost ?? pkg?.coinsCost ?? 0);
     const usdCost = Number(pricing.usdCost ?? pkg?.usdCost ?? 0);
-
-    // Disallow old manual/sonic options on the checkout form; use `palmpesa` or `wallet`.
 
     // Handle coin payment separately: create server first, then atomically deduct coins
     if (useWalletPayment) {
@@ -185,53 +183,88 @@ router.post('/checkout', authenticate, async (req, res) => {
           message: error.message || 'Failed to create server or deduct coins.'
         });
       }
-    } else if (useManualPayment) {
-      const manualTransaction = new Transaction({
+    } else if (usePalmPesaPayment) {
+      const transaction = new Transaction({
         userId,
         type: 'purchase',
         amount: usdCost || coinsCost,
         currency: 'USD',
         packageId,
-        paymentMethod: 'manual',
-        paymentProvider: 'manual',
+        paymentMethod: 'palmpesa',
+        paymentProvider: 'palmpesa',
         status: 'pending',
-        description: `Purchase of ${pkg.name} package via manual payment`,
-        metadata: {
-          type: 'package_purchase',
-          packageId: packageId,
-          userId: userId.toString(),
-          serverName,
-          phone,
-          proofText,
-          paymentMethod: 'manual',
-          eggId,
-          dockerImage,
-          startupFile,
-          startupCommand,
-          eggName: pkg?.serverConfig?.eggName || 'Node.js'
-        }
+        description: `Purchase of ${pkg.name} package`
       });
 
-      await manualTransaction.save();
+      await transaction.save();
 
-      await notifyUserAboutPendingPayment(user, manualTransaction, pkg, 'server purchase');
-      await notifyAdminAboutPendingPayment(user, manualTransaction, pkg, 'server purchase');
-
-      return res.json({
-        success: true,
-        message: 'Maombi yako ya server yamepokelewa. Admin atakagua malipo yako na kukubali ili server iundwe.',
-        data: {
-          transactionId: manualTransaction._id,
-          provider: 'manual',
-          package: {
-            name: pkg.name,
-            coins: coinsCost,
-            usd: usdCost
-          }
+      const paymentData = {
+        amount: Math.max(1, Math.round(usdCost)),
+        currency: 'TZS',
+        reference: transaction._id.toString(),
+        description: `${pkg.name} Package - ${user.email}`,
+        customerEmail: user.email,
+        customerName: user.username,
+        customerPhone: phone || user.phone || '',
+        coinsAmount: coinsCost,
+        metadata: {
+          transactionId: transaction._id.toString(),
+          packageId: packageId,
+          userId: userId.toString()
         }
+      };
+
+      const paymentResult = await palmPesaService.createPayment({
+        user_id: process.env.PALMPESA_USER_ID,
+        vendor: process.env.PALMPESA_VENDOR,
+        order_id: transaction._id.toString(),
+        customerEmail: paymentData.customerEmail,
+        customerName: paymentData.customerName,
+        customerPhone: paymentData.customerPhone,
+        amount: paymentData.amount,
+        currency: 'TZS',
+        redirectUrl: process.env.PALMPESA_REDIRECT_URL || process.env.APP_URL,
+        cancelUrl: process.env.PALMPESA_CANCEL_URL || `${process.env.APP_URL || ''}/cancel`,
+        webhookUrl: process.env.PALMPESA_WEBHOOK_URL || `${process.env.APP_URL || ''}/api/payment/webhook`,
+        description: paymentData.description,
+        metadata: paymentData.metadata
+      });
+
+      if (paymentResult.success) {
+        transaction.zenopayTransactionId = paymentResult.orderId || paymentResult.transactionId;
+        transaction.zenopayReference = paymentResult.reference;
+        transaction.metadata = {
+          ...(transaction.metadata || {}),
+          palmpesaOrderId: paymentResult.orderId || paymentResult.transactionId,
+          paymentUrl: paymentResult.paymentUrl
+        };
+        await transaction.save();
+
+        return res.json({
+          success: true,
+          message: 'Payment initialized',
+          data: {
+            paymentUrl: paymentResult.paymentUrl,
+            provider: 'palmpesa',
+            transactionId: transaction._id,
+            package: {
+              name: pkg.name,
+              coins: coinsCost,
+              usd: usdCost
+            }
+          }
+        });
+      }
+
+      transaction.status = 'failed';
+      transaction.notes = paymentResult.error;
+      await transaction.save();
+
+      return res.status(400).json({
+        success: false,
+        message: paymentResult.error
       });
     } else {
-      // Handle USD payment via SonicPesa
       const transaction = new Transaction({
         userId,
         type: 'purchase',
