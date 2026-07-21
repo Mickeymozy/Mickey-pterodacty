@@ -360,9 +360,32 @@ router.post('/topup', authenticate, async (req, res) => {
     const { coins, phone, paymentMethod = 'palmpesa', proofText } = req.body;
     const userId = req.user._id;
     const coinAmount = Number(coins);
+    const normalizedPaymentMethod = String(paymentMethod || '').toLowerCase();
+    const usePalmPesa = normalizedPaymentMethod === 'palmpesa';
 
     if (!coinAmount || coinAmount <= 0) {
       return res.status(400).json({ success: false, message: 'Weka kiasi halali cha coins.' });
+    }
+
+    // Validate PalmPesa configuration
+    if (usePalmPesa) {
+      const configCheck = {
+        hasToken: !!process.env.PALMPESA_API_TOKEN,
+        hasUserId: !!process.env.PALMPESA_USER_ID,
+        hasVendor: !!process.env.PALMPESA_VENDOR,
+        token: process.env.PALMPESA_API_TOKEN ? 'set' : 'NOT SET',
+        userId: process.env.PALMPESA_USER_ID ? 'set' : 'NOT SET',
+        vendor: process.env.PALMPESA_VENDOR ? 'set' : 'NOT SET'
+      };
+      console.log('PalmPesa config check:', configCheck);
+
+      if (!process.env.PALMPESA_API_TOKEN || !process.env.PALMPESA_USER_ID) {
+        console.error('PalmPesa configuration missing!', configCheck);
+        return res.status(400).json({ 
+          success: false, 
+          message: 'PalmPesa not configured on server. Contact admin.' 
+        });
+      }
     }
 
     const user = await User.findById(userId);
@@ -451,8 +474,25 @@ router.post('/topup', authenticate, async (req, res) => {
         transaction.status = 'failed';
         transaction.notes = paymentResult.error;
         await transaction.save();
-        console.error('PalmPesa payment creation failed:', paymentResult.error);
-        res.status(400).json({ success: false, message: paymentResult.error || 'Failed to initialize PalmPesa payment' });
+        const errorMsg = paymentResult.error || 'Failed to initialize PalmPesa payment';
+        console.error('PalmPesa payment creation failed:', {
+          error: errorMsg,
+          paymentResult,
+          requestPayload: {
+            order_id: transaction._id.toString(),
+            amount: amountTzs,
+            phone: phone,
+            customerEmail: user.email
+          }
+        });
+        res.status(400).json({ 
+          success: false, 
+          message: errorMsg,
+          details: {
+            error: errorMsg,
+            type: 'palmpesa_error'
+          }
+        });
       }
       return;
     }

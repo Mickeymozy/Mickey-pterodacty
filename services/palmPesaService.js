@@ -71,7 +71,18 @@ class PalmPesaService {
         no_of_items: paymentData.no_of_items || 1
       };
 
-      console.log('PalmPesa /api/process-payment request:', { url: `${this.baseUrl}/api/process-payment`, payload });
+      console.log('PalmPesa /api/process-payment request:', { 
+        url: `${this.baseUrl}/api/process-payment`,
+        credentials: {
+          user_id: payload.user_id,
+          vendor: payload.vendor,
+          hasApiToken: !!this.apiToken
+        },
+        payload: {
+          ...payload,
+          buyer_phone: buyerPhone // Show formatted phone
+        }
+      });
 
       let response;
       try {
@@ -105,8 +116,14 @@ class PalmPesaService {
       }
 
       // Handle error response from PalmPesa
-      const errorMsg = data?.message || data?.result || 'PalmPesa order creation failed';
-      console.error('PalmPesa error response:', { status: response.status, statusText: response.statusText, message: errorMsg, fullData: data });
+      const errorMsg = data?.message || data?.result || data?.error || data?.error_message || 'PalmPesa order creation failed';
+      console.error('PalmPesa error response:', { 
+        status: response.status, 
+        statusText: response.statusText, 
+        message: errorMsg, 
+        fullData: data,
+        allKeys: Object.keys(data)
+      });
       return { success: false, error: errorMsg };
     } catch (error) {
       const errorResponse = error?.response?.data || {};
