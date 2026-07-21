@@ -359,6 +359,9 @@ router.post('/topup', authenticate, async (req, res) => {
     const { coins, phone, paymentMethod = 'palmpesa', proofText } = req.body;
     const userId = req.user._id;
     const coinAmount = Number(coins);
+    const normalizedPaymentMethod = String(paymentMethod || '').toLowerCase();
+    const usePalmPesa = normalizedPaymentMethod === 'palmpesa';
+    const useAdminReview = normalizedPaymentMethod === 'review' || normalizedPaymentMethod === 'adminreview' || normalizedPaymentMethod === 'paid';
 
     if (!coinAmount || coinAmount <= 0) {
       return res.status(400).json({ success: false, message: 'Weka kiasi halali cha coins.' });
@@ -375,8 +378,8 @@ router.post('/topup', authenticate, async (req, res) => {
       type: 'payment',
       amount: coinAmount,
       currency: 'coins',
-      paymentMethod: paymentMethod === 'palmpesa' ? 'palmpesa' : 'manual',
-      paymentProvider: paymentMethod === 'palmpesa' ? 'palmpesa' : 'manual',
+      paymentMethod: usePalmPesa ? 'palmpesa' : 'wallet',
+      paymentProvider: usePalmPesa ? 'palmpesa' : 'admin',
       status: 'pending',
       description: `Coin top-up for ${coinAmount} coins`,
       metadata: {
@@ -385,7 +388,8 @@ router.post('/topup', authenticate, async (req, res) => {
         phone,
         proofText,
         amountTzs,
-        paymentMethod: paymentMethod === 'palmpesa' ? 'palmpesa' : 'manual'
+        paymentMethod: normalizedPaymentMethod,
+        reviewRequested: useAdminReview
       }
     });
 
@@ -394,7 +398,7 @@ router.post('/topup', authenticate, async (req, res) => {
     await notifyUserAboutPendingPayment(user, transaction, { name: 'Coins Top-up' }, 'coin top-up');
     await notifyAdminAboutPendingPayment(user, transaction, { name: 'Coins Top-up' }, 'coin top-up');
 
-    if (paymentMethod === 'palmpesa') {
+    if (usePalmPesa) {
       const paymentData = {
         amount: amountTzs,
         currency: 'TZS',
@@ -462,7 +466,7 @@ router.post('/topup', authenticate, async (req, res) => {
         transactionId: transaction._id,
         coins: coinAmount,
         amountTzs: amountTzs,
-        provider: 'manual'
+        provider: 'review'
       }
     });
   } catch (error) {
