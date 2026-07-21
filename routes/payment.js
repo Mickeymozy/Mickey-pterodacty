@@ -260,9 +260,10 @@ router.post('/checkout', authenticate, async (req, res) => {
       transaction.notes = paymentResult.error;
       await transaction.save();
 
+      console.error('PalmPesa checkout payment creation failed:', paymentResult.error);
       return res.status(400).json({
         success: false,
-        message: paymentResult.error
+        message: paymentResult.error || 'Failed to initialize PalmPesa payment'
       });
     } else {
       const transaction = new Transaction({
@@ -450,7 +451,8 @@ router.post('/topup', authenticate, async (req, res) => {
         transaction.status = 'failed';
         transaction.notes = paymentResult.error;
         await transaction.save();
-        res.status(400).json({ success: false, message: paymentResult.error });
+        console.error('PalmPesa payment creation failed:', paymentResult.error);
+        res.status(400).json({ success: false, message: paymentResult.error || 'Failed to initialize PalmPesa payment' });
       }
       return;
     }
@@ -664,6 +666,21 @@ router.get('/methods', (req, res) => {
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
+});
+
+router.get('/debug/config', (req, res) => {
+  const config = {
+    palmpesaConfigured: {
+      apiToken: !!process.env.PALMPESA_API_TOKEN,
+      userId: !!process.env.PALMPESA_USER_ID,
+      baseUrl: process.env.PALMPESA_BASE_URL || 'not set',
+      vendor: process.env.PALMPESA_VENDOR || 'not set',
+      webhookUrl: process.env.PALMPESA_WEBHOOK_URL || 'not set'
+    },
+    coinTopupRate: process.env.COIN_TOPUP_RATE_TZS || 'not set',
+    appUrl: process.env.APP_URL || 'not set'
+  };
+  res.json({ success: true, data: config });
 });
 
 router.get('/admin/all', requireAdmin, async (req, res) => {

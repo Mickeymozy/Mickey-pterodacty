@@ -41,6 +41,8 @@ class PalmPesaService {
         // return { success: false, error: 'Customer email is required' };
       }
 
+      console.log('PalmPesa createPayment request:', { url: `${this.baseUrl}/api/process-payment`, payload });
+
       const response = await axios.post(`${this.baseUrl}/api/process-payment`, payload, {
         headers: {
           Authorization: `Bearer ${this.apiToken}`,
@@ -51,6 +53,8 @@ class PalmPesaService {
       });
 
       const data = response.data || {};
+      console.log('PalmPesa response:', { status: response.status, data });
+      
       if (response.status === 200) {
         return {
           success: true,
@@ -64,8 +68,16 @@ class PalmPesaService {
 
       return { success: false, error: data?.message || 'PalmPesa initialization failed' };
     } catch (error) {
-      console.error('PalmPesa Error:', error?.response?.data || error.message || error);
-      return { success: false, error: error?.response?.data?.message || error.message || 'PalmPesa initialization failed' };
+      const errorResponse = error?.response?.data || {};
+      const errorMessage = errorResponse.message || errorResponse.error || error.message || 'PalmPesa initialization failed';
+      const errorDetails = {
+        message: errorMessage,
+        status: error?.response?.status,
+        data: errorResponse,
+        url: error?.config?.url
+      };
+      console.error('PalmPesa Error:', errorDetails);
+      return { success: false, error: errorMessage };
     }
   }
 

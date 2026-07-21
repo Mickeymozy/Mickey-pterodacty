@@ -725,6 +725,12 @@
       const coins = parseInt(document.getElementById('palmpesaCoinsInput').value) || 0;
       const mode = document.querySelector('input[name="coinPaymentMode"]:checked')?.value || 'palmpesa';
       const messageBox = document.getElementById('topupMessage');
+
+      if (!coins || coins <= 0) {
+        messageBox.innerHTML = '<span class="text-red-400">❌ Ingiza kiasi halali cha coins.</span>';
+        return;
+      }
+
       messageBox.textContent = 'Inatuma ombi la malipo...';
 
       let phone = '';
@@ -758,6 +764,7 @@
           messageBox.innerHTML = `<span class="text-red-400">❌ ${data.message || 'Imeshindwa kuanzisha malipo.'}</span>`;
         }
       } catch (err) {
+        console.error('Payment error:', err);
         messageBox.innerHTML = '<span class="text-red-400">❌ Hitilafu ya mtandao wakati wa kuanzisha malipo.</span>';
       }
     }
