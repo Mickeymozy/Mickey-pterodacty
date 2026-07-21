@@ -128,12 +128,18 @@
               <div>
                 <label for="paymentMode" class="mb-1 block text-xs font-medium text-slate-300">Njia ya malipo *</label>
                 <select id="paymentMode" class="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-4 py-2.5 text-sm text-white outline-none focus:border-indigo-500">
-                  <option value="coins">Lipa kwa Coins</option>
-                  <option value="palmpesa">PalmPesa (Pay-by-link / Mobile)</option>
+                  <option value="coins">Lipa kwa Coins (Salio Lako)</option>
+                  <option value="palmpesa">Lipa kwa PalmPesa (Pay-by-link / Mobile)</option>
                 </select>
               </div>
 
-              <!-- Manual payment flow removed in favor of PalmPesa integration -->
+              <div id="palmPaymentFields" class="hidden space-y-3 rounded-xl border border-slate-800/70 bg-slate-950/40 p-4">
+                <div>
+                  <label for="serverPhone" class="mb-1 block text-xs font-medium text-slate-300">Namba ya simu ya PalmPesa (hiari) *</label>
+                  <input id="serverPhone" placeholder="255744000000" class="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-4 py-2.5 text-sm text-white outline-none focus:border-indigo-500" />
+                </div>
+                <p class="text-[11px] text-slate-400">Utapokea link ya malipo kwa PalmPesa ya moja kwa moja. Akilia na malizo haraka.</p>
+              </div>
 
               <div>
                 <label for="eggSelect" class="mb-1 block text-xs font-medium text-slate-300">Chagua Server Egg (Engine) *</label>
@@ -202,14 +208,20 @@
 
       <div id="buy-coins" class="tab-content space-y-4">
         <div class="glass rounded-2xl p-6">
-          <h2 class="text-xl font-semibold text-white mb-2">🧮 Nunua Coins (PalmPesa / Pay-by-link)</h2>
+          <h2 class="text-xl font-semibold text-white mb-2">🧮 Nunua Coins kwa PalmPesa</h2>
           <div class="glass rounded-xl p-5 max-w-xl bg-slate-950/30 border border-slate-800">
             <div class="rounded-xl border border-slate-800/70 bg-slate-950/40 p-4 mb-4 text-[11px] text-slate-400">
-              <p class="font-semibold text-slate-200">Mifumo ya malipo:</p>
-              <ul class="mt-2 list-disc space-y-1 pl-4">
-                <li>HALOTEL: 0615944741</li>
-                <li>AZAMPESA: 1612130873</li>
-              </ul>
+              <p class="font-semibold text-slate-200 mb-2">⭐ Chagua njia ya malipo:</p>
+              <div class="space-y-2">
+                <label class="flex items-center gap-2 cursor-pointer hover:text-slate-200">
+                  <input type="radio" name="coinPaymentMode" value="palmpesa" checked onchange="toggleCoinMode()" class="w-4 h-4" />
+                  <span>Lipa kwa PalmPesa (kwa link)</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer hover:text-slate-200">
+                  <input type="radio" name="coinPaymentMode" value="review" onchange="toggleCoinMode()" class="w-4 h-4" />
+                  <span>Nimelipia tayari (ombi kwa admin)</span>
+                </label>
+              </div>
             </div>
             <div class="flex flex-col sm:flex-row items-center gap-4">
               <div class="w-full">
@@ -221,29 +233,22 @@
                 <div id="calculatedTsh" class="text-xl font-black text-cyan-400 font-mono">Tsh 2,500</div>
               </div>
             </div>
-            <div class="mt-4 grid gap-3 sm:grid-cols-2">
-              <div>
-                <label class="block text-xs font-medium text-slate-400 mb-1">Njia ya malipo:</label>
-                <select id="topupPaymentMethod" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none">
-                  <option value="palmpesa">Lipa kwa PalmPesa (pay-by-link / mobile)</option>
-                  <option value="review">Nimelipa tayari — tuma kwa admin kukagua</option>
-                </select>
-              </div>
+            <div id="palmPesaSection" class="mt-4 space-y-3">
               <div>
                 <label class="block text-xs font-medium text-slate-400 mb-1">Namba ya simu (hiari):</label>
-                <input id="topupPhone" type="tel" placeholder="255682812345" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none" />
+                <input id="topupPhone" type="tel" placeholder="255744000000" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none" />
               </div>
+              <p class="text-[11px] text-slate-300">✅ Utapokea link ya PalmPesa ya pay-by-link au USSD push.</p>
             </div>
-            <div class="mt-4 rounded-xl border border-slate-800/70 bg-slate-950/40 p-3 text-[11px] leading-5 text-slate-400">
-              <p class="font-semibold text-slate-200">Msaada wa kulipa:</p>
-              <ul class="mt-2 list-disc space-y-1 pl-4">
-                <li>Chagua <span class="text-cyan-300">Lipa kwa PalmPesa</span> ili kupokea link ya malipo ya moja kwa moja.</li>
-                <li>Chagua <span class="text-amber-300">Nimelipa tayari</span> ikiwa tayari umefanya malipo na unataka admin akague.</li>
-              </ul>
-            </div>
-            <div class="mt-4">
-              <label class="block text-xs font-medium text-slate-400 mb-1">Uthibitisho / Maelezo ya malipo:</label>
-              <textarea id="topupProof" rows="3" placeholder="Weka screenshot, SMS, au namba ya malipo ulioituma" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none"></textarea>
+            <div id="reviewSection" class="hidden mt-4 space-y-3">
+              <div>
+                <label class="block text-xs font-medium text-slate-400 mb-1">Namba ya simu:</label>
+                <input id="reviewPhone" type="tel" placeholder="255744000000" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-400 mb-1">Uthibitisho (screenshot/SMS/reference):</label>
+                <textarea id="reviewProof" rows="3" placeholder="Pasta link ya screenshot, namba, au reference" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none"></textarea>
+              </div>
             </div>
             <button onclick="payProcessor()" class="w-full mt-4 bg-indigo-600 text-white font-bold py-2 rounded-lg text-xs transition uppercase">Wasilisha Maombi</button>
             <p id="topupMessage" class="mt-3 text-xs text-slate-400"></p>
@@ -272,8 +277,9 @@
 
     function togglePaymentFields() {
       const mode = document.getElementById('paymentMode')?.value;
-      if (mode === 'palmpesa') {
-        return;
+      const palmFields = document.getElementById('palmPaymentFields');
+      if (palmFields) {
+        palmFields.classList.toggle('hidden', mode !== 'palmpesa');
       }
     }
 
@@ -707,13 +713,31 @@
       document.getElementById('calculatedTsh').textContent = `Tsh ${(coins * 250).toLocaleString()}`;
     }
 
+    function toggleCoinMode() {
+      const mode = document.querySelector('input[name="coinPaymentMode"]:checked')?.value || 'palmpesa';
+      const palmSection = document.getElementById('palmPesaSection');
+      const reviewSection = document.getElementById('reviewSection');
+      if (palmSection) palmSection.classList.toggle('hidden', mode !== 'palmpesa');
+      if (reviewSection) reviewSection.classList.toggle('hidden', mode !== 'review');
+    }
+
     async function payProcessor() {
       const coins = parseInt(document.getElementById('palmpesaCoinsInput').value) || 0;
-      const phone = document.getElementById('topupPhone').value.trim();
-      const proofText = document.getElementById('topupProof').value.trim();
-      const paymentMethod = document.getElementById('topupPaymentMethod').value;
+      const mode = document.querySelector('input[name="coinPaymentMode"]:checked')?.value || 'palmpesa';
       const messageBox = document.getElementById('topupMessage');
       messageBox.textContent = 'Inatuma ombi la malipo...';
+
+      let phone = '';
+      let proofText = '';
+      let paymentMethod = mode;
+
+      if (mode === 'palmpesa') {
+        phone = document.getElementById('topupPhone')?.value?.trim() || '';
+      } else if (mode === 'review') {
+        phone = document.getElementById('reviewPhone')?.value?.trim() || '';
+        proofText = document.getElementById('reviewProof')?.value?.trim() || '';
+        paymentMethod = 'review';
+      }
 
       try {
         const res = await fetch('/api/payment/topup', {
@@ -739,6 +763,9 @@
     }
 
     document.getElementById('refreshBtn').addEventListener('click', () => { loadUser(); loadServers(); syncPterodactylStatus(); });
+
+    // Initialize coin payment mode visibility
+    toggleCoinMode();
 
     // Piga sync ya kwanza na uanzishe interval kila baada ya sekunde 15 kufanya live check
     loadUser(); loadServers(); syncPterodactylStatus();
