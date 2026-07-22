@@ -7,6 +7,7 @@ Complete web-based dashboard system for Pterodactyl panel with integrated paymen
 - 📖 **[Quick Start Guide](QUICK_START.md)** - Get running in 5 minutes
 - 📚 **[Admin System Guide](ADMIN_SYSTEM_GUIDE.md)** - Complete feature documentation
 - 💰 **[Payment System Docs](PAYMENT_SYSTEM.md)** - Payment flow & API reference
+- 🚀 **[Deployment Guide](DEPLOYMENT_GUIDE.md)** - Production setup for PalmPesa and Vercel
 
 ## ✨ Features
 
