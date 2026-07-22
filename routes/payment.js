@@ -426,7 +426,7 @@ router.post('/topup', authenticate, async (req, res) => {
         description: `Coin top-up ${coinAmount} coins - ${user.email}`,
         customerEmail: user.email,
         customerName: user.username,
-        customerPhone: phone || '',
+        customerPhone: phone || user.phone || '',
         metadata: {
           transactionId: transaction._id.toString(),
           type: 'topup',
@@ -441,7 +441,7 @@ router.post('/topup', authenticate, async (req, res) => {
         order_id: transaction._id.toString(),
         customerEmail: paymentData.customerEmail,
         customerName: paymentData.customerName,
-        customerPhone: paymentData.customerPhone || paymentData.customerPhone,
+        customerPhone: paymentData.customerPhone,
         amount: paymentData.amount,
         currency: 'TZS',
         webhookUrl: process.env.PALMPESA_WEBHOOK_URL || `${process.env.APP_URL || ''}/api/payment/webhook`,

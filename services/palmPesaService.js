@@ -71,60 +71,94 @@ class PalmPesaService {
         no_of_items: paymentData.no_of_items || 1
       };
 
-      console.log('PalmPesa /api/process-payment request:', { 
-        url: `${this.baseUrl}/api/process-payment`,
-        credentials: {
-          user_id: payload.user_id,
-          vendor: payload.vendor,
-          hasApiToken: !!this.apiToken
+      const fallbackPayloads = [
+        {
+          name: 'pay-by-link',
+          url: `${this.baseUrl}/api/process-payment`,
+          body: payload
         },
-        payload: {
-          ...payload,
-          buyer_phone: buyerPhone // Show formatted phone
+        {
+          name: 'mobile-initiate',
+          url: `${this.baseUrl}/api/palmpesa/initiate`,
+          body: {
+            name: buyerName,
+            email: buyerEmail,
+            phone: buyerPhone,
+            amount: amount,
+            transaction_id: orderId,
+            address: 'Dar es Salaam',
+            postcode: '00000',
+            callback_url: paymentData.webhookUrl || this.webhookUrl
+          }
+        },
+        {
+          name: 'pay-via-mobile',
+          url: `${this.baseUrl}/api/pay-via-mobile`,
+          body: {
+            user_id: String(this.userId || paymentData.user_id || ''),
+            name: buyerName,
+            email: buyerEmail,
+            phone: buyerPhone,
+            amount: amount,
+            transaction_id: orderId,
+            address: 'Dar es Salaam',
+            postcode: '00000',
+            buyer_uuid: Date.now()
+          }
         }
-      });
+      ];
 
-      let response;
-      try {
-        response = await axios.post(`${this.baseUrl}/api/process-payment`, payload, {
-          headers: {
-            Authorization: `Bearer ${this.apiToken}`,
-            'Content-Type': 'application/json',
-            Accept: 'application/json'
-          },
-          timeout: 20000,
-          validateStatus: () => true // Accept all status codes
-        });
-      } catch (axiosError) {
-        console.error('Axios request failed:', axiosError.message);
-        return { success: false, error: axiosError.message };
+      let lastError = null;
+
+      for (const candidate of fallbackPayloads) {
+        console.log(`PalmPesa attempt [${candidate.name}]`, { url: candidate.url, payload: candidate.body });
+
+        try {
+          const response = await axios.post(candidate.url, candidate.body, {
+            headers: {
+              Authorization: `Bearer ${this.apiToken}`,
+              'Content-Type': 'application/json',
+              Accept: 'application/json'
+            },
+            timeout: 20000,
+            validateStatus: () => true
+          });
+
+          const data = response.data || {};
+          console.log(`PalmPesa response [${candidate.name}]`, { status: response.status, statusText: response.statusText, data });
+
+          const paymentUrl = data?.raw?.payment_gateway_url || data?.raw?.payment_url || data?.payment_gateway_url || data?.payment_url || data?.paymentUrl || data?.payment_url || null;
+          const rawLinkSuccess = Boolean(paymentUrl);
+          const sharableOk = data?.error === 'sharable payment link' || data?.message === 'sharable payment link';
+          const initiated = data?.order_id || data?.message?.toLowerCase?.().includes('initiated') || data?.response?.resultcode === '000';
+
+          if (rawLinkSuccess || sharableOk || (response.status >= 200 && response.status < 300 && initiated)) {
+            return {
+              success: true,
+              paymentUrl: paymentUrl,
+              orderId: data?.raw?.order_id || data?.order_id || data?.response?.order_id || data?.orderId || orderId,
+              transactionId: data?.raw?.transid || data?.transaction_id || data?.response?.transid || orderId,
+              reference: orderId,
+              raw: data,
+              endpoint: candidate.name
+            };
+          }
+
+          lastError = data?.message || data?.result || data?.error || data?.error_message || 'PalmPesa order creation failed';
+          console.error(`PalmPesa error response [${candidate.name}]`, {
+            status: response.status,
+            statusText: response.statusText,
+            message: lastError,
+            fullData: data,
+            allKeys: Object.keys(data)
+          });
+        } catch (axiosError) {
+          lastError = axiosError.message;
+          console.error(`Axios request failed [${candidate.name}]`, axiosError.message);
+        }
       }
 
-      const data = response.data || {};
-      console.log('PalmPesa response:', { status: response.status, statusText: response.statusText, data });
-      
-      // PalmPesa returns 200 with "error": "sharable payment link" on success
-      if (response.status === 200 && (data?.raw?.payment_gateway_url || data?.error === 'sharable payment link')) {
-        return {
-          success: true,
-          paymentUrl: data?.raw?.payment_gateway_url || null,
-          orderId: data?.raw?.order_id || orderId,
-          transactionId: data?.raw?.transid || orderId,
-          reference: orderId,
-          raw: data
-        };
-      }
-
-      // Handle error response from PalmPesa
-      const errorMsg = data?.message || data?.result || data?.error || data?.error_message || 'PalmPesa order creation failed';
-      console.error('PalmPesa error response:', { 
-        status: response.status, 
-        statusText: response.statusText, 
-        message: errorMsg, 
-        fullData: data,
-        allKeys: Object.keys(data)
-      });
-      return { success: false, error: errorMsg };
+      return { success: false, error: lastError || 'PalmPesa order creation failed' };
     } catch (error) {
       const errorResponse = error?.response?.data || {};
       const errorMessage = errorResponse.message || errorResponse.error || error.message || 'PalmPesa payment creation failed';
