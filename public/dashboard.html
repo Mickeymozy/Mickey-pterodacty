@@ -739,6 +739,7 @@
 
       if (mode === 'palmpesa') {
         phone = document.getElementById('topupPhone')?.value?.trim() || '';
+        paymentMethod = 'palmpesa';
       } else if (mode === 'review') {
         phone = document.getElementById('reviewPhone')?.value?.trim() || '';
         proofText = document.getElementById('reviewProof')?.value?.trim() || '';

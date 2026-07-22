@@ -361,7 +361,7 @@ router.post('/topup', authenticate, async (req, res) => {
     const userId = req.user._id;
     const coinAmount = Number(coins);
     const normalizedPaymentMethod = String(paymentMethod || '').toLowerCase();
-    const usePalmPesa = normalizedPaymentMethod === 'palmpesa';
+    const usePalmPesa = normalizedPaymentMethod === 'palmpesa' || normalizedPaymentMethod === 'review' ? normalizedPaymentMethod === 'palmpesa' : false;
     const useAdminReview = !usePalmPesa;
 
     if (!coinAmount || coinAmount <= 0) {
