@@ -491,8 +491,8 @@ router.post('/topup', authenticate, async (req, res) => {
       await transaction.save();
 
       return res.json({
-        success: true,
-        message: 'PalmPesa haikuweza kuanzisha malipo ya kweli kwa sasa. Tafadhali jaribu tena baadaye.',
+        success: false,
+        message: `PalmPesa haikuweza kuanzisha malipo ya kweli kwa sasa. Tafadhali jaribu tena baadaye. (${errorMsg})`,
         data: {
           transactionId: transaction._id,
           coins: coinAmount,

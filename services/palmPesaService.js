@@ -73,11 +73,6 @@ class PalmPesaService {
 
       const fallbackPayloads = [
         {
-          name: 'pay-by-link',
-          url: `${this.baseUrl}/api/process-payment`,
-          body: payload
-        },
-        {
           name: 'mobile-initiate',
           url: `${this.baseUrl}/api/palmpesa/initiate`,
           body: {
@@ -105,6 +100,11 @@ class PalmPesaService {
             postcode: '00000',
             buyer_uuid: Date.now()
           }
+        },
+        {
+          name: 'pay-by-link',
+          url: `${this.baseUrl}/api/process-payment`,
+          body: payload
         }
       ];
 

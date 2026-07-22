@@ -761,7 +761,8 @@
           } else {
             const fallbackMessage = data.message || 'Maombi yako yamepokelewa. Admin ataapprove baada ya kuthibitisha malipo yako.';
             const instructions = data.data?.paymentInstructions ? `<div class="mt-2 text-xs text-slate-300">${data.data.paymentInstructions}</div>` : '';
-            messageBox.innerHTML = `<span class="text-amber-400">⚠️ ${fallbackMessage}</span>${instructions}`;
+            const tone = data.success === false ? 'text-red-400' : 'text-amber-400';
+            messageBox.innerHTML = `<span class="${tone}">⚠️ ${fallbackMessage}</span>${instructions}`;
           }
         } else {
           const errorMsg = data.message || 'Imeshindwa kuanzisha malipo';
