@@ -407,9 +407,6 @@ router.post('/topup', authenticate, async (req, res) => {
 
     await transaction.save();
 
-    await notifyUserAboutPendingPayment(user, transaction, { name: 'Coins Top-up' }, 'coin top-up');
-    await notifyAdminAboutPendingPayment(user, transaction, { name: 'Coins Top-up' }, 'coin top-up');
-
     if (usePalmPesa) {
       const paymentData = {
         amount: amountTzs,
@@ -447,19 +444,26 @@ router.post('/topup', authenticate, async (req, res) => {
         transaction.metadata = {
           ...(transaction.metadata || {}),
           palmpesaOrderId: paymentResult.orderId || paymentResult.transactionId,
-          paymentUrl: paymentResult.paymentUrl
+          paymentUrl: paymentResult.paymentUrl,
+          paymentInitiated: true,
+          paymentEndpoint: paymentResult.endpoint || 'palmpesa'
         };
         await transaction.save();
 
+        await notifyUserAboutPendingPayment(user, transaction, { name: 'Coins Top-up' }, 'coin top-up');
+        await notifyAdminAboutPendingPayment(user, transaction, { name: 'Coins Top-up' }, 'coin top-up');
+
         return res.json({
           success: true,
-          message: 'Payment initialized',
+          message: 'Payment initiated via PalmPesa. Please complete the USSD/mobile prompt and wait for confirmation.',
           data: {
             paymentUrl: paymentResult.paymentUrl,
             transactionId: transaction._id,
             provider: 'palmpesa',
             coins: coinAmount,
-            amountTzs: amountTzs
+            amountTzs: amountTzs,
+            orderId: paymentResult.orderId || paymentResult.transactionId,
+            paymentInitiated: true
           }
         });
       }
@@ -488,7 +492,7 @@ router.post('/topup', authenticate, async (req, res) => {
 
       return res.json({
         success: true,
-        message: 'Ombi lako limehifadhiwa. Tafadhali lipa kwa PalmPesa kwa namba iliyowekwa na admin atakagua baada ya malipo.',
+        message: 'PalmPesa haikuweza kuanzisha malipo ya kweli kwa sasa. Tafadhali jaribu tena baadaye.',
         data: {
           transactionId: transaction._id,
           coins: coinAmount,
