@@ -83,7 +83,7 @@ class PalmPesaService {
           body: {
             name: buyerName,
             email: buyerEmail,
-            phone: buyerPhone,
+            phone: buyerPhone.replace(/^255/, '').replace(/^0/, ''),
             amount: amount,
             transaction_id: orderId,
             address: 'Dar es Salaam',
@@ -130,9 +130,10 @@ class PalmPesaService {
           const paymentUrl = data?.raw?.payment_gateway_url || data?.raw?.payment_url || data?.payment_gateway_url || data?.payment_url || data?.paymentUrl || data?.payment_url || null;
           const rawLinkSuccess = Boolean(paymentUrl);
           const sharableOk = data?.error === 'sharable payment link' || data?.message === 'sharable payment link';
-          const initiated = data?.order_id || data?.message?.toLowerCase?.().includes('initiated') || data?.response?.resultcode === '000';
+          const initiated = Boolean(data?.order_id || data?.message?.toLowerCase?.().includes('initiated') || data?.response?.resultcode === '000' || data?.response?.resultcode === 'SUCCESS');
+          const mobilePromptSuccess = Boolean(data?.message?.toLowerCase?.().includes('payment initiated') || data?.message?.toLowerCase?.().includes('payment request sent') || data?.order_id);
 
-          if (rawLinkSuccess || sharableOk || (response.status >= 200 && response.status < 300 && initiated)) {
+          if (rawLinkSuccess || sharableOk || (response.status >= 200 && response.status < 300 && (initiated || mobilePromptSuccess))) {
             return {
               success: true,
               paymentUrl: paymentUrl,
