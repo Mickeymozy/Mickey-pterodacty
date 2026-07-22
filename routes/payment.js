@@ -362,12 +362,12 @@ router.post('/topup', authenticate, async (req, res) => {
     const coinAmount = Number(coins);
     const normalizedPaymentMethod = String(paymentMethod || '').toLowerCase();
     const usePalmPesa = normalizedPaymentMethod === 'palmpesa';
+    const useAdminReview = !usePalmPesa;
 
     if (!coinAmount || coinAmount <= 0) {
       return res.status(400).json({ success: false, message: 'Weka kiasi halali cha coins.' });
     }
 
-    // Validate PalmPesa configuration
     if (usePalmPesa) {
       const configCheck = {
         hasToken: !!process.env.PALMPESA_API_TOKEN,
@@ -378,14 +378,6 @@ router.post('/topup', authenticate, async (req, res) => {
         vendor: process.env.PALMPESA_VENDOR ? 'set' : 'NOT SET'
       };
       console.log('PalmPesa config check:', configCheck);
-
-      if (!process.env.PALMPESA_API_TOKEN || !process.env.PALMPESA_USER_ID) {
-        console.error('PalmPesa configuration missing!', configCheck);
-        return res.status(400).json({ 
-          success: false, 
-          message: 'PalmPesa not configured on server. Contact admin.' 
-        });
-      }
     }
 
     const user = await User.findById(userId);
@@ -399,8 +391,8 @@ router.post('/topup', authenticate, async (req, res) => {
       type: 'payment',
       amount: coinAmount,
       currency: 'coins',
-      paymentMethod: paymentMethod === 'palmpesa' ? 'palmpesa' : 'admin',
-      paymentProvider: paymentMethod === 'palmpesa' ? 'palmpesa' : 'admin',
+      paymentMethod: usePalmPesa ? 'palmpesa' : 'admin',
+      paymentProvider: usePalmPesa ? 'palmpesa' : 'admin',
       status: 'pending',
       description: `Coin top-up for ${coinAmount} coins`,
       metadata: {
@@ -409,7 +401,7 @@ router.post('/topup', authenticate, async (req, res) => {
         phone,
         proofText,
         amountTzs,
-        paymentMethod: paymentMethod === 'palmpesa' ? 'palmpesa' : 'admin'
+        paymentMethod: usePalmPesa ? 'palmpesa' : 'admin'
       }
     });
 
@@ -418,7 +410,7 @@ router.post('/topup', authenticate, async (req, res) => {
     await notifyUserAboutPendingPayment(user, transaction, { name: 'Coins Top-up' }, 'coin top-up');
     await notifyAdminAboutPendingPayment(user, transaction, { name: 'Coins Top-up' }, 'coin top-up');
 
-    if (paymentMethod === 'palmpesa') {
+    if (usePalmPesa) {
       const paymentData = {
         amount: amountTzs,
         currency: 'TZS',
@@ -459,7 +451,7 @@ router.post('/topup', authenticate, async (req, res) => {
         };
         await transaction.save();
 
-        res.json({
+        return res.json({
           success: true,
           message: 'Payment initialized',
           data: {
@@ -470,34 +462,43 @@ router.post('/topup', authenticate, async (req, res) => {
             amountTzs: amountTzs
           }
         });
-      } else {
-        transaction.status = 'failed';
-        transaction.notes = paymentResult.error;
-        await transaction.save();
-        const errorMsg = paymentResult.error || 'Failed to initialize PalmPesa payment';
-        console.error('PalmPesa payment creation failed:', {
-          error: errorMsg,
-          paymentResult,
-          requestPayload: {
-            order_id: transaction._id.toString(),
-            amount: amountTzs,
-            phone: phone,
-            customerEmail: user.email
-          }
-        });
-        res.status(400).json({ 
-          success: false, 
-          message: errorMsg,
-          details: {
-            error: errorMsg,
-            type: 'palmpesa_error'
-          }
-        });
       }
-      return;
+
+      const errorMsg = paymentResult.error || 'Failed to initialize PalmPesa payment';
+      console.error('PalmPesa payment creation failed:', {
+        error: errorMsg,
+        paymentResult,
+        requestPayload: {
+          order_id: transaction._id.toString(),
+          amount: amountTzs,
+          phone: phone,
+          customerEmail: user.email
+        }
+      });
+
+      transaction.status = 'pending';
+      transaction.notes = `PalmPesa unavailable: ${errorMsg}`;
+      transaction.metadata = {
+        ...(transaction.metadata || {}),
+        gatewayError: errorMsg,
+        fallbackMode: 'review'
+      };
+      await transaction.save();
+
+      return res.json({
+        success: true,
+        message: 'PalmPesa haikuweze kuanzisha sasa. Ombi lako limehifadhiwa kwa ukaguzi wa admin.',
+        data: {
+          transactionId: transaction._id,
+          coins: coinAmount,
+          amountTzs: amountTzs,
+          provider: 'admin',
+          fallback: true
+        }
+      });
     }
 
-    res.json({
+    return res.json({
       success: true,
       message: 'Maombi yako ya kupakia coins yamepokelewa. Admin ataapprove baada ya kuthibitisha malipo yako.',
       data: {
