@@ -78,12 +78,12 @@ class PalmPesaService {
           body: {
             name: buyerName,
             email: buyerEmail,
-            phone: buyerPhone.replace(/^255/, '').replace(/^0/, ''),
+            phone: buyerPhone.startsWith('255') ? buyerPhone.substring(3) : buyerPhone,
             amount: amount,
             transaction_id: orderId,
             address: 'Dar es Salaam',
             postcode: '00000',
-            callback_url: paymentData.webhookUrl || this.webhookUrl
+            callback_url: (paymentData.webhookUrl || this.webhookUrl).replace('http://', 'https://')
           }
         },
         {
@@ -93,7 +93,7 @@ class PalmPesaService {
             user_id: String(this.userId || paymentData.user_id || ''),
             name: buyerName,
             email: buyerEmail,
-            phone: buyerPhone,
+            phone: buyerPhone.startsWith('255') ? buyerPhone.substring(3) : buyerPhone,
             amount: amount,
             transaction_id: orderId,
             address: 'Dar es Salaam',
