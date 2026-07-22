@@ -481,20 +481,22 @@ router.post('/topup', authenticate, async (req, res) => {
       transaction.metadata = {
         ...(transaction.metadata || {}),
         gatewayError: errorMsg,
-        fallbackMode: 'review'
+        fallbackMode: 'manual-review',
+        paymentInstructions: `Tafadhali lipa kwa PalmPesa kwa kutumia namba ${phone || user.phone || 'iliyowekwa'} na uandike transaction ${transaction._id}`
       };
       await transaction.save();
 
       return res.json({
         success: true,
-        message: `PalmPesa haikuweze kuanzisha sasa. Tafadhali jaribu tena baadaye au wasiliana na admin. (${errorMsg})`,
+        message: 'Ombi lako limehifadhiwa. Tafadhali lipa kwa PalmPesa kwa namba iliyowekwa na admin atakagua baada ya malipo.',
         data: {
           transactionId: transaction._id,
           coins: coinAmount,
           amountTzs: amountTzs,
-          provider: 'admin',
+          provider: 'palmpesa',
           fallback: true,
-          gatewayError: errorMsg
+          gatewayError: errorMsg,
+          paymentInstructions: `Tafadhali lipa kwa PalmPesa kwa kutumia namba ${phone || user.phone || 'iliyowekwa'} na uandike transaction ${transaction._id}`
         }
       });
     }

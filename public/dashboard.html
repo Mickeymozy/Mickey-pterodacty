@@ -760,7 +760,8 @@
             window.open(data.data.paymentUrl, '_blank', 'noopener,noreferrer');
           } else {
             const fallbackMessage = data.message || 'Maombi yako yamepokelewa. Admin ataapprove baada ya kuthibitisha malipo yako.';
-            messageBox.innerHTML = `<span class="text-amber-400">⚠️ ${fallbackMessage}</span>`;
+            const instructions = data.data?.paymentInstructions ? `<div class="mt-2 text-xs text-slate-300">${data.data.paymentInstructions}</div>` : '';
+            messageBox.innerHTML = `<span class="text-amber-400">⚠️ ${fallbackMessage}</span>${instructions}`;
           }
         } else {
           const errorMsg = data.message || 'Imeshindwa kuanzisha malipo';
