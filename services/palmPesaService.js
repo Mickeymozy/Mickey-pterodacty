@@ -17,19 +17,19 @@ class PalmPesaService {
   }
 
   formatPhoneNumber(phone) {
-    // Convert phone to Tanzania format without + sign
     if (!phone) return '';
-    const cleaned = phone.replace(/\D/g, '');
-    if (cleaned.startsWith('255')) {
-      return cleaned; // 255744000000
-    }
-    if (cleaned.startsWith('07') || cleaned.startsWith('06')) {
-      return '255' + cleaned.substring(1); // 07... or 06... → 255...
-    }
-    if (cleaned.startsWith('7') || cleaned.startsWith('6')) {
-      return '255' + cleaned; // 7... or 6... → 2557... or 2556...
-    }
+    const cleaned = String(phone).replace(/\D/g, '');
+    if (!cleaned) return '';
+    if (cleaned.startsWith('255')) return cleaned;
+    if (cleaned.startsWith('07') || cleaned.startsWith('06')) return '255' + cleaned.substring(1);
+    if (cleaned.startsWith('7') || cleaned.startsWith('6')) return '255' + cleaned;
     return cleaned;
+  }
+
+  normalizePhoneForInit(phone) {
+    const normalized = this.formatPhoneNumber(phone);
+    if (!normalized) return '';
+    return normalized.startsWith('255') ? normalized.substring(3) : normalized;
   }
 
   async createPayment(paymentData = {}) {
@@ -39,7 +39,7 @@ class PalmPesaService {
       const buyerName = paymentData.customerName || paymentData.buyer_name || 'Customer';
       const buyerPhone = this.formatPhoneNumber(paymentData.customerPhone || paymentData.buyer_phone || '');
       const amount = Number(paymentData.amount || 0);
-      const orderId = paymentData.order_id || (paymentData.reference || `ORDER-${Date.now()}`);
+      const orderId = String(paymentData.order_id || paymentData.reference || `ORDER-${Date.now()}`);
 
       if (!buyerEmail) {
         return { success: false, error: 'Buyer email is required' };
@@ -71,20 +71,22 @@ class PalmPesaService {
         no_of_items: paymentData.no_of_items || 1
       };
 
+      const directMobileBody = {
+        name: buyerName,
+        email: buyerEmail,
+        phone: this.normalizePhoneForInit(buyerPhone),
+        amount: amount,
+        transaction_id: orderId,
+        address: paymentData.address || 'Dar es Salaam',
+        postcode: paymentData.postcode || '00000',
+        callback_url: (paymentData.webhookUrl || this.webhookUrl).replace('http://', 'https://')
+      };
+
       const fallbackPayloads = [
         {
           name: 'mobile-initiate',
           url: `${this.baseUrl}/api/palmpesa/initiate`,
-          body: {
-            name: buyerName,
-            email: buyerEmail,
-            phone: buyerPhone.startsWith('255') ? buyerPhone.substring(3) : buyerPhone,
-            amount: amount,
-            transaction_id: orderId,
-            address: 'Dar es Salaam',
-            postcode: '00000',
-            callback_url: (paymentData.webhookUrl || this.webhookUrl).replace('http://', 'https://')
-          }
+          body: directMobileBody
         },
         {
           name: 'pay-via-mobile',
@@ -93,11 +95,11 @@ class PalmPesaService {
             user_id: String(this.userId || paymentData.user_id || ''),
             name: buyerName,
             email: buyerEmail,
-            phone: buyerPhone.startsWith('255') ? buyerPhone.substring(3) : buyerPhone,
+            phone: this.normalizePhoneForInit(buyerPhone),
             amount: amount,
             transaction_id: orderId,
-            address: 'Dar es Salaam',
-            postcode: '00000',
+            address: paymentData.address || 'Dar es Salaam',
+            postcode: paymentData.postcode || '00000',
             buyer_uuid: Date.now()
           }
         },

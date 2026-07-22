@@ -745,10 +745,12 @@ router.post('/debug/test-payment', authenticate, async (req, res) => {
       customerEmail: user.email,
       customerName: user.username,
       customerPhone: '255744000000',
-      amount: 1000, // 1000 TZS for testing
+      amount: 1000,
       currency: 'TZS',
       webhookUrl: process.env.PALMPESA_WEBHOOK_URL || `${process.env.APP_URL || ''}/api/payment/webhook`,
-      description: 'Test payment to verify PalmPesa configuration'
+      description: 'Test payment to verify PalmPesa configuration',
+      address: 'Dar es Salaam',
+      postcode: '00000'
     };
 
     console.log('Testing PalmPesa with payload:', testPayload);
