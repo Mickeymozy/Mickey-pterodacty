@@ -487,13 +487,14 @@ router.post('/topup', authenticate, async (req, res) => {
 
       return res.json({
         success: true,
-        message: 'PalmPesa haikuweze kuanzisha sasa. Ombi lako limehifadhiwa kwa ukaguzi wa admin.',
+        message: `PalmPesa haikuweze kuanzisha sasa. Tafadhali jaribu tena baadaye au wasiliana na admin. (${errorMsg})`,
         data: {
           transactionId: transaction._id,
           coins: coinAmount,
           amountTzs: amountTzs,
           provider: 'admin',
-          fallback: true
+          fallback: true,
+          gatewayError: errorMsg
         }
       });
     }

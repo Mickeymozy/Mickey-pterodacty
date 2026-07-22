@@ -759,7 +759,8 @@
             messageBox.innerHTML = '<span class="text-emerald-400">✅ Malipo yameanzishwa. Fungua ukurasa wa malipo.</span>';
             window.open(data.data.paymentUrl, '_blank', 'noopener,noreferrer');
           } else {
-            messageBox.innerHTML = '<span class="text-emerald-400">✅ Maombi yako yamepokelewa. Admin ataapprove baada ya kuthibitisha malipo yako.</span>';
+            const fallbackMessage = data.message || 'Maombi yako yamepokelewa. Admin ataapprove baada ya kuthibitisha malipo yako.';
+            messageBox.innerHTML = `<span class="text-amber-400">⚠️ ${fallbackMessage}</span>`;
           }
         } else {
           const errorMsg = data.message || 'Imeshindwa kuanzisha malipo';
