@@ -237,15 +237,19 @@ router.post('/checkout', authenticate, async (req, res) => {
           ...(transaction.metadata || {}),
           palmpesaOrderId: paymentResult.orderId || paymentResult.transactionId,
           paymentUrl: paymentResult.paymentUrl,
+          paymentMessage: paymentResult.paymentMessage || paymentResult.raw?.message || 'Please follow the prompt on your phone.',
+          paymentInitiated: true,
+          paymentEndpoint: paymentResult.endpoint || 'palmpesa',
           paymentDetails: paymentResult.details || null
         };
         await transaction.save();
 
         return res.json({
           success: true,
-          message: 'Payment initialized',
+          message: 'Payment initiated via PalmPesa. Please complete the USSD/mobile prompt and wait for confirmation.',
           data: {
             paymentUrl: paymentResult.paymentUrl,
+            paymentMessage: paymentResult.paymentMessage || paymentResult.raw?.message || 'Please follow the prompt on your phone.',
             provider: 'palmpesa',
             transactionId: transaction._id,
             package: {
@@ -253,6 +257,7 @@ router.post('/checkout', authenticate, async (req, res) => {
               coins: coinsCost,
               usd: usdCost
             },
+            paymentInitiated: true,
             gatewayDetails: paymentResult.details || null
           }
         });

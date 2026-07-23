@@ -695,6 +695,9 @@
         if (data.success && data.data?.paymentUrl) {
           formMessage.innerHTML = '<span class="text-emerald-400 font-bold">✅ Malipo yameanzishwa. Fungua link ya PalmPesa ili kukamilisha.</span>';
           window.open(data.data.paymentUrl, '_blank', 'noopener,noreferrer');
+        } else if (data.success && data.data?.paymentInitiated) {
+          const paymentMessage = data.data?.paymentMessage || data.message || '✅ Malipo yameanzishwa. Endelea na mfumo wa USSD/mobile.';
+          formMessage.innerHTML = `<span class="text-emerald-400 font-bold">${paymentMessage}</span>`;
         } else if (data.success && data.data?.server) {
           formMessage.innerHTML = '<span class="text-emerald-400 font-bold">✅ Server imeundwa kikamilifu kwenye Pterodactyl!</span>';
           if (data.data?.remainingCoins !== undefined) setUserCoins(data.data.remainingCoins);
