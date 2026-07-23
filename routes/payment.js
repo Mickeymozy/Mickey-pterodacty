@@ -599,6 +599,7 @@ router.get('/verify/:transactionId', authenticate, async (req, res) => {
             success: true,
             message: 'Payment verified and coins credited',
             data: {
+              status: 'completed',
               transactionId,
               coinsAdded: coinsToAdd,
               userCoins: user.coins,

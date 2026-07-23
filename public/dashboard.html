@@ -698,6 +698,14 @@
         } else if (data.success && data.data?.paymentInitiated) {
           const paymentMessage = data.data?.paymentMessage || data.message || '✅ Malipo yameanzishwa. Endelea na mfumo wa USSD/mobile.';
           formMessage.innerHTML = `<span class="text-emerald-400 font-bold">${paymentMessage}</span>`;
+          if (data.data?.transactionId) {
+            await pollPaymentVerification(data.data.transactionId, formMessage, {
+              onComplete: () => {
+                loadUser();
+                setTimeout(() => { loadServers(); switchDashTab(null, 'my-servers'); }, 1200);
+              }
+            });
+          }
         } else if (data.success && data.data?.server) {
           formMessage.innerHTML = '<span class="text-emerald-400 font-bold">✅ Server imeundwa kikamilifu kwenye Pterodactyl!</span>';
           if (data.data?.remainingCoins !== undefined) setUserCoins(data.data.remainingCoins);
@@ -722,6 +730,51 @@
       const reviewSection = document.getElementById('reviewSection');
       if (palmSection) palmSection.classList.toggle('hidden', mode !== 'palmpesa');
       if (reviewSection) reviewSection.classList.toggle('hidden', mode !== 'review');
+    }
+
+    async function pollPaymentVerification(transactionId, messageBox, { onComplete } = {}) {
+      if (!transactionId) return;
+
+      let attempts = 0;
+      const maxAttempts = 12;
+
+      while (attempts < maxAttempts) {
+        attempts += 1;
+
+        try {
+          const verifyRes = await fetch(`/api/payment/verify/${transactionId}`);
+          const verifyData = await verifyRes.json();
+
+          if (verifyData?.success && verifyData?.data?.status === 'completed') {
+            const completedMessage = verifyData.message || '✅ Malipo yamekamilika na coins zimeongezwa.';
+            messageBox.innerHTML = `<span class="text-emerald-400">${completedMessage}</span>`;
+            if (verifyData.data?.userCoins !== undefined) setUserCoins(verifyData.data.userCoins);
+            if (typeof onComplete === 'function') onComplete(verifyData);
+            return;
+          }
+
+          if (verifyData?.success && verifyData?.data?.status === 'pending') {
+            messageBox.innerHTML = '<span class="text-amber-400">⏳ Malipo yameanzishwa. Tafadhali subiri uthibitisho wa PalmPesa...</span>';
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            continue;
+          }
+
+          if (verifyData?.success) {
+            const okMessage = verifyData.message || '✅ Omekamilisha malipo.';
+            messageBox.innerHTML = `<span class="text-emerald-400">${okMessage}</span>`;
+            if (verifyData.data?.userCoins !== undefined) setUserCoins(verifyData.data.userCoins);
+            if (typeof onComplete === 'function') onComplete(verifyData);
+            return;
+          }
+
+          break;
+        } catch (err) {
+          console.error('Payment verification poll failed:', err);
+          break;
+        }
+      }
+
+      messageBox.innerHTML = '<span class="text-amber-400">⏳ Malipo yameanzishwa. Tafadhali refresh ukurasa baada ya muda ili kuthibitisha hali yake.</span>';
     }
 
     async function payProcessor() {
@@ -764,6 +817,11 @@
           } else if (data.data?.paymentInitiated) {
             const paymentMessage = data.data?.paymentMessage || data.message || '✅ Malipo yameanzishwa. Endelea na mfumo wa USSD/mobile.';
             messageBox.innerHTML = `<span class="text-emerald-400">${paymentMessage}</span>`;
+            if (data.data?.transactionId) {
+              await pollPaymentVerification(data.data.transactionId, messageBox, {
+                onComplete: () => loadUser()
+              });
+            }
           } else {
             const fallbackMessage = data.message || 'Maombi yako yamepokelewa. Admin ataapprove baada ya kuthibitisha malipo yako.';
             const instructions = data.data?.paymentInstructions ? `<div class="mt-2 text-xs text-slate-300">${data.data.paymentInstructions}</div>` : '';
