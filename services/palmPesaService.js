@@ -1,6 +1,6 @@
 /**
  * PalmPesa Payment Integration Service
- * Implements basic createPayment and verifyPayment wrappers for PalmPesa API
+ * Implements validated createPayment and verifyPayment wrappers for PalmPesa API
  */
 
 const axios = require('axios');
@@ -32,40 +32,127 @@ class PalmPesaService {
     return normalized.startsWith('255') ? normalized.substring(3) : normalized;
   }
 
+  isValidEmail(email) {
+    if (!email) return false;
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email).trim());
+  }
+
+  isValidHttpsUrl(value) {
+    if (!value) return false;
+    try {
+      const parsed = new URL(String(value).trim());
+      return parsed.protocol === 'https:';
+    } catch (error) {
+      return false;
+    }
+  }
+
+  maskToken(token) {
+    if (!token) return '';
+    if (token.length <= 8) return '***';
+    return `${token.slice(0, 4)}...${token.slice(-4)}`;
+  }
+
+  buildRequestHeaders() {
+    return {
+      Authorization: `Bearer ${this.apiToken}`,
+      'Content-Type': 'application/json',
+      Accept: 'application/json'
+    };
+  }
+
+  buildRequestConfig() {
+    return {
+      headers: this.buildRequestHeaders(),
+      timeout: 20000,
+      validateStatus: () => true
+    };
+  }
+
+  extractErrorMessage(payload, fallbackMessage = 'PalmPesa order creation failed') {
+    const body = payload?.data || payload || {};
+    const message = body?.message || body?.error || body?.detail || body?.error_message || body?.result || body?.status_message || fallbackMessage;
+    return typeof message === 'string' ? message : fallbackMessage;
+  }
+
+  validatePaymentPayload(paymentData = {}) {
+    const errors = [];
+    const buyerEmail = String(paymentData.customerEmail || paymentData.buyer_email || '').trim();
+    const buyerName = String(paymentData.customerName || paymentData.buyer_name || '').trim();
+    const buyerPhone = this.formatPhoneNumber(paymentData.customerPhone || paymentData.buyer_phone || '');
+    const amountRaw = paymentData.amount;
+    const amount = Number(amountRaw);
+    const orderId = String(paymentData.order_id || paymentData.reference || paymentData.transaction_id || paymentData.orderId || `ORDER-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`).trim();
+    const webhookUrl = String(paymentData.webhookUrl || paymentData.callback_url || this.webhookUrl || '').trim();
+    const userId = String(this.userId || paymentData.user_id || '').trim();
+    const vendor = String(paymentData.vendor || this.vendor || '').trim();
+
+    if (!this.apiToken) errors.push('PALMPESA_API_TOKEN is not configured');
+    if (!userId) errors.push('PALMPESA_USER_ID is not configured');
+    if (!vendor) errors.push('PALMPESA_VENDOR is not configured');
+    if (!buyerEmail) errors.push('buyer_email/customerEmail is required');
+    if (buyerEmail && !this.isValidEmail(buyerEmail)) errors.push('buyer_email/customerEmail must be a valid email address');
+    if (!buyerName) errors.push('buyer_name/customerName is required');
+    if (!buyerPhone) errors.push('customerPhone/buyer_phone is required');
+    else if (!/^(255[0-9]{9}|0[67][0-9]{8})$/.test(buyerPhone)) errors.push('customerPhone/buyer_phone must be a Tanzanian number like 255612130873 or 0612130873');
+    if (!Number.isInteger(amount) || amount < 1) errors.push('amount must be a positive integer');
+    if (!orderId) errors.push('order_id/reference/transaction_id is required');
+    if (!this.isValidHttpsUrl(webhookUrl)) errors.push('webhook/callback_url must be a valid HTTPS URL');
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      normalized: {
+        buyerEmail,
+        buyerName,
+        buyerPhone,
+        amount,
+        orderId,
+        webhookUrl,
+        vendor,
+        userId
+      }
+    };
+  }
+
   async createPayment(paymentData = {}) {
     try {
-      // Validate required fields
-      const buyerEmail = paymentData.customerEmail || paymentData.buyer_email || '';
-      const buyerName = paymentData.customerName || paymentData.buyer_name || 'Customer';
-      const buyerPhone = this.formatPhoneNumber(paymentData.customerPhone || paymentData.buyer_phone || '');
-      const amount = Number(paymentData.amount || 0);
-      const orderId = String(paymentData.order_id || paymentData.reference || `ORDER-${Date.now()}`);
+      const validation = this.validatePaymentPayload(paymentData);
+      if (!validation.isValid) {
+        return {
+          success: false,
+          error: 'PalmPesa request validation failed',
+          details: {
+            validationErrors: validation.errors,
+            normalized: validation.normalized,
+            env: {
+              hasApiToken: Boolean(this.apiToken),
+              hasUserId: Boolean(this.userId),
+              hasVendor: Boolean(this.vendor)
+            }
+          }
+        };
+      }
 
-      if (!buyerEmail) {
-        return { success: false, error: 'Buyer email is required' };
-      }
-      if (!buyerName) {
-        return { success: false, error: 'Buyer name is required' };
-      }
-      if (!buyerPhone) {
-        return { success: false, error: 'Buyer phone (TZ format: 255...) is required' };
-      }
-      if (!amount || amount < 1) {
-        return { success: false, error: 'Valid amount (min 1 TZS) is required' };
-      }
+      const buyerEmail = validation.normalized.buyerEmail;
+      const buyerName = validation.normalized.buyerName;
+      const buyerPhone = validation.normalized.buyerPhone;
+      const amount = validation.normalized.amount;
+      const orderId = validation.normalized.orderId;
+      const webhookUrl = validation.normalized.webhookUrl;
 
       const payload = {
-        user_id: Number(this.userId),
-        vendor: paymentData.vendor || this.vendor,
+        user_id: Number(validation.normalized.userId),
+        vendor: validation.normalized.vendor,
         order_id: orderId,
         buyer_email: buyerEmail,
         buyer_name: buyerName,
         buyer_phone: buyerPhone,
-        amount: amount,
+        amount,
         currency: 'TZS',
         redirect_url: paymentData.redirectUrl || this.redirectUrl,
         cancel_url: paymentData.cancelUrl || this.cancelUrl,
-        webhook: paymentData.webhookUrl || this.webhookUrl,
+        webhook: webhookUrl,
         buyer_remarks: paymentData.buyer_remarks || 'Purchase',
         merchant_remarks: paymentData.merchant_remarks || paymentData.description || 'Transaction',
         no_of_items: paymentData.no_of_items || 1
@@ -75,11 +162,11 @@ class PalmPesaService {
         name: buyerName,
         email: buyerEmail,
         phone: this.normalizePhoneForInit(buyerPhone),
-        amount: amount,
+        amount,
         transaction_id: orderId,
         address: paymentData.address || 'Dar es Salaam',
         postcode: paymentData.postcode || '00000',
-        callback_url: (paymentData.webhookUrl || this.webhookUrl).replace('http://', 'https://')
+        callback_url: webhookUrl.replace('http://', 'https://')
       };
 
       const fallbackPayloads = [
@@ -92,11 +179,11 @@ class PalmPesaService {
           name: 'pay-via-mobile',
           url: `${this.baseUrl}/api/pay-via-mobile`,
           body: {
-            user_id: String(this.userId || paymentData.user_id || ''),
+            user_id: validation.normalized.userId,
             name: buyerName,
             email: buyerEmail,
             phone: this.normalizePhoneForInit(buyerPhone),
-            amount: amount,
+            amount,
             transaction_id: orderId,
             address: paymentData.address || 'Dar es Salaam',
             postcode: paymentData.postcode || '00000',
@@ -111,23 +198,31 @@ class PalmPesaService {
       ];
 
       let lastError = null;
+      let lastDetails = null;
 
       for (const candidate of fallbackPayloads) {
-        console.log(`PalmPesa attempt [${candidate.name}]`, { url: candidate.url, payload: candidate.body });
+        console.log('[PalmPesa] request', {
+          endpoint: candidate.name,
+          url: candidate.url,
+          payload: candidate.body,
+          headers: {
+            Authorization: `Bearer ${this.maskToken(this.apiToken)}`,
+            'Content-Type': 'application/json',
+            Accept: 'application/json'
+          }
+        });
 
         try {
-          const response = await axios.post(candidate.url, candidate.body, {
-            headers: {
-              Authorization: `Bearer ${this.apiToken}`,
-              'Content-Type': 'application/json',
-              Accept: 'application/json'
-            },
-            timeout: 20000,
-            validateStatus: () => true
-          });
-
+          const response = await axios.post(candidate.url, candidate.body, this.buildRequestConfig());
           const data = response.data || {};
-          console.log(`PalmPesa response [${candidate.name}]`, { status: response.status, statusText: response.statusText, data });
+
+          console.log('[PalmPesa] raw response', {
+            endpoint: candidate.name,
+            status: response.status,
+            statusText: response.statusText,
+            body: data,
+            headers: response.headers
+          });
 
           const paymentUrl = data?.raw?.payment_gateway_url || data?.raw?.payment_url || data?.payment_gateway_url || data?.payment_url || data?.paymentUrl || data?.payment_url || null;
           const rawLinkSuccess = Boolean(paymentUrl);
@@ -138,57 +233,75 @@ class PalmPesaService {
           if (rawLinkSuccess || sharableOk || (response.status >= 200 && response.status < 300 && (initiated || mobilePromptSuccess))) {
             return {
               success: true,
-              paymentUrl: paymentUrl,
+              paymentUrl,
               orderId: data?.raw?.order_id || data?.order_id || data?.response?.order_id || data?.orderId || orderId,
               transactionId: data?.raw?.transid || data?.transaction_id || data?.response?.transid || orderId,
               reference: orderId,
               raw: data,
-              endpoint: candidate.name
+              endpoint: candidate.name,
+              details: {
+                status: response.status,
+                statusText: response.statusText,
+                body: data
+              }
             };
           }
 
-          lastError = data?.message || data?.result || data?.error || data?.error_message || 'PalmPesa order creation failed';
-          console.error(`PalmPesa error response [${candidate.name}]`, {
+          lastError = this.extractErrorMessage(data, 'PalmPesa order creation failed');
+          lastDetails = {
             status: response.status,
             statusText: response.statusText,
-            message: lastError,
-            fullData: data,
-            allKeys: Object.keys(data)
-          });
+            body: data,
+            endpoint: candidate.name
+          };
+
+          console.error('[PalmPesa] provider rejected request', lastDetails);
         } catch (axiosError) {
-          lastError = axiosError.message;
-          console.error(`Axios request failed [${candidate.name}]`, axiosError.message);
+          const responseData = axiosError?.response?.data || {};
+          lastError = this.extractErrorMessage(responseData, axiosError.message || 'PalmPesa request failed');
+          lastDetails = {
+            status: axiosError?.response?.status,
+            statusText: axiosError?.response?.statusText,
+            body: responseData,
+            endpoint: candidate.name,
+            requestUrl: axiosError?.config?.url,
+            message: axiosError.message
+          };
+          console.error('[PalmPesa] request failed', lastDetails);
         }
       }
 
-      return { success: false, error: lastError || 'PalmPesa order creation failed' };
+      return {
+        success: false,
+        error: lastError || 'PalmPesa order creation failed',
+        details: lastDetails || null
+      };
     } catch (error) {
       const errorResponse = error?.response?.data || {};
-      const errorMessage = errorResponse.message || errorResponse.error || error.message || 'PalmPesa payment creation failed';
+      const errorMessage = this.extractErrorMessage(errorResponse, error.message || 'PalmPesa payment creation failed');
       const errorDetails = {
         message: errorMessage,
         status: error?.response?.status,
-        data: errorResponse,
+        body: errorResponse,
         url: error?.config?.url,
         type: 'network_error'
       };
-      console.error('PalmPesa Error:', errorDetails);
-      return { success: false, error: errorMessage };
+      console.error('[PalmPesa] unexpected error', errorDetails);
+      return { success: false, error: errorMessage, details: errorDetails };
     }
   }
 
   async verifyPayment(orderId) {
     try {
-      const response = await axios.post(`${this.baseUrl}/api/order-status`, { order_id: orderId }, {
-        headers: {
-          Authorization: `Bearer ${this.apiToken}`,
-          'Content-Type': 'application/json',
-          Accept: 'application/json'
-        },
-        timeout: 20000
+      const response = await axios.post(`${this.baseUrl}/api/order-status`, { order_id: orderId }, this.buildRequestConfig());
+      const data = response.data || {};
+
+      console.log('[PalmPesa] verification response', {
+        status: response.status,
+        statusText: response.statusText,
+        body: data
       });
 
-      const data = response.data || {};
       if (response.status === 200) {
         const resultData = data?.data && data.data[0] ? data.data[0] : data?.data || {};
         return {
@@ -201,15 +314,37 @@ class PalmPesaService {
         };
       }
 
-      return { success: false, error: data?.message || 'Failed to fetch order status' };
+      return {
+        success: false,
+        error: this.extractErrorMessage(data, 'Failed to fetch order status'),
+        details: {
+          status: response.status,
+          statusText: response.statusText,
+          body: data
+        }
+      };
     } catch (error) {
-      console.error('PalmPesa Verify Error:', error?.response?.data || error.message || error);
-      return { success: false, error: error?.response?.data?.message || error.message || 'Payment verification failed' };
+      const responseData = error?.response?.data || {};
+      console.error('[PalmPesa] verification failed', {
+        status: error?.response?.status,
+        statusText: error?.response?.statusText,
+        body: responseData,
+        message: error.message
+      });
+      return {
+        success: false,
+        error: this.extractErrorMessage(responseData, error.message || 'Payment verification failed'),
+        details: {
+          status: error?.response?.status,
+          statusText: error?.response?.statusText,
+          body: responseData,
+          message: error.message
+        }
+      };
     }
   }
 
   validateWebhookSignature() {
-    // PalmPesa docs do not specify a signature scheme. Accept webhooks by default.
     return true;
   }
 

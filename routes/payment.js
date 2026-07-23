@@ -236,7 +236,8 @@ router.post('/checkout', authenticate, async (req, res) => {
         transaction.metadata = {
           ...(transaction.metadata || {}),
           palmpesaOrderId: paymentResult.orderId || paymentResult.transactionId,
-          paymentUrl: paymentResult.paymentUrl
+          paymentUrl: paymentResult.paymentUrl,
+          paymentDetails: paymentResult.details || null
         };
         await transaction.save();
 
@@ -251,7 +252,8 @@ router.post('/checkout', authenticate, async (req, res) => {
               name: pkg.name,
               coins: coinsCost,
               usd: usdCost
-            }
+            },
+            gatewayDetails: paymentResult.details || null
           }
         });
       }
@@ -260,10 +262,16 @@ router.post('/checkout', authenticate, async (req, res) => {
       transaction.notes = paymentResult.error;
       await transaction.save();
 
-      console.error('PalmPesa checkout payment creation failed:', paymentResult.error);
+      console.error('PalmPesa checkout payment creation failed:', paymentResult);
       return res.status(400).json({
         success: false,
-        message: paymentResult.error || 'Failed to initialize PalmPesa payment'
+        message: paymentResult.error || 'Failed to initialize PalmPesa payment',
+        data: {
+          transactionId: transaction._id,
+          provider: 'palmpesa',
+          gatewayError: paymentResult.error,
+          gatewayDetails: paymentResult.details || null
+        }
       });
     } else {
       const transaction = new Transaction({
@@ -485,6 +493,7 @@ router.post('/topup', authenticate, async (req, res) => {
       transaction.metadata = {
         ...(transaction.metadata || {}),
         gatewayError: errorMsg,
+        gatewayDetails: paymentResult.details || null,
         fallbackMode: 'manual-review',
         paymentInstructions: `Tafadhali lipa kwa PalmPesa kwa kutumia namba ${phone || user.phone || 'iliyowekwa'} na uandike transaction ${transaction._id}`
       };
@@ -500,6 +509,7 @@ router.post('/topup', authenticate, async (req, res) => {
           provider: 'palmpesa',
           fallback: true,
           gatewayError: errorMsg,
+          gatewayDetails: paymentResult.details || null,
           paymentInstructions: `Tafadhali lipa kwa PalmPesa kwa kutumia namba ${phone || user.phone || 'iliyowekwa'} na uandike transaction ${transaction._id}`
         }
       });
