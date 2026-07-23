@@ -758,6 +758,9 @@
           if (data.data?.paymentUrl) {
             messageBox.innerHTML = '<span class="text-emerald-400">✅ Malipo yameanzishwa. Fungua ukurasa wa malipo.</span>';
             window.open(data.data.paymentUrl, '_blank', 'noopener,noreferrer');
+          } else if (data.data?.paymentInitiated) {
+            const paymentMessage = data.data?.paymentMessage || data.message || '✅ Malipo yameanzishwa. Endelea na mfumo wa USSD/mobile.';
+            messageBox.innerHTML = `<span class="text-emerald-400">${paymentMessage}</span>`;
           } else {
             const fallbackMessage = data.message || 'Maombi yako yamepokelewa. Admin ataapprove baada ya kuthibitisha malipo yako.';
             const instructions = data.data?.paymentInstructions ? `<div class="mt-2 text-xs text-slate-300">${data.data.paymentInstructions}</div>` : '';

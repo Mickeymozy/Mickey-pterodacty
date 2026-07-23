@@ -441,6 +441,8 @@ router.post('/topup', authenticate, async (req, res) => {
         customerPhone: paymentData.customerPhone,
         amount: paymentData.amount,
         currency: 'TZS',
+        redirectUrl: process.env.PALMPESA_REDIRECT_URL || process.env.APP_URL,
+        cancelUrl: process.env.PALMPESA_CANCEL_URL || `${process.env.APP_URL || ''}/cancel`,
         webhookUrl: process.env.PALMPESA_WEBHOOK_URL || `${process.env.APP_URL || ''}/api/payment/webhook`,
         description: paymentData.description,
         metadata: paymentData.metadata
@@ -466,6 +468,7 @@ router.post('/topup', authenticate, async (req, res) => {
           message: 'Payment initiated via PalmPesa. Please complete the USSD/mobile prompt and wait for confirmation.',
           data: {
             paymentUrl: paymentResult.paymentUrl,
+            paymentMessage: paymentResult.paymentMessage || paymentResult.raw?.message || 'Please follow the prompt on your phone.',
             transactionId: transaction._id,
             provider: 'palmpesa',
             coins: coinAmount,

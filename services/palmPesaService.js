@@ -85,6 +85,22 @@ class PalmPesaService {
     return typeof message === 'string' ? message : fallbackMessage;
   }
 
+  extractPaymentUrl(payload) {
+    if (!payload) return null;
+    const result = payload?.raw || payload;
+    const keys = ['payment_gateway_url', 'payment_url', 'paymentUrl', 'payment_link', 'url', 'link', 'redirect_url', 'redirectUrl'];
+    for (const key of keys) {
+      if (result?.[key]) return result[key];
+    }
+    const nested = result?.data || result;
+    if (nested && typeof nested === 'object') {
+      for (const key of keys) {
+        if (nested?.[key]) return nested[key];
+      }
+    }
+    return null;
+  }
+
   validatePaymentPayload(paymentData = {}) {
     const errors = [];
     const buyerEmail = String(paymentData.customerEmail || paymentData.buyer_email || '').trim();
@@ -239,18 +255,32 @@ class PalmPesaService {
             headers: response.headers
           });
 
-          const paymentUrl = data?.raw?.payment_gateway_url || data?.raw?.payment_url || data?.payment_gateway_url || data?.payment_url || data?.paymentUrl || null;
+          const paymentUrl = this.extractPaymentUrl(data);
           const rawLinkSuccess = Boolean(paymentUrl);
           const sharableOk = data?.error === 'sharable payment link' || data?.message === 'sharable payment link';
-          const initiated = Boolean(data?.order_id || data?.message?.toLowerCase?.().includes('initiated') || data?.response?.resultcode === '000' || data?.response?.resultcode === 'SUCCESS');
-          const mobilePromptSuccess = Boolean(data?.message?.toLowerCase?.().includes('payment initiated') || data?.message?.toLowerCase?.().includes('payment request sent') || data?.order_id);
+          const initiated = Boolean(
+            data?.order_id ||
+            data?.data?.order_id ||
+            data?.message?.toLowerCase?.().includes('initiated') ||
+            data?.response?.resultcode === '000' ||
+            data?.response?.resultcode === 'SUCCESS'
+          );
+          const mobilePromptSuccess = Boolean(
+            data?.message?.toLowerCase?.().includes('payment initiated') ||
+            data?.message?.toLowerCase?.().includes('payment request sent') ||
+            data?.order_id ||
+            data?.data?.order_id
+          );
+          const returnedOrderId = data?.raw?.order_id || data?.order_id || data?.response?.order_id || data?.orderId || data?.data?.order_id || data?.data?.orderId || orderId;
+          const returnedTransactionId = data?.raw?.transid || data?.transaction_id || data?.response?.transid || data?.data?.transid || orderId;
 
           if (rawLinkSuccess || sharableOk || (response.status >= 200 && response.status < 300 && (initiated || mobilePromptSuccess))) {
             return {
               success: true,
               paymentUrl,
-              orderId: data?.raw?.order_id || data?.order_id || data?.response?.order_id || data?.orderId || orderId,
-              transactionId: data?.raw?.transid || data?.transaction_id || data?.response?.transid || orderId,
+              paymentMessage: data?.message || data?.raw?.message || data?.response?.message || null,
+              orderId: returnedOrderId,
+              transactionId: returnedTransactionId,
               reference: orderId,
               raw: data,
               endpoint: candidate.name,
