@@ -12,7 +12,7 @@ class PalmPesaService {
     this.baseUrl = (process.env.PALMPESA_BASE_URL || 'https://palmpesa.drmlelwa.co.tz').replace(/\/$/, '');
     this.vendor = process.env.PALMPESA_VENDOR || 'TILL61103867';
     this.redirectUrl = process.env.PALMPESA_REDIRECT_URL || process.env.APP_URL || 'https://mickey-pterodacty.vercel.app';
-    this.cancelUrl = process.env.PALMPESA_CANCEL_URL || this.redirectUrl + '/cancel';
+    this.cancelUrl = process.env.PALMPESA_CANCEL_URL || `${this.redirectUrl}/cancel`;
     this.webhookUrl = process.env.PALMPESA_WEBHOOK_URL || `${this.redirectUrl}/api/payment/webhook`;
   }
 
@@ -21,8 +21,8 @@ class PalmPesaService {
     const cleaned = String(phone).replace(/\D/g, '');
     if (!cleaned) return '';
     if (cleaned.startsWith('255')) return cleaned;
-    if (cleaned.startsWith('07') || cleaned.startsWith('06')) return '255' + cleaned.substring(1);
-    if (cleaned.startsWith('7') || cleaned.startsWith('6')) return '255' + cleaned;
+    if (cleaned.startsWith('07') || cleaned.startsWith('06')) return `255${cleaned.substring(1)}`;
+    if (cleaned.startsWith('7') || cleaned.startsWith('6')) return `255${cleaned}`;
     return cleaned;
   }
 
@@ -30,6 +30,16 @@ class PalmPesaService {
     const normalized = this.formatPhoneNumber(phone);
     if (!normalized) return '';
     return normalized.startsWith('255') ? normalized.substring(3) : normalized;
+  }
+
+  buildBuyerNameParts(name) {
+    const cleanName = String(name || '').trim();
+    if (!cleanName) return { firstName: 'Customer', lastName: 'Customer' };
+    const parts = cleanName.split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) {
+      return { firstName: parts[0], lastName: parts.slice(1).join(' ') };
+    }
+    return { firstName: cleanName, lastName: 'Customer' };
   }
 
   isValidEmail(email) {
@@ -140,13 +150,14 @@ class PalmPesaService {
       const amount = validation.normalized.amount;
       const orderId = validation.normalized.orderId;
       const webhookUrl = validation.normalized.webhookUrl;
+      const buyerNameParts = this.buildBuyerNameParts(buyerName);
 
       const payload = {
-        user_id: Number(validation.normalized.userId),
+        user_id: validation.normalized.userId,
         vendor: validation.normalized.vendor,
         order_id: orderId,
         buyer_email: buyerEmail,
-        buyer_name: buyerName,
+        buyer_name: `${buyerNameParts.firstName} ${buyerNameParts.lastName}`.trim(),
         buyer_phone: buyerPhone,
         amount,
         currency: 'TZS',
@@ -159,7 +170,9 @@ class PalmPesaService {
       };
 
       const directMobileBody = {
-        name: buyerName,
+        first_name: buyerNameParts.firstName,
+        last_name: buyerNameParts.lastName,
+        name: `${buyerNameParts.firstName} ${buyerNameParts.lastName}`.trim(),
         email: buyerEmail,
         phone: this.normalizePhoneForInit(buyerPhone),
         amount,
@@ -179,8 +192,10 @@ class PalmPesaService {
           name: 'pay-via-mobile',
           url: `${this.baseUrl}/api/pay-via-mobile`,
           body: {
-            user_id: validation.normalized.userId,
-            name: buyerName,
+            user_id: String(this.userId || paymentData.user_id || ''),
+            first_name: buyerNameParts.firstName,
+            last_name: buyerNameParts.lastName,
+            name: `${buyerNameParts.firstName} ${buyerNameParts.lastName}`.trim(),
             email: buyerEmail,
             phone: this.normalizePhoneForInit(buyerPhone),
             amount,
@@ -224,7 +239,7 @@ class PalmPesaService {
             headers: response.headers
           });
 
-          const paymentUrl = data?.raw?.payment_gateway_url || data?.raw?.payment_url || data?.payment_gateway_url || data?.payment_url || data?.paymentUrl || data?.payment_url || null;
+          const paymentUrl = data?.raw?.payment_gateway_url || data?.raw?.payment_url || data?.payment_gateway_url || data?.payment_url || data?.paymentUrl || null;
           const rawLinkSuccess = Boolean(paymentUrl);
           const sharableOk = data?.error === 'sharable payment link' || data?.message === 'sharable payment link';
           const initiated = Boolean(data?.order_id || data?.message?.toLowerCase?.().includes('initiated') || data?.response?.resultcode === '000' || data?.response?.resultcode === 'SUCCESS');
