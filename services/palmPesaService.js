@@ -29,7 +29,7 @@ class PalmPesaService {
   normalizePhoneForInit(phone) {
     const normalized = this.formatPhoneNumber(phone);
     if (!normalized) return '';
-    return normalized.startsWith('255') ? normalized.substring(3) : normalized;
+    return normalized;
   }
 
   buildBuyerNameParts(name) {
@@ -258,18 +258,29 @@ class PalmPesaService {
           const paymentUrl = this.extractPaymentUrl(data);
           const rawLinkSuccess = Boolean(paymentUrl);
           const sharableOk = data?.error === 'sharable payment link' || data?.message === 'sharable payment link';
-          const initiated = Boolean(
+          const messageText = String(data?.message || data?.raw?.message || data?.response?.message || '').toLowerCase();
+          const hasOrderId = Boolean(
             data?.order_id ||
+            data?.raw?.order_id ||
             data?.data?.order_id ||
-            data?.message?.toLowerCase?.().includes('initiated') ||
+            data?.response?.order_id ||
+            data?.orderId ||
+            data?.data?.orderId
+          );
+          const initiated = Boolean(
+            hasOrderId ||
+            messageText.includes('initiated') ||
+            messageText.includes('payment request sent') ||
             data?.response?.resultcode === '000' ||
             data?.response?.resultcode === 'SUCCESS'
           );
           const mobilePromptSuccess = Boolean(
-            data?.message?.toLowerCase?.().includes('payment initiated') ||
-            data?.message?.toLowerCase?.().includes('payment request sent') ||
-            data?.order_id ||
-            data?.data?.order_id
+            hasOrderId && (
+              messageText.includes('payment initiated') ||
+              messageText.includes('payment request sent') ||
+              messageText.includes('ussd') ||
+              messageText.includes('mobile')
+            )
           );
           const returnedOrderId = data?.raw?.order_id || data?.order_id || data?.response?.order_id || data?.orderId || data?.data?.order_id || data?.data?.orderId || orderId;
           const returnedTransactionId = data?.raw?.transid || data?.transaction_id || data?.response?.transid || data?.data?.transid || orderId;
