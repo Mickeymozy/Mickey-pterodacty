@@ -465,9 +465,6 @@ router.post('/topup', authenticate, async (req, res) => {
         };
         await transaction.save();
 
-        await notifyUserAboutPendingPayment(user, transaction, { name: 'Coins Top-up' }, 'coin top-up');
-        await notifyAdminAboutPendingPayment(user, transaction, { name: 'Coins Top-up' }, 'coin top-up');
-
         return res.json({
           success: true,
           message: 'Payment initiated via PalmPesa. Please complete the USSD/mobile prompt and wait for confirmation.',
@@ -670,6 +667,12 @@ router.post('/webhook', async (req, res) => {
         const coinsToAdd = targetTransaction.amount;
         user.coins = (user.coins || 0) + coinsToAdd;
         await user.save();
+
+        const packageDoc = targetTransaction.packageId
+          ? await ServerPackage.findById(targetTransaction.packageId).catch(() => null)
+          : null;
+
+        await notifyUserAboutPayment(user, targetTransaction, packageDoc || { name: 'Coins Top-up' }, null);
       }
 
       targetTransaction.status = 'completed';
