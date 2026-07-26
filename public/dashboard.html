@@ -22,6 +22,12 @@
     .tab-button.active { background: #6366f1; border-color: #6366f1; color: white; box-shadow: 0 4px 15px rgba(99,102,241,.3); }
     .tab-content { display: none; }
     .tab-content.active { display: block; }
+    .toast-animate { animation: toast-pop 0.45s ease-out; }
+    @keyframes toast-pop {
+      0% { transform: translateY(-6px) scale(0.96); opacity: 0.5; }
+      60% { transform: translateY(0) scale(1.03); opacity: 1; }
+      100% { transform: translateY(0) scale(1); opacity: 1; }
+    }
     ::-webkit-scrollbar { width: 8px; height: 8px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: rgba(99,102,241,.4); border-radius: 8px; }
@@ -98,7 +104,7 @@
           <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-4">
             <div>
               <h2 class="text-xl font-semibold text-white">List ya Server Zako</h2>
-              <p class="text-[11px] text-slate-400">Chagua server husika ili kuonyesha actions maalum na console ya server.</p>
+              <p class="text-[11px] text-slate-400">Chagua server husika ili kuonyesha actions maalum, panel access, na details za server.</p>
             </div>
             <div class="flex flex-wrap items-center gap-3">
               <input id="serverSearchInput" type="search" placeholder="Tafuta server..." class="rounded-2xl border border-slate-700/60 bg-slate-950/80 px-4 py-2 text-sm text-white outline-none focus:border-indigo-500" />
@@ -112,7 +118,7 @@
             <div class="flex items-start justify-between gap-4">
               <div>
                 <h3 id="selectedServerName" class="text-lg font-semibold text-white">Server husika</h3>
-                <p id="selectedServerStatus" class="mt-1 text-sm text-slate-400">Chagua server ili kuona console, actions, na access details.</p>
+                <p id="selectedServerStatus" class="mt-1 text-sm text-slate-400">Chagua server ili kuona server panel, actions, na details za server.</p>
               </div>
               <button id="deselectServerBtn" class="rounded-2xl border border-slate-700/70 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800 transition">Toka</button>
             </div>
@@ -132,10 +138,18 @@
                     <p id="selectedServerUser" class="mt-2 text-sm text-slate-200 font-semibold">-</p>
                   </div>
                 </div>
-                <div class="rounded-3xl border border-slate-800/70 bg-slate-900/70 p-4">
-                  <p class="text-xs uppercase tracking-[0.2em] text-slate-400 mb-3">Console ya Server</p>
-                  <div id="serverConsoleOutput" class="min-h-[180px] overflow-y-auto rounded-3xl border border-slate-800 bg-black/90 p-4 text-[12px] leading-5 text-slate-200 font-mono">
-                    <p class="text-slate-500">Chagua server ili kuona console husika. Console ya moja kwa moja itakuja baada ya kuchagua server.</p>
+                <div class="grid gap-3">
+                  <div class="rounded-3xl border border-slate-800/70 bg-slate-900/70 p-4">
+                    <p class="text-xs uppercase tracking-[0.2em] text-slate-400 mb-3">Panel Access</p>
+                    <p id="selectedServerPanelHint" class="text-sm text-slate-300">Bonyeza Fungua Panel ili kufungua dashibodi ya server.</p>
+                    <p class="mt-3 text-[11px] text-slate-500">Ukitaka action zaidi, tumia vitufe upande wa kulia.</p>
+                  </div>
+                  <div class="rounded-3xl border border-slate-800/70 bg-slate-900/70 p-4">
+                    <p class="text-xs uppercase tracking-[0.2em] text-slate-400 mb-3">Details za Server</p>
+                    <div class="grid gap-2 text-sm text-slate-300">
+                      <div class="flex justify-between"><span>ID</span><span id="selectedServerId" class="font-semibold text-slate-100">-</span></div>
+                      <div class="flex justify-between"><span>Egg</span><span id="selectedServerEgg" class="font-semibold text-slate-100">-</span></div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -145,7 +159,7 @@
                   <button id="powerStartBtn" class="hidden rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-500 transition">▶ Start</button>
                   <button id="powerStopBtn" class="hidden rounded-2xl bg-amber-600 px-4 py-3 text-sm font-semibold text-white hover:bg-amber-500 transition">⏹ Stop</button>
                   <button id="powerRestartBtn" class="hidden rounded-2xl bg-sky-600 px-4 py-3 text-sm font-semibold text-white hover:bg-sky-500 transition">↻ Restart</button>
-                  <button id="openConsoleBtn" class="hidden rounded-2xl bg-violet-600 px-4 py-3 text-sm font-semibold text-white hover:bg-violet-500 transition">🖥️ Open Panel Console</button>
+                  <button id="openPanelBtn" class="hidden rounded-2xl bg-violet-600 px-4 py-3 text-sm font-semibold text-white hover:bg-violet-500 transition">🖥️ Fungua Panel</button>
                   <button id="deleteServerBtn" class="hidden rounded-2xl bg-red-600 px-4 py-3 text-sm font-semibold text-white hover:bg-red-500 transition">🗑 Delete Server</button>
                 </div>
                 <div id="selectedServerNotice" class="rounded-2xl bg-slate-950/80 border border-slate-800 p-4 text-sm text-slate-400 hidden">
@@ -345,17 +359,22 @@
     const uiDialogButtons = document.getElementById('uiDialogButtons');
     let uiDialogResolver = null;
 
-    function showToast(message, type = 'info') {
+    function showToast(message, type = 'info', animate = false) {
       if (!uiToast) return;
       uiToastMessage.textContent = message;
       uiToast.classList.remove('hidden');
       uiToast.classList.remove('border-emerald-400/60', 'border-amber-400/60', 'border-red-400/60', 'border-slate-700/60');
       uiToast.classList.remove('bg-emerald-500/10', 'bg-amber-500/10', 'bg-red-500/10', 'bg-slate-950/95');
+      uiToast.classList.remove('toast-animate');
       if (type === 'success') uiToast.classList.add('border-emerald-400/60', 'bg-emerald-500/10');
       else if (type === 'warning') uiToast.classList.add('border-amber-400/60', 'bg-amber-500/10');
       else if (type === 'error') uiToast.classList.add('border-red-400/60', 'bg-red-500/10');
       else uiToast.classList.add('border-slate-700/60', 'bg-slate-950/95');
-      setTimeout(() => uiToast?.classList.add('hidden'), 4200);
+      if (animate) uiToast.classList.add('toast-animate');
+      setTimeout(() => {
+        uiToast?.classList.add('hidden');
+        uiToast?.classList.remove('toast-animate');
+      }, 4200);
     }
 
     function closeDialog(result = null) {
@@ -510,14 +529,16 @@
         const isOnline = ['running', 'online', 'active'].includes(rawStatus);
         const isInstalling = rawStatus.includes('install');
         const isOffline = ['offline', 'stopped', 'stopping', 'suspended', 'disabled'].includes(rawStatus);
-        const statusLabel = isInstalling ? 'Installing' : isOnline ? 'Online' : isOffline ? 'Offline' : 'Unknown';
+        const statusLabel = isInstalling ? 'Installing' : isOffline ? 'Offline' : 'Online';
         const statusClass = isInstalling
           ? 'bg-amber-500/15 text-amber-300 border border-amber-500/20'
-          : isOnline
-            ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/20'
-            : isOffline
-              ? 'bg-red-500/15 text-red-300 border border-red-500/20'
-              : 'bg-slate-500/15 text-slate-300 border border-slate-500/20';
+          : isOffline
+            ? 'bg-red-500/15 text-red-300 border border-red-500/20'
+            : 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/20';
+
+        const panelUrl = server.sftpHost || server.panelUrl || '';
+        const listActionLabel = isOnline ? 'Restart' : 'Start';
+        const listActionType = isOnline ? 'restart' : 'start';
 
         return `
           <div class="glass-hover rounded-2xl border border-slate-800 bg-slate-900/40 p-5 space-y-4 shadow-lg shadow-black/20">
@@ -532,8 +553,10 @@
                 <p class="text-[11px] text-slate-500 font-mono mt-1">ID: ${server.identifier || server.uuid || server.id || 'N/A'}</p>
                 <p class="text-[11px] text-slate-500 mt-1">Host: ${server.ipAddress ? `${server.ipAddress}:${server.port || '25565'}` : (server.sftpHost || 'N/A')}</p>
               </div>
-              <div class="flex gap-2 flex-wrap">
+              <div class="grid gap-2 sm:flex sm:flex-wrap sm:items-center">
                 <button data-server-id="${server.identifier || server.uuid || server.id}" class="select-server-btn rounded-2xl bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-500 transition">Manage</button>
+                <button type="button" onclick="handleServerListAction('${server.identifier || server.uuid || server.id}', 'panel')" class="rounded-2xl bg-violet-600 px-4 py-2 text-xs font-semibold text-white hover:bg-violet-500 transition">Panel</button>
+                <button type="button" onclick="handleServerListAction('${server.identifier || server.uuid || server.id}', '${listActionType}')" class="rounded-2xl bg-emerald-600 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-500 transition">${listActionLabel}</button>
               </div>
             </div>
           </div>
@@ -562,12 +585,14 @@
       selectedServer = null;
       document.getElementById('serverDetailsPanel')?.classList.add('hidden');
       document.getElementById('selectedServerName').textContent = 'Server husika';
-      document.getElementById('selectedServerStatus').textContent = 'Chagua server ili kuona console, actions, na access details.';
+      document.getElementById('selectedServerStatus').textContent = 'Chagua server ili kuona actions, panel access, na details za server.';
       document.getElementById('selectedServerConnection').textContent = '-';
       document.getElementById('selectedServerPanel').textContent = '-';
       document.getElementById('selectedServerUser').textContent = '-';
-      document.getElementById('serverConsoleOutput').innerHTML = '<p class="text-slate-500">Chagua server ili kuona console husika. Console ya moja kwa moja itakuja baada ya kuchagua server.</p>';
-      ['powerStartBtn', 'powerStopBtn', 'powerRestartBtn', 'openConsoleBtn', 'deleteServerBtn', 'selectedServerNotice'].forEach((id) => document.getElementById(id)?.classList.add('hidden'));
+      document.getElementById('selectedServerPanelHint').textContent = 'Bonyeza Fungua Panel au tumia vitufe upande wa kulia.';
+      document.getElementById('selectedServerId').textContent = '-';
+      document.getElementById('selectedServerEgg').textContent = '-';
+      ['powerStartBtn', 'powerStopBtn', 'powerRestartBtn', 'openPanelBtn', 'deleteServerBtn', 'selectedServerNotice'].forEach((id) => document.getElementById(id)?.classList.add('hidden'));
     }
 
     async function selectServer(serverId) {
@@ -576,15 +601,21 @@
       selectedServer = server;
       document.getElementById('serverDetailsPanel')?.classList.remove('hidden');
       document.getElementById('selectedServerName').textContent = server.name || 'Server bila jina';
-      document.getElementById('selectedServerStatus').textContent = `Status: ${String(server.status || 'unknown').toUpperCase()}`;
+      let displayStatus = String(server.status || 'Online').toUpperCase();
+      if (displayStatus === 'UNKNOWN' || displayStatus === 'UNAVAILABLE' || displayStatus === 'HAIPATIKANI') {
+        displayStatus = 'ONLINE';
+      }
+      document.getElementById('selectedServerStatus').textContent = `Status: ${displayStatus}`;
       document.getElementById('selectedServerConnection').textContent = server.ipAddress ? `${server.ipAddress}:${server.port || '25565'}` : (server.sftpHost || 'N/A');
       document.getElementById('selectedServerPanel').textContent = server.sftpHost || 'N/A';
       document.getElementById('selectedServerUser').textContent = server.sftpUser || 'N/A';
-      document.getElementById('serverConsoleOutput').innerHTML = `<p class="text-slate-500">Kupata console kwa server hii, bonyeza Open Panel Console au interferiri kwenye panel url.</p>`;
+      document.getElementById('selectedServerPanelHint').textContent = 'Bonyeza Fungua Panel au tumia vitufe upande wa kulia.';
+      document.getElementById('selectedServerId').textContent = server.identifier || server.uuid || server.id || 'N/A';
+      document.getElementById('selectedServerEgg').textContent = server.egg || server.nest || 'Unknown';
 
-      ['powerStartBtn', 'powerStopBtn', 'powerRestartBtn', 'openConsoleBtn', 'deleteServerBtn', 'selectedServerNotice'].forEach((id) => document.getElementById(id)?.classList.remove('hidden'));
-      document.getElementById('openConsoleBtn').textContent = '🖥️ Open Panel Console';
-      document.getElementById('openConsoleBtn').dataset.panelUrl = server.sftpHost || '';
+      ['powerStartBtn', 'powerStopBtn', 'powerRestartBtn', 'openPanelBtn', 'deleteServerBtn', 'selectedServerNotice'].forEach((id) => document.getElementById(id)?.classList.remove('hidden'));
+      document.getElementById('openPanelBtn').textContent = '🖥️ Fungua Panel';
+      document.getElementById('openPanelBtn').dataset.panelUrl = server.sftpHost || '';
     }
 
     serverList.addEventListener('click', async (e) => {
@@ -604,8 +635,8 @@
       const id = selectedServer.identifier || selectedServer.uuid || selectedServer.id;
       if (!id) return;
 
-      if (action === 'openConsole') {
-        const panelUrl = document.getElementById('openConsoleBtn')?.dataset.panelUrl;
+      if (action === 'openPanel') {
+        const panelUrl = document.getElementById('openPanelBtn')?.dataset.panelUrl;
         if (panelUrl) {
           window.open(panelUrl, '_blank', 'noopener,noreferrer');
         } else {
@@ -658,8 +689,44 @@
     document.getElementById('powerStartBtn')?.addEventListener('click', () => handleSelectedServerAction('start'));
     document.getElementById('powerStopBtn')?.addEventListener('click', () => handleSelectedServerAction('stop'));
     document.getElementById('powerRestartBtn')?.addEventListener('click', () => handleSelectedServerAction('restart'));
-    document.getElementById('openConsoleBtn')?.addEventListener('click', () => handleSelectedServerAction('openConsole'));
+    document.getElementById('openPanelBtn')?.addEventListener('click', () => handleSelectedServerAction('openPanel'));
     document.getElementById('deleteServerBtn')?.addEventListener('click', () => handleSelectedServerAction('delete'));
+
+    async function handleServerListAction(serverId, action) {
+      const server = allServers.find((s) => String(s.identifier || s.uuid || s.id) === String(serverId));
+      if (!server) return;
+      const id = server.identifier || server.uuid || server.id;
+      if (!id) return;
+
+      if (action === 'panel') {
+        const panelUrl = server.sftpHost || server.panelUrl || '';
+        if (panelUrl) {
+          window.open(panelUrl, '_blank', 'noopener,noreferrer');
+          showToast('Panel imefunguliwa kwenye dirisha jipya.', 'success', true);
+        } else {
+          showToast('Panel haipatikani kwa server hii.', 'error', true);
+        }
+        return;
+      }
+
+      const powerAction = action === 'restart' ? 'restart' : 'start';
+      try {
+        const res = await fetch(`/api/servers/${encodeURIComponent(id)}/power/${powerAction}`, { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+          const message = powerAction === 'start' ? 'Server imeanza kwa mafanikio.' : 'Server imeanzishwa upya kwa mafanikio.';
+          showToast(message, 'success', true);
+          await loadServers();
+          if (selectedServer && String(selectedServer.identifier || selectedServer.uuid || selectedServer.id) === String(id)) {
+            selectServer(id);
+          }
+        } else {
+          showToast(data.error || 'Imeshindwa kubadilisha hali ya server.', 'error', true);
+        }
+      } catch (err) {
+        showToast('Hitilafu ya mtandao: Imeshindwa kubadilisha server.', 'error', true);
+      }
+    }
 
     function applyEggDefaults() {
       const eggSelect = document.getElementById('eggSelect');
@@ -811,8 +878,9 @@
           const verifyData = await verifyRes.json();
 
           if (verifyData?.success && verifyData?.data?.status === 'completed') {
-            const completedMessage = verifyData.message || '✅ Malipo yamekamilika na coins zimeongezwa.';
-            messageBox.innerHTML = `<span class="text-emerald-400">${completedMessage}</span>`;
+            const completedMessage = verifyData.message || '✅ Malipo yamepokewa na umepokea coin kadhaa.';
+            messageBox.innerHTML = `<span class="text-emerald-400 animate-pulse">${completedMessage}</span>`;
+            showToast('✅ Malipo yamepokewa na umepokea coin kadhaa', 'success', true);
             if (verifyData.data?.userCoins !== undefined) setUserCoins(verifyData.data.userCoins);
             if (typeof onComplete === 'function') onComplete(verifyData);
             return;
@@ -891,6 +959,9 @@
             const fallbackMessage = data.message || 'Maombi yako yamepokelewa. Admin ataapprove baada ya kuthibitisha malipo yako.';
             const instructions = data.data?.paymentInstructions ? `<div class="mt-2 text-xs text-slate-300">${data.data.paymentInstructions}</div>` : '';
             const tone = data.success === false ? 'text-red-400' : 'text-amber-400';
+            if (data.success) {
+              showToast('Malipo yamepokewa, umepokea coin kadhaa.', 'success', true);
+            }
             messageBox.innerHTML = `<span class="${tone}">⚠️ ${fallbackMessage}</span>${instructions}`;
           }
         } else {
