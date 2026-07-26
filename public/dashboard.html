@@ -120,12 +120,12 @@
 
       <div id="server-details" class="tab-content space-y-4">
         <div class="glass rounded-2xl p-6">
-          <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-4">
+            <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-4">
             <div>
               <h2 class="text-xl font-semibold text-white">📄 Server Details</h2>
               <p class="text-[11px] text-slate-400">Angalia login, panel access, na stats za server hapa wakati umechagua server.</p>
             </div>
-            <button id="deselectServerBtn" class="rounded-2xl border border-slate-700/70 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800 transition">Toka</button>
+            <button id="deselectServerBtn" class="rounded-lg border border-slate-700/70 px-3 py-1 text-xs text-slate-200 hover:bg-slate-800 transition">Toka</button>
           </div>
 
           <div id="serverDetailsContent" class="space-y-4">
@@ -618,7 +618,8 @@
       }
       document.getElementById('selectedServerStatus').textContent = `Status: ${displayStatus}`;
       document.getElementById('selectedServerConnection').textContent = server.ipAddress ? `${server.ipAddress}:${server.port || '25565'}` : (server.sftpHost || 'N/A');
-      document.getElementById('selectedServerPanel').textContent = server.sftpHost || 'N/A';
+      // show placeholder; link will be injected after access fetch if available
+      document.getElementById('selectedServerPanel').textContent = server.sftpHost || '-';
       document.getElementById('selectedServerUser').textContent = server.sftpUser || 'N/A';
       document.getElementById('selectedServerPanelHint').textContent = 'Bonyeza Fungua Panel au tumia vitufe upande wa kulia.';
       document.getElementById('selectedServerId').textContent = server.identifier || server.uuid || server.id || 'N/A';
@@ -627,32 +628,47 @@
       document.getElementById('selectedServerLoginPassword').textContent = '...';
       document.getElementById('selectedServerLoginEmail').textContent = '...';
 
-      ['powerStartBtn', 'powerStopBtn', 'powerRestartBtn', 'openPanelBtn', 'deleteServerBtn', 'selectedServerNotice'].forEach((id) => document.getElementById(id)?.classList.remove('hidden'));
+      // show power/delete controls but keep openPanelBtn hidden until we confirm a panel URL
+      ['powerStartBtn', 'powerStopBtn', 'powerRestartBtn', 'deleteServerBtn', 'selectedServerNotice'].forEach((id) => document.getElementById(id)?.classList.remove('hidden'));
+      document.getElementById('openPanelBtn')?.classList.add('hidden');
       document.getElementById('openPanelBtn').textContent = '🖥️ Fungua Panel';
-      document.getElementById('openPanelBtn').dataset.panelUrl = server.sftpHost || '';
+      document.getElementById('openPanelBtn').dataset.panelUrl = '';
 
       try {
         const accessRes = await fetch(`/api/servers/${encodeURIComponent(server.identifier || server.uuid || server.id)}/access`);
         if (accessRes.ok) {
           const accessData = await accessRes.json();
           const access = accessData.access || {};
-          document.getElementById('selectedServerPanel').textContent = access.panelUrl || access.sftpHost || server.sftpHost || DEFAULT_PANEL_URL || 'N/A';
+          const panelUrl = access.panelUrl || access.sftpHost || server.sftpHost || DEFAULT_PANEL_URL || '';
+          const panelEl = document.getElementById('selectedServerPanel');
+          if (panelUrl) {
+            const shortLabel = panelUrl.replace(/https?:\/\//, '').replace(/\/$/, '');
+            panelEl.innerHTML = `<a href="${panelUrl}" target="_blank" rel="noopener noreferrer" class="text-indigo-400 underline">${shortLabel}</a>`;
+            document.getElementById('openPanelBtn').dataset.panelUrl = panelUrl;
+            document.getElementById('openPanelBtn')?.classList.remove('hidden');
+          } else {
+            panelEl.textContent = 'N/A';
+            document.getElementById('openPanelBtn')?.classList.add('hidden');
+          }
           document.getElementById('selectedServerLoginUser').textContent = access.email || access.username || access.sftpUser || server.sftpUser || 'N/A';
           document.getElementById('selectedServerLoginPassword').textContent = access.password || 'N/A';
           document.getElementById('selectedServerLoginEmail').textContent = access.email || 'N/A';
-          document.getElementById('openPanelBtn').dataset.panelUrl = access.panelUrl || access.sftpHost || server.sftpHost || DEFAULT_PANEL_URL;
           document.getElementById('selectedServerPanelHint').textContent = 'Panel na login details zimetolewa kutoka kwenye server access API.';
         } else {
           const errorBody = await accessRes.json().catch(() => ({}));
           document.getElementById('selectedServerLoginUser').textContent = 'N/A';
           document.getElementById('selectedServerLoginPassword').textContent = 'N/A';
           document.getElementById('selectedServerLoginEmail').textContent = 'N/A';
+          document.getElementById('selectedServerPanel').textContent = 'N/A';
+          document.getElementById('openPanelBtn')?.classList.add('hidden');
           document.getElementById('selectedServerPanelHint').textContent = errorBody.error ? `Imeshindikana kupata login details: ${errorBody.error}` : 'Haiwezi kupata login details sasa.';
         }
       } catch (err) {
         document.getElementById('selectedServerLoginUser').textContent = 'N/A';
         document.getElementById('selectedServerLoginPassword').textContent = 'N/A';
         document.getElementById('selectedServerLoginEmail').textContent = 'N/A';
+        document.getElementById('selectedServerPanel').textContent = 'N/A';
+        document.getElementById('openPanelBtn')?.classList.add('hidden');
         document.getElementById('selectedServerPanelHint').textContent = 'Haiwezi kupata login details kwa sasa.';
       }
     }
