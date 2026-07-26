@@ -175,10 +175,15 @@
       switchTab('reset');
     }
 
-    if (urlParams.get('error')) {
+    const loginError = urlParams.get('error');
+    if (loginError) {
       alertBox.classList.remove('hidden');
       alertBox.className = 'p-3 rounded-xl text-sm font-medium mb-5 bg-red-500/15 text-red-400 border border-red-500/20';
-      alertBox.textContent = '❌ Username au password sio sahihi. Jaribu tena.';
+      if (loginError === 'account_offline') {
+        alertBox.textContent = 'Taarifa: Akaunti imeondolewa au haipo. Tafadhali ingia tena.';
+      } else {
+        alertBox.textContent = '❌ Username au password sio sahihi. Jaribu tena.';
+      }
     }
 
     document.getElementById('registerPassword')?.addEventListener('input', (e) => {

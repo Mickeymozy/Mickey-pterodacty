@@ -220,9 +220,16 @@
         <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <h2 class="text-xl font-semibold text-white mb-1">🖥️ Usimamizi wa Server</h2>
-            <p class="text-sm text-slate-400">Ona server zote za Pterodactyl na suspend/unsuspend kwa admin.</p>
+            <p class="text-sm text-slate-400">Angalia, uongeze taarifa na utume notisi kwa wenye server kwa urahisi.</p>
           </div>
           <button id="refreshServersBtn" onclick="loadAdminServers()" class="inline-flex items-center justify-center rounded-2xl bg-slate-800/80 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700">Refresh Servers</button>
+        </div>
+        <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div class="flex items-center gap-3">
+            <span class="text-xs uppercase tracking-[0.2em] text-slate-500">Tafuta:</span>
+            <input id="adminServerSearchInput" type="search" placeholder="Tafuta server kwa jina, owner, au ID" class="rounded-2xl border border-slate-700/60 bg-slate-950/80 px-4 py-2 text-sm text-white outline-none focus:border-indigo-500" />
+          </div>
+          <p class="text-xs text-slate-400">Bonyeza „Notify Owner“ kutuma email kwa mmiliki wa server.</p>
         </div>
       </div>
       <div class="glass rounded-2xl p-6">
@@ -692,34 +699,60 @@
       } catch(e) { console.error(e); }
     }
 
+    let adminServerList = [];
+    const adminSearchInput = document.getElementById('adminServerSearchInput');
+
+    function renderAdminServers() {
+      const query = adminSearchInput?.value.trim().toLowerCase() || '';
+      const tbody = document.getElementById('adminServersList');
+      if (!tbody) return;
+
+      const filtered = adminServerList.filter((server) => {
+        const name = String(server.name || server.identifier || '').toLowerCase();
+        const owner = String(server.ownerUsername || server.ownerEmail || '').toLowerCase();
+        const id = String(server.id || '').toLowerCase();
+        return !query || name.includes(query) || owner.includes(query) || id.includes(query);
+      });
+
+      if (!filtered.length) {
+        tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-500">Hakuna server inayofaa kwa utafutaji huu.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(server => {
+        const status = server.status || 'unknown';
+        const lowerStatus = String(status).toLowerCase();
+        const suspendLabel = lowerStatus === 'suspended' ? 'Fungua' : 'Suspend';
+        const action = lowerStatus === 'suspended' ? 'unsuspend' : 'suspend';
+        const ownerLabel = server.ownerUsername ? `${server.ownerUsername} (${server.ownerEmail})` : server.ownerEmail || 'Unknown';
+        return `
+          <tr class="border-b border-slate-800/40 text-xs">
+            <td class="py-2 px-4">${server.name || server.identifier}</td>
+            <td class="py-2 px-4 text-slate-200">${status}</td>
+            <td class="py-2 px-4 text-slate-300">${ownerLabel}</td>
+            <td class="py-2 px-4">
+              <div class="flex flex-wrap gap-2">
+                <button onclick="performServerAction('${server.id}', '${action}')" class="rounded-lg bg-indigo-600 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-indigo-500">${suspendLabel}</button>
+                <button onclick="prefillAdminEmail('${server.ownerEmail || ''}')" class="rounded-lg bg-sky-500/20 px-3 py-1.5 text-[11px] font-semibold text-sky-300 transition hover:bg-sky-500/30">Notify Owner</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
     async function loadAdminServers() {
       try {
         const res = await fetch(`${API_URL}/admin/servers`);
         const d = await res.json();
-        const tbody = document.getElementById('adminServersList');
-        if (!tbody) return;
         if (d.success && Array.isArray(d.data)) {
-          tbody.innerHTML = d.data.map(server => {
-            const status = server.status || 'unknown';
-            const lowerStatus = String(status).toLowerCase();
-            const suspendLabel = lowerStatus === 'suspended' ? 'Fungua' : 'Suspend';
-            const action = lowerStatus === 'suspended' ? 'unsuspend' : 'suspend';
-            const ownerLabel = server.ownerUsername ? `${server.ownerUsername} (${server.ownerEmail})` : server.ownerEmail || 'Unknown';
-            return `
-              <tr class="border-b border-slate-800/40 text-xs">
-                <td class="py-2 px-4">${server.name || server.identifier}</td>
-                <td class="py-2 px-4 text-slate-200">${status}</td>
-                <td class="py-2 px-4 text-slate-300">${ownerLabel}</td>
-                <td class="py-2 px-4">
-                  <div class="flex flex-wrap gap-2">
-                    <button onclick="performServerAction('${server.id}', '${action}')" class="rounded-lg bg-indigo-600 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-indigo-500">${suspendLabel}</button>
-                  </div>
-                </td>
-              </tr>
-            `;
-          }).join('');
+          adminServerList = d.data;
+          renderAdminServers();
         } else {
-          tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-500">${d.error || 'Hakuna server zilizopatikana.'}</td></tr>`;
+          const tbody = document.getElementById('adminServersList');
+          if (tbody) {
+            tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-500">${d.error || 'Hakuna server zilizopatikana.'}</td></tr>`;
+          }
           if (!d.success) notify(d.error || 'Hitilafu wakati wa kupakia server.', 'error');
         }
       } catch (e) {
@@ -731,6 +764,8 @@
         notify('Hitilafu wakati wa kupakia server.', 'error');
       }
     }
+
+    adminSearchInput?.addEventListener('input', renderAdminServers);
 
     async function performServerAction(serverId, action) {
       const confirmed = await confirmDialog(`Una uhakika unataka ${action === 'suspend' ? 'kususpend' : 'kufungua'} server hii?`, { title: 'Thibitisha' });

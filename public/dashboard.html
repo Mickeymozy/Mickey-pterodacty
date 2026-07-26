@@ -95,15 +95,65 @@
 
       <div id="my-servers" class="tab-content active space-y-4">
         <div class="glass rounded-2xl p-6">
-          <div class="flex items-center justify-between mb-4">
+          <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-4">
             <div>
               <h2 class="text-xl font-semibold text-white">List ya Server Zako</h2>
-              <p class="text-[11px] text-slate-400">bonyeza access ili kupata info za kulogin kwenye server zako    .</p>
+              <p class="text-[11px] text-slate-400">Chagua server husika ili kuonyesha actions maalum na console ya server.</p>
             </div>
-            <button id="refreshBtn" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-xs font-medium text-white rounded-xl transition">🔄 Live Sync</button>
+            <div class="flex flex-wrap items-center gap-3">
+              <input id="serverSearchInput" type="search" placeholder="Tafuta server..." class="rounded-2xl border border-slate-700/60 bg-slate-950/80 px-4 py-2 text-sm text-white outline-none focus:border-indigo-500" />
+              <button id="refreshBtn" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-xs font-medium text-white rounded-xl transition">🔄 Live Sync</button>
+            </div>
           </div>
-          <div id="serverList" class="space-y-4">
+          <div id="serverList" class="grid gap-4">
             <p class="text-xs text-slate-400">Inavuta data sahihi kutoka kwenye pterodactyl...</p>
+          </div>
+          <div id="serverDetailsPanel" class="mt-6 hidden rounded-3xl border border-slate-800/70 bg-slate-950/80 p-5 shadow-2xl">
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <h3 id="selectedServerName" class="text-lg font-semibold text-white">Server husika</h3>
+                <p id="selectedServerStatus" class="mt-1 text-sm text-slate-400">Chagua server ili kuona console, actions, na access details.</p>
+              </div>
+              <button id="deselectServerBtn" class="rounded-2xl border border-slate-700/70 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800 transition">Toka</button>
+            </div>
+            <div class="mt-5 grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+              <div class="space-y-4">
+                <div class="grid gap-3 sm:grid-cols-3">
+                  <div class="rounded-2xl border border-slate-800/70 bg-slate-900/70 p-4">
+                    <p class="text-xs uppercase tracking-[0.2em] text-slate-400">IP / Host</p>
+                    <p id="selectedServerConnection" class="mt-2 text-sm text-slate-200 font-semibold">-</p>
+                  </div>
+                  <div class="rounded-2xl border border-slate-800/70 bg-slate-900/70 p-4">
+                    <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Panel</p>
+                    <p id="selectedServerPanel" class="mt-2 text-sm text-slate-200 font-semibold">-</p>
+                  </div>
+                  <div class="rounded-2xl border border-slate-800/70 bg-slate-900/70 p-4">
+                    <p class="text-xs uppercase tracking-[0.2em] text-slate-400">User</p>
+                    <p id="selectedServerUser" class="mt-2 text-sm text-slate-200 font-semibold">-</p>
+                  </div>
+                </div>
+                <div class="rounded-3xl border border-slate-800/70 bg-slate-900/70 p-4">
+                  <p class="text-xs uppercase tracking-[0.2em] text-slate-400 mb-3">Console ya Server</p>
+                  <div id="serverConsoleOutput" class="min-h-[180px] overflow-y-auto rounded-3xl border border-slate-800 bg-black/90 p-4 text-[12px] leading-5 text-slate-200 font-mono">
+                    <p class="text-slate-500">Chagua server ili kuona console husika. Console ya moja kwa moja itakuja baada ya kuchagua server.</p>
+                  </div>
+                </div>
+              </div>
+              <div class="rounded-3xl border border-slate-800/70 bg-slate-900/70 p-4 space-y-4">
+                <p class="text-sm text-slate-300">Actions za server hizi huwa zinakuja baada ya kuchagua server kwa uwazi.</p>
+                <div class="grid gap-2">
+                  <button id="powerStartBtn" class="hidden rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-500 transition">▶ Start</button>
+                  <button id="powerStopBtn" class="hidden rounded-2xl bg-amber-600 px-4 py-3 text-sm font-semibold text-white hover:bg-amber-500 transition">⏹ Stop</button>
+                  <button id="powerRestartBtn" class="hidden rounded-2xl bg-sky-600 px-4 py-3 text-sm font-semibold text-white hover:bg-sky-500 transition">↻ Restart</button>
+                  <button id="openConsoleBtn" class="hidden rounded-2xl bg-violet-600 px-4 py-3 text-sm font-semibold text-white hover:bg-violet-500 transition">🖥️ Open Panel Console</button>
+                  <button id="deleteServerBtn" class="hidden rounded-2xl bg-red-600 px-4 py-3 text-sm font-semibold text-white hover:bg-red-500 transition">🗑 Delete Server</button>
+                </div>
+                <div id="selectedServerNotice" class="rounded-2xl bg-slate-950/80 border border-slate-800 p-4 text-sm text-slate-400 hidden">
+                  <p class="font-medium text-slate-200">Tahadhari</p>
+                  <p class="mt-2">Hakikisha umehifadhi mabadiliko yote muhimu kabla ya kufanya restart au delete.</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -263,6 +313,8 @@
     let globalPackages = []; // Itahifadhi package zote kutoka API ili kusoma specs live
     let globalEggs = []; // Itahifadhi egg options kutoka panel ili kujaza defaults za deploy
     let currentCoins = 0; // Salio halisi la coins kutoka mfumo (chanzo kimoja kwa kurasa zote)
+    let allServers = [];
+    let selectedServer = null;
 
     // Soma coins kwa namna sawa kila mahali (formatting moja)
     function formatCoins(value) {
@@ -416,6 +468,9 @@
     async function loadUser() {
       try {
         const res = await fetch('/api/me');
+        if (!res.ok) {
+          throw new Error('Session expired or account unavailable');
+        }
         const data = await res.json();
         userName.textContent = data.user.displayName || data.user.username;
         const coinValue = data.user.coins ?? data.user.balance;
@@ -430,171 +485,181 @@
           adminBadge.classList.add('hidden');
           adminLink.classList.add('hidden');
         }
-      } catch(e) { userName.textContent = "Offline Account"; }
+      } catch (e) {
+        window.location.href = '/login.html?error=account_offline';
+      }
     }
 
     // VUTA SERVER NA HESABU ZA REAL TIME KUTOKA PTERODACTYL CLIENT API
+    function renderServerList() {
+      const query = document.getElementById('serverSearchInput')?.value.trim().toLowerCase() || '';
+      const filtered = allServers.filter((server) => {
+        const name = String(server.name || '').toLowerCase();
+        const owner = String(server.sftpUser || '').toLowerCase();
+        const id = String(server.identifier || server.uuid || server.id || '').toLowerCase();
+        return !query || name.includes(query) || owner.includes(query) || id.includes(query);
+      });
+
+      if (!filtered.length) {
+        serverList.innerHTML = `<p class="text-xs text-slate-400 p-6 text-center">Hakuna server inayofaa kwa utafutaji huu.</p>`;
+        return;
+      }
+
+      serverList.innerHTML = filtered.map(server => {
+        const rawStatus = String(server.status || 'unknown').toLowerCase();
+        const isOnline = ['running', 'online', 'active'].includes(rawStatus);
+        const isInstalling = rawStatus.includes('install');
+        const isOffline = ['offline', 'stopped', 'stopping', 'suspended', 'disabled'].includes(rawStatus);
+        const statusLabel = isInstalling ? 'Installing' : isOnline ? 'Online' : isOffline ? 'Offline' : 'Unknown';
+        const statusClass = isInstalling
+          ? 'bg-amber-500/15 text-amber-300 border border-amber-500/20'
+          : isOnline
+            ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/20'
+            : isOffline
+              ? 'bg-red-500/15 text-red-300 border border-red-500/20'
+              : 'bg-slate-500/15 text-slate-300 border border-slate-500/20';
+
+        return `
+          <div class="glass-hover rounded-2xl border border-slate-800 bg-slate-900/40 p-5 space-y-4 shadow-lg shadow-black/20">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <div class="flex items-center gap-2">
+                  <h3 class="text-sm font-semibold text-white">${server.name || 'Server bila jina'}</h3>
+                  <span class="rounded px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider ${statusClass}">
+                    ● ${statusLabel}
+                  </span>
+                </div>
+                <p class="text-[11px] text-slate-500 font-mono mt-1">ID: ${server.identifier || server.uuid || server.id || 'N/A'}</p>
+                <p class="text-[11px] text-slate-500 mt-1">Host: ${server.ipAddress ? `${server.ipAddress}:${server.port || '25565'}` : (server.sftpHost || 'N/A')}</p>
+              </div>
+              <div class="flex gap-2 flex-wrap">
+                <button data-server-id="${server.identifier || server.uuid || server.id}" class="select-server-btn rounded-2xl bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-500 transition">Manage</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
     async function loadServers() {
       try {
         const res = await fetch('/api/servers');
         const data = await res.json();
-        const servers = data.servers || [];
+        allServers = data.servers || [];
 
-        if (!servers.length) {
+        if (!allServers.length) {
           serverList.innerHTML = `<p class="text-xs text-slate-400 p-6 text-center">Hauna server yoyote kwenye akaunti yako kwa sasa.</p>`;
           return;
         }
 
-        serverList.innerHTML = servers.map(server => {
-          // Kuzuia neno NULL, kama hali haijulikani weka 'Inasindika...'
-          const rawStatus = String(server.status || 'unknown').toLowerCase();
-          const isOnline = ['running', 'online', 'active'].includes(rawStatus);
-          const isInstalling = rawStatus.includes('install');
-          const isOffline = ['offline', 'stopped', 'stopping', 'suspended', 'disabled'].includes(rawStatus);
-          const statusLabel = isInstalling ? 'Installing' : isOnline ? 'Online' : isOffline ? 'Offline' : 'Online';
-          const statusClass = isInstalling
-            ? 'bg-amber-500/15 text-amber-300 border border-amber-500/20'
-            : isOnline
-              ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/20'
-              : isOffline
-                ? 'bg-red-500/15 text-red-300 border border-red-500/20'
-                : 'bg-slate-500/15 text-slate-300 border border-slate-500/20';
-          
-          return `
-            <div class="glass-hover rounded-2xl border border-slate-800 bg-slate-900/40 p-5 space-y-4 shadow-lg shadow-black/20">
-              <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div>
-                  <div class="flex items-center gap-2">
-                    <h3 class="text-sm font-semibold text-white">${server.name}</h3>
-                    <span class="rounded px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider ${statusClass}">
-                      ● ${statusLabel}
-                    </span>
-                  </div>
-                  <p class="text-[11px] text-slate-500 font-mono mt-1">UUID: ${server.identifier}</p>
-                  <p class="text-[11px] text-slate-500 mt-1">Panel: ${server.sftpHost || 'N/A'} • ${server.ipAddress ? `${server.ipAddress}:${server.port || '25565'}` : 'IP pending'}</p>
-                </div>
-                
-                <div class="flex gap-1.5 flex-wrap">
-                  <button data-action="start" data-id="${server.identifier || server.uuid || server.id}" class="rounded-lg bg-emerald-600/90 hover:bg-emerald-500 px-3 py-1.5 text-xs text-white font-medium transition shadow-sm">▶ Start</button>
-                  <button data-action="stop" data-id="${server.identifier || server.uuid || server.id}" class="rounded-lg bg-amber-600/90 hover:bg-amber-500 px-3 py-1.5 text-xs text-white font-medium transition shadow-sm">⏹ Stop</button>
-                  <button data-action="restart" data-id="${server.identifier || server.uuid || server.id}" class="rounded-lg bg-sky-600/90 hover:bg-sky-500 px-3 py-1.5 text-xs text-white font-medium transition shadow-sm">↻ Restart</button>
-                  <button data-action="access" data-id="${server.identifier || server.uuid || server.id}" class="rounded-lg bg-slate-700/90 hover:bg-slate-600 px-3 py-1.5 text-xs text-white font-medium transition shadow-sm">🔐 Access</button>
-                  <button data-action="delete" data-id="${server.identifier || server.uuid || server.id}" data-name="${(server.name || '').replace(/"/g, '&quot;')}" class="rounded-lg bg-red-600/90 hover:bg-red-500 px-3 py-1.5 text-xs text-white font-medium transition shadow-sm">🗑 Delete</button>
-                </div>
-              </div>
-
-              <div id="access-${server.identifier || server.uuid || server.id}" class="hidden rounded-lg border border-slate-800/60 bg-slate-950/60 p-3 text-[11px] text-slate-400"></div>
-
-              <div class="pt-3 border-t border-slate-800/60 grid gap-2 sm:grid-cols-2 text-xs text-slate-400">
-                <div class="bg-slate-950/60 p-2.5 rounded-lg font-mono border border-slate-800/30">
-                  <span class="text-indigo-400 block font-bold text-[9px] uppercase tracking-wider mb-1">🔗 CONNECTION INFO</span>
-                  <span class="text-slate-100 text-xs select-all font-semibold">${server.ipAddress ? `${server.ipAddress}:${server.port || '25565'}` : (server.sftpHost ? server.sftpHost : 'IP haijapatikana bado')}</span>
-                </div>
-                <div class="bg-slate-950/60 p-2.5 rounded-lg font-mono border border-slate-800/30">
-                  <span class="text-cyan-400 block font-bold text-[9px] uppercase tracking-wider mb-1">📁 SFTP / PANEL ACCESS</span>
-                  <span class="text-slate-300 text-[11px]">Host: <span class="text-slate-100 select-all font-bold">${server.sftpHost || 'N/A'}</span> | User: <span class="text-slate-100 select-all">${server.sftpUser || 'N/A'}</span></span>
-                </div>
-              </div>
-            </div>
-          `;
-        }).join('');
-      } catch(e) {
+        renderServerList();
+      } catch (e) {
         serverList.innerHTML = `<p class="text-xs text-red-400 text-center">Hitilafu: Imeshindwa kusoma data halisi kutoka Pterodactyl Node.</p>`;
       }
     }
 
-    // LIVE INTERACTION YA POWER CONTROLS BUTTONS
+    function clearSelectedServer() {
+      selectedServer = null;
+      document.getElementById('serverDetailsPanel')?.classList.add('hidden');
+      document.getElementById('selectedServerName').textContent = 'Server husika';
+      document.getElementById('selectedServerStatus').textContent = 'Chagua server ili kuona console, actions, na access details.';
+      document.getElementById('selectedServerConnection').textContent = '-';
+      document.getElementById('selectedServerPanel').textContent = '-';
+      document.getElementById('selectedServerUser').textContent = '-';
+      document.getElementById('serverConsoleOutput').innerHTML = '<p class="text-slate-500">Chagua server ili kuona console husika. Console ya moja kwa moja itakuja baada ya kuchagua server.</p>';
+      ['powerStartBtn', 'powerStopBtn', 'powerRestartBtn', 'openConsoleBtn', 'deleteServerBtn', 'selectedServerNotice'].forEach((id) => document.getElementById(id)?.classList.add('hidden'));
+    }
+
+    async function selectServer(serverId) {
+      const server = allServers.find((s) => String(s.identifier || s.uuid || s.id) === String(serverId));
+      if (!server) return;
+      selectedServer = server;
+      document.getElementById('serverDetailsPanel')?.classList.remove('hidden');
+      document.getElementById('selectedServerName').textContent = server.name || 'Server bila jina';
+      document.getElementById('selectedServerStatus').textContent = `Status: ${String(server.status || 'unknown').toUpperCase()}`;
+      document.getElementById('selectedServerConnection').textContent = server.ipAddress ? `${server.ipAddress}:${server.port || '25565'}` : (server.sftpHost || 'N/A');
+      document.getElementById('selectedServerPanel').textContent = server.sftpHost || 'N/A';
+      document.getElementById('selectedServerUser').textContent = server.sftpUser || 'N/A';
+      document.getElementById('serverConsoleOutput').innerHTML = `<p class="text-slate-500">Kupata console kwa server hii, bonyeza Open Panel Console au interferiri kwenye panel url.</p>`;
+
+      ['powerStartBtn', 'powerStopBtn', 'powerRestartBtn', 'openConsoleBtn', 'deleteServerBtn', 'selectedServerNotice'].forEach((id) => document.getElementById(id)?.classList.remove('hidden'));
+      document.getElementById('openConsoleBtn').textContent = '🖥️ Open Panel Console';
+      document.getElementById('openConsoleBtn').dataset.panelUrl = server.sftpHost || '';
+    }
+
     serverList.addEventListener('click', async (e) => {
-      const btn = e.target.closest('button[data-action]');
-      if (!btn) return;
-      
-      const signal = btn.dataset.action;
-      const id = btn.dataset.id;
-      const originalText = btn.innerText;
-      
-      if (signal === 'delete') {
-        const serverName = btn.dataset.name || '';
-        const typedName = await promptDialog(serverName ? `Andika jina la server "${serverName}" ili kuifuta:` : 'Andika jina la server ili kuifuta:', { placeholder: serverName || '', defaultValue: '', confirmText: 'Futa', cancelText: 'Ghairi' });
-        if (typedName === null) return;
-        if (serverName && typedName.trim() !== serverName.trim()) {
-          notify('Jina halisami. Kufuta kumesitishwa.', 'error');
+      const manageBtn = e.target.closest('button.select-server-btn');
+      if (manageBtn) {
+        selectServer(manageBtn.dataset.serverId);
+        return;
+      }
+    });
+
+    document.getElementById('deselectServerBtn')?.addEventListener('click', () => {
+      clearSelectedServer();
+    });
+
+    async function handleSelectedServerAction(action) {
+      if (!selectedServer) return;
+      const id = selectedServer.identifier || selectedServer.uuid || selectedServer.id;
+      if (!id) return;
+
+      if (action === 'openConsole') {
+        const panelUrl = document.getElementById('openConsoleBtn')?.dataset.panelUrl;
+        if (panelUrl) {
+          window.open(panelUrl, '_blank', 'noopener,noreferrer');
+        } else {
+          notify('Panel URL haipatikani kwa server hii.', 'error');
+        }
+        return;
+      }
+
+      if (action === 'delete') {
+        const confirmed = await promptDialog(`Andika jina la server "${selectedServer.name || ''}" ili kuifuta:`, { placeholder: selectedServer.name || '', confirmText: 'Futa', cancelText: 'Ghairi' });
+        if (confirmed === null || confirmed.trim() !== (selectedServer.name || '').trim()) {
+          if (confirmed !== null) notify('Jina halisami. Kufuta kumesitishwa.', 'error');
           return;
         }
-
-        btn.innerText = '⏳...';
-        btn.disabled = true;
-
         try {
-          const res = await fetch(`/api/servers/${id}`, {
+          const res = await fetch(`/api/servers/${encodeURIComponent(id)}`, {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ confirmServerName: typedName.trim() })
+            body: JSON.stringify({ confirmServerName: confirmed.trim() })
           });
-          const data = await res.json().catch(() => ({ success: false }));
-          if (!data.success) {
+          const data = await res.json();
+          if (data.success) {
+            notify('Server imefutwa.', 'success');
+            clearSelectedServer();
+            loadServers();
+          } else {
             notify(data.error || 'Imeshindwa kufuta server.', 'error');
           }
         } catch (err) {
           notify('Hitilafu ya mtandao: Imeshindwa kufuta server.', 'error');
-        } finally {
-          btn.innerText = originalText;
-          btn.disabled = false;
-          await loadServers();
         }
         return;
       }
-
-      if (signal === 'access') {
-        const accessBox = document.getElementById(`access-${id}`);
-        if (accessBox) {
-          accessBox.classList.remove('hidden');
-          accessBox.innerHTML = '<span class="text-indigo-400">Inatafuta taarifa za ufikiaji...</span>';
-        }
-
-        try {
-          const res = await fetch(`/api/servers/${id}/access`);
-          const data = await res.json().catch(() => ({ success: false }));
-          if (data.success && accessBox) {
-            accessBox.innerHTML = `
-              <div class="space-y-1">
-                <p><span class="text-slate-500">Panel:</span> <span class="text-slate-100 font-semibold">${data.access?.panelUrl || 'N/A'}</span></p>
-                <p><span class="text-slate-500">Username:</span> <span class="text-slate-100 font-semibold">${data.access?.username || 'N/A'}</span></p>
-                <p><span class="text-slate-500">Email:</span> <span class="text-slate-100 font-semibold">${data.access?.email || 'N/A'}</span></p>
-                <p><span class="text-slate-500">Password:</span> <span class="text-slate-100 font-semibold">${data.access?.password || 'MICKEY24@'}</span></p>
-                <p><span class="text-slate-500">Server:</span> <span class="text-slate-100 font-semibold">${data.access?.serverName || data.access?.serverId || 'N/A'}</span></p>
-                <p><span class="text-slate-500">Host/IP:</span> <span class="text-slate-100 font-semibold">${data.access?.ipAddress ? `${data.access.ipAddress}:${data.access.port || '25565'}` : (data.access?.sftpHost || 'N/A')}</span></p>
-              </div>
-            `;
-          } else if (accessBox) {
-            accessBox.innerHTML = `<span class="text-red-400">${data.error || 'Imeshindwa kupata taarifa za ufikiaji.'}</span>`;
-          }
-        } catch (err) {
-          if (accessBox) {
-            accessBox.innerHTML = '<span class="text-red-400">Hitilafu ya mtandao wakati wa kupata taarifa za ufikiaji.</span>';
-          }
-        }
-        return;
-      }
-      
-      btn.innerText = '⚙️...';
-      btn.disabled = true;
 
       try {
-        // Inatuma ombi la nguvu moja kwa moja kwenye API ya Pterodactyl ya nodi husika
-        const res = await fetch(`/api/servers/${id}/power/${signal}`, { method: 'POST' });
-        const data = await res.json().catch(() => ({ success: false }));
-        
-        if(!data.success && data.error) {
-          notify(data.error, 'error');
+        const res = await fetch(`/api/servers/${encodeURIComponent(id)}/power/${action}`, { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+          notify(`Server imepangwa ${action} kwa mafanikio.`, 'success');
+          loadServers();
+          selectServer(id);
+        } else {
+          notify(data.error || 'Imeshindwa kubadilisha hali ya server.', 'error');
         }
-      } catch(err) {
-        notify("Hitilafu ya mtandao: Imeshindwa kufikia nodi ya kudhibiti.", 'error');
-      } finally {
-        btn.innerText = originalText;
-        btn.disabled = false;
-        await loadServers();
+      } catch (err) {
+        notify('Hitilafu ya mtandao: Imeshindwa kufikia nodi ya kudhibiti.', 'error');
       }
-    });
+    }
+
+    document.getElementById('powerStartBtn')?.addEventListener('click', () => handleSelectedServerAction('start'));
+    document.getElementById('powerStopBtn')?.addEventListener('click', () => handleSelectedServerAction('stop'));
+    document.getElementById('powerRestartBtn')?.addEventListener('click', () => handleSelectedServerAction('restart'));
+    document.getElementById('openConsoleBtn')?.addEventListener('click', () => handleSelectedServerAction('openConsole'));
+    document.getElementById('deleteServerBtn')?.addEventListener('click', () => handleSelectedServerAction('delete'));
 
     function applyEggDefaults() {
       const eggSelect = document.getElementById('eggSelect');
@@ -840,6 +905,7 @@
     }
 
     document.getElementById('refreshBtn').addEventListener('click', () => { loadUser(); loadServers(); syncPterodactylStatus(); });
+    document.getElementById('serverSearchInput')?.addEventListener('input', renderServerList);
 
     // Initialize coin payment mode visibility
     toggleCoinMode();
