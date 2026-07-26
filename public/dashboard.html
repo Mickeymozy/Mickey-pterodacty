@@ -176,9 +176,7 @@
               <div class="rounded-3xl border border-slate-800/70 bg-slate-900/70 p-4">
                 <p class="text-xs uppercase tracking-[0.2em] text-slate-400 mb-3">Server Information</p>
                 <div class="grid gap-3 text-sm text-slate-300">
-                  <div class="flex justify-between"><span>ID</span><span id="selectedServerId" class="font-semibold text-slate-100">-</span></div>
-                  <div class="flex justify-between"><span>Egg</span><span id="selectedServerEgg" class="font-semibold text-slate-100">-</span></div>
-                  <div class="flex justify-between"><span>IP / Host</span><span id="selectedServerConnection" class="font-semibold text-slate-100">-</span></div>
+                          <div class="flex justify-between"><span>IP / Host</span><span id="selectedServerConnection" class="font-semibold text-slate-100">-</span></div>
                   <div class="flex justify-between"><span>User</span><span id="selectedServerUser" class="font-semibold text-slate-100">-</span></div>
                 </div>
               </div>
@@ -614,8 +612,6 @@
       document.getElementById('selectedServerLoginPassword').textContent = '-';
       document.getElementById('selectedServerLoginEmail').textContent = '-';
       document.getElementById('selectedServerPanelHint').textContent = 'Bonyeza Fungua Panel au tumia vitufe upande wa kulia.';
-      document.getElementById('selectedServerId').textContent = '-';
-      document.getElementById('selectedServerEgg').textContent = '-';
       ['powerStartBtn', 'powerStopBtn', 'powerRestartBtn', 'openPanelBtn', 'deleteServerBtn', 'selectedServerNotice'].forEach((id) => document.getElementById(id)?.classList.add('hidden'));
     }
 
@@ -631,12 +627,11 @@
       }
       document.getElementById('selectedServerStatus').textContent = `Status: ${displayStatus}`;
       document.getElementById('selectedServerConnection').textContent = server.ipAddress ? `${server.ipAddress}:${server.port || '25565'}` : (server.sftpHost || 'N/A');
-      // show placeholder; link will be injected after access fetch if available
-      document.getElementById('selectedServerPanel').textContent = server.sftpHost || '-';
+      const initialPanelEl = document.getElementById('selectedServerPanel');
+      const defaultPanelShort = DEFAULT_PANEL_URL.replace(/https?:\/\//, '').replace(/\/$/, '');
+      if (initialPanelEl) initialPanelEl.innerHTML = `<a href="${DEFAULT_PANEL_URL}" target="_blank" rel="noopener noreferrer" class="text-indigo-400 underline">${defaultPanelShort}</a>`;
       document.getElementById('selectedServerUser').textContent = server.sftpUser || 'N/A';
       document.getElementById('selectedServerPanelHint').textContent = 'Bonyeza Fungua Panel au tumia vitufe upande wa kulia.';
-      document.getElementById('selectedServerId').textContent = server.identifier || server.uuid || server.id || 'N/A';
-      document.getElementById('selectedServerEgg').textContent = server.egg || server.nest || 'Unknown';
       document.getElementById('selectedServerLoginUser').textContent = '...';
       document.getElementById('selectedServerLoginPassword').textContent = '...';
       document.getElementById('selectedServerLoginEmail').textContent = '...';
@@ -652,28 +647,25 @@
         if (accessRes.ok) {
           const accessData = await accessRes.json();
           const access = accessData.access || {};
-          const panelUrl = access.panelUrl || access.sftpHost || server.sftpHost || DEFAULT_PANEL_URL || '';
+          const panelUrl = DEFAULT_PANEL_URL;
           const panelEl = document.getElementById('selectedServerPanel');
-          if (panelUrl) {
-            const shortLabel = panelUrl.replace(/https?:\/\//, '').replace(/\/$/, '');
-            panelEl.innerHTML = `<a href="${panelUrl}" target="_blank" rel="noopener noreferrer" class="text-indigo-400 underline">${shortLabel}</a>`;
-            document.getElementById('openPanelBtn').dataset.panelUrl = panelUrl;
-            document.getElementById('openPanelBtn')?.classList.remove('hidden');
-          } else {
-            panelEl.textContent = 'N/A';
-            document.getElementById('openPanelBtn')?.classList.add('hidden');
-          }
-          document.getElementById('selectedServerLoginUser').textContent = access.email || access.username || access.sftpUser || server.sftpUser || 'N/A';
-          document.getElementById('selectedServerLoginPassword').textContent = access.password || 'N/A';
+          const shortLabel = panelUrl.replace(/https?:\/\//, '').replace(/\/$/, '');
+          if (panelEl) panelEl.innerHTML = `<a href="${panelUrl}" target="_blank" rel="noopener noreferrer" class="text-indigo-400 underline">${shortLabel}</a>`;
+          document.getElementById('openPanelBtn').dataset.panelUrl = panelUrl;
+          document.getElementById('openPanelBtn')?.classList.remove('hidden');
+          document.getElementById('selectedServerLoginUser').textContent = access.username || access.email || access.sftpUser || server.sftpUser || 'N/A';
+          document.getElementById('selectedServerLoginPassword').textContent = 'MICKEY24@';
           document.getElementById('selectedServerLoginEmail').textContent = access.email || 'N/A';
           document.getElementById('selectedServerPanelHint').textContent = 'Panel na login details zimetolewa kutoka kwenye server access API.';
         } else {
           const errorBody = await accessRes.json().catch(() => ({}));
           document.getElementById('selectedServerLoginUser').textContent = 'N/A';
-          document.getElementById('selectedServerLoginPassword').textContent = 'N/A';
+          document.getElementById('selectedServerLoginPassword').textContent = 'MICKEY24@';
           document.getElementById('selectedServerLoginEmail').textContent = 'N/A';
-          document.getElementById('selectedServerPanel').textContent = 'N/A';
-          document.getElementById('openPanelBtn')?.classList.add('hidden');
+          const panelEl = document.getElementById('selectedServerPanel');
+          if (panelEl) panelEl.innerHTML = `<a href="${DEFAULT_PANEL_URL}" target="_blank" rel="noopener noreferrer" class="text-indigo-400 underline">${DEFAULT_PANEL_URL.replace(/https?:\/\//, '').replace(/\/$/, '')}</a>`;
+          document.getElementById('openPanelBtn').dataset.panelUrl = DEFAULT_PANEL_URL;
+          document.getElementById('openPanelBtn')?.classList.remove('hidden');
           document.getElementById('selectedServerPanelHint').textContent = errorBody.error ? `Imeshindikana kupata login details: ${errorBody.error}` : 'Haiwezi kupata login details sasa.';
         }
       } catch (err) {
@@ -799,13 +791,9 @@
       if (!id) return;
 
       if (action === 'panel') {
-        const panelUrl = server.sftpHost || server.panelUrl || DEFAULT_PANEL_URL || '';
-        if (panelUrl) {
-          window.open(panelUrl, '_blank', 'noopener,noreferrer');
-          showToast('Panel imefunguliwa kwenye dirisha jipya.', 'success', true);
-        } else {
-          showToast('Panel haipatikani kwa server hii.', 'error', true);
-        }
+        const panelUrl = DEFAULT_PANEL_URL;
+        window.open(panelUrl, '_blank', 'noopener,noreferrer');
+        showToast('Panel imefunguliwa kwenye dirisha jipya.', 'success', true);
         return;
       }
 
