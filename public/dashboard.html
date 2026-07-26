@@ -92,6 +92,7 @@
     <div class="glass rounded-2xl p-4 mb-6">
       <div class="flex gap-2 flex-wrap">
         <button class="tab-button active px-4 py-2 rounded-lg border border-slate-700/50 text-sm font-medium transition" onclick="switchDashTab(event, 'my-servers')">🎮 Server Zangu</button>
+        <button class="tab-button px-4 py-2 rounded-lg border border-slate-700/50 text-sm font-medium transition" onclick="switchDashTab(event, 'server-details')">📄 Server Details</button>
         <button class="tab-button px-4 py-2 rounded-lg border border-slate-700/50 text-sm font-medium transition" onclick="switchDashTab(event, 'deploy-panel')">🚀 Unda Server</button>
         <button class="tab-button px-4 py-2 rounded-lg border border-slate-700/50 text-sm font-medium transition" onclick="switchDashTab(event, 'buy-coins')">🪙 Nunua Coins</button>
       </div>
@@ -114,63 +115,70 @@
           <div id="serverList" class="grid gap-4">
             <p class="text-xs text-slate-400">Inavuta data sahihi kutoka kwenye pterodactyl...</p>
           </div>
-          <div id="serverDetailsPanel" class="mt-6 hidden rounded-3xl border border-slate-800/70 bg-slate-950/80 p-5 shadow-2xl">
-            <div class="flex items-start justify-between gap-4">
-              <div>
-                <h3 id="selectedServerName" class="text-lg font-semibold text-white">Server husika</h3>
-                <p id="selectedServerStatus" class="mt-1 text-sm text-slate-400">Chagua server ili kuona server panel, actions, na details za server.</p>
-              </div>
-              <button id="deselectServerBtn" class="rounded-2xl border border-slate-700/70 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800 transition">Toka</button>
+        </div>
+      </div>
+
+      <div id="server-details" class="tab-content space-y-4">
+        <div class="glass rounded-2xl p-6">
+          <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-4">
+            <div>
+              <h2 class="text-xl font-semibold text-white">📄 Server Details</h2>
+              <p class="text-[11px] text-slate-400">Angalia login, panel access, na stats za server hapa wakati umechagua server.</p>
             </div>
-            <div class="mt-5 grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-              <div class="space-y-4">
-                <div class="grid gap-3 sm:grid-cols-3">
-                  <div class="rounded-2xl border border-slate-800/70 bg-slate-900/70 p-4">
-                    <p class="text-xs uppercase tracking-[0.2em] text-slate-400">IP / Host</p>
-                    <p id="selectedServerConnection" class="mt-2 text-sm text-slate-200 font-semibold">-</p>
-                  </div>
-                  <div class="rounded-2xl border border-slate-800/70 bg-slate-900/70 p-4">
-                    <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Panel</p>
-                    <p id="selectedServerPanel" class="mt-2 text-sm text-slate-200 font-semibold">-</p>
-                  </div>
-                  <div class="rounded-2xl border border-slate-800/70 bg-slate-900/70 p-4">
-                    <p class="text-xs uppercase tracking-[0.2em] text-slate-400">User</p>
-                    <p id="selectedServerUser" class="mt-2 text-sm text-slate-200 font-semibold">-</p>
-                  </div>
+            <button id="deselectServerBtn" class="rounded-2xl border border-slate-700/70 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800 transition">Toka</button>
+          </div>
+
+          <div id="serverDetailsContent" class="space-y-4">
+            <div class="rounded-3xl border border-slate-800/70 bg-slate-900/70 p-5">
+              <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Server Iliyochaguliwa</p>
+                  <h3 id="selectedServerName" class="mt-2 text-2xl font-semibold text-white">Chagua server kwanza</h3>
+                  <p id="selectedServerStatus" class="mt-2 text-sm text-slate-300">Hakuna server imechaguliwa kwa sasa.</p>
                 </div>
-                <div class="grid gap-3">
-                  <div class="rounded-3xl border border-slate-800/70 bg-slate-900/70 p-4">
-                    <p class="text-xs uppercase tracking-[0.2em] text-slate-400 mb-3">Panel Access</p>
-                    <p id="selectedServerPanelHint" class="text-sm text-slate-300">Bonyeza Fungua Panel ili kufungua dashibodi ya server.</p>
-                    <p class="mt-3 text-[11px] text-slate-500">Ukitaka action zaidi, tumia vitufe upande wa kulia.</p>
-                  </div>
-                  <div class="rounded-3xl border border-slate-800/70 bg-slate-900/70 p-4">
-                    <p class="text-xs uppercase tracking-[0.2em] text-slate-400 mb-3">Details za Server</p>
-                    <div class="grid gap-2 text-sm text-slate-300">
-                      <div class="flex justify-between"><span>ID</span><span id="selectedServerId" class="font-semibold text-slate-100">-</span></div>
-                      <div class="flex justify-between"><span>Egg</span><span id="selectedServerEgg" class="font-semibold text-slate-100">-</span></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div class="rounded-3xl border border-slate-800/70 bg-slate-900/70 p-4 space-y-4">
-                <p class="text-sm text-slate-300">Actions za server hizi huwa zinakuja baada ya kuchagua server kwa uwazi.</p>
-                <div class="grid gap-2">
-                  <button id="powerStartBtn" class="hidden rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-500 transition">▶ Start</button>
-                  <button id="powerStopBtn" class="hidden rounded-2xl bg-amber-600 px-4 py-3 text-sm font-semibold text-white hover:bg-amber-500 transition">⏹ Stop</button>
-                  <button id="powerRestartBtn" class="hidden rounded-2xl bg-sky-600 px-4 py-3 text-sm font-semibold text-white hover:bg-sky-500 transition">↻ Restart</button>
+                <div class="grid gap-2 sm:text-right">
                   <button id="openPanelBtn" class="hidden rounded-2xl bg-violet-600 px-4 py-3 text-sm font-semibold text-white hover:bg-violet-500 transition">🖥️ Fungua Panel</button>
-                  <button id="deleteServerBtn" class="hidden rounded-2xl bg-red-600 px-4 py-3 text-sm font-semibold text-white hover:bg-red-500 transition">🗑 Delete Server</button>
-                </div>
-                <div id="selectedServerNotice" class="rounded-2xl bg-slate-950/80 border border-slate-800 p-4 text-sm text-slate-400 hidden">
-                  <p class="font-medium text-slate-200">Tahadhari</p>
-                  <p class="mt-2">Hakikisha umehifadhi mabadiliko yote muhimu kabla ya kufanya restart au delete.</p>
                 </div>
               </div>
+            </div>
+
+            <div class="grid gap-4 lg:grid-cols-2">
+              <div class="space-y-4">
+                <div class="rounded-3xl border border-slate-800/70 bg-slate-900/70 p-4">
+                  <p class="text-xs uppercase tracking-[0.2em] text-slate-400 mb-3">Panel Access</p>
+                  <div class="space-y-3 text-sm text-slate-300">
+                    <div class="flex justify-between"><span>Panel URL</span><span id="selectedServerPanel" class="font-semibold text-slate-100">-</span></div>
+                    <div class="flex justify-between"><span>Username</span><span id="selectedServerLoginUser" class="font-semibold text-slate-100">-</span></div>
+                    <div class="flex justify-between"><span>Password</span><span id="selectedServerLoginPassword" class="font-semibold text-slate-100">-</span></div>
+                    <div class="flex justify-between"><span>Email</span><span id="selectedServerLoginEmail" class="font-semibold text-slate-100">-</span></div>
+                  </div>
+                </div>
+
+                <div class="rounded-3xl border border-slate-800/70 bg-slate-900/70 p-4">
+                  <p class="text-xs uppercase tracking-[0.2em] text-slate-400 mb-3">Login Details</p>
+                  <p class="text-sm text-slate-300">Tumia login hizi ikiwa zinapatikana kwenye server access API.</p>
+                </div>
+              </div>
+
+              <div class="rounded-3xl border border-slate-800/70 bg-slate-900/70 p-4">
+                <p class="text-xs uppercase tracking-[0.2em] text-slate-400 mb-3">Server Information</p>
+                <div class="grid gap-3 text-sm text-slate-300">
+                  <div class="flex justify-between"><span>ID</span><span id="selectedServerId" class="font-semibold text-slate-100">-</span></div>
+                  <div class="flex justify-between"><span>Egg</span><span id="selectedServerEgg" class="font-semibold text-slate-100">-</span></div>
+                  <div class="flex justify-between"><span>IP / Host</span><span id="selectedServerConnection" class="font-semibold text-slate-100">-</span></div>
+                  <div class="flex justify-between"><span>User</span><span id="selectedServerUser" class="font-semibold text-slate-100">-</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="rounded-3xl border border-slate-800/70 bg-slate-900/70 p-4 text-sm text-slate-300">
+              <p class="font-medium text-slate-200">Ushauri</p>
+              <p class="mt-2">Ikiwa data ya login au panel haionekani, hakikisha akaunti yako imeunganishwa na panel na server imeundwa kwa usahihi.</p>
             </div>
           </div>
         </div>
       </div>
+    </div>
 
       <div id="deploy-panel" class="tab-content space-y-4">
         <div class="glass rounded-2xl border border-slate-800/70 bg-slate-950/60 p-6 shadow-2xl shadow-slate-950/30">
@@ -526,7 +534,7 @@
 
       serverList.innerHTML = filtered.map(server => {
         const rawStatus = String(server.status || 'unknown').toLowerCase();
-        const isOnline = ['running', 'online', 'active'].includes(rawStatus);
+        const isOnline = ['running', 'online', 'active', 'unknown', 'unavailable', 'haipatikani'].includes(rawStatus);
         const isInstalling = rawStatus.includes('install');
         const isOffline = ['offline', 'stopped', 'stopping', 'suspended', 'disabled'].includes(rawStatus);
         const statusLabel = isInstalling ? 'Installing' : isOffline ? 'Offline' : 'Online';
@@ -583,12 +591,14 @@
 
     function clearSelectedServer() {
       selectedServer = null;
-      document.getElementById('serverDetailsPanel')?.classList.add('hidden');
       document.getElementById('selectedServerName').textContent = 'Server husika';
       document.getElementById('selectedServerStatus').textContent = 'Chagua server ili kuona actions, panel access, na details za server.';
       document.getElementById('selectedServerConnection').textContent = '-';
       document.getElementById('selectedServerPanel').textContent = '-';
       document.getElementById('selectedServerUser').textContent = '-';
+      document.getElementById('selectedServerLoginUser').textContent = '-';
+      document.getElementById('selectedServerLoginPassword').textContent = '-';
+      document.getElementById('selectedServerLoginEmail').textContent = '-';
       document.getElementById('selectedServerPanelHint').textContent = 'Bonyeza Fungua Panel au tumia vitufe upande wa kulia.';
       document.getElementById('selectedServerId').textContent = '-';
       document.getElementById('selectedServerEgg').textContent = '-';
@@ -599,7 +609,7 @@
       const server = allServers.find((s) => String(s.identifier || s.uuid || s.id) === String(serverId));
       if (!server) return;
       selectedServer = server;
-      document.getElementById('serverDetailsPanel')?.classList.remove('hidden');
+      switchDashTab(null, 'server-details');
       document.getElementById('selectedServerName').textContent = server.name || 'Server bila jina';
       let displayStatus = String(server.status || 'Online').toUpperCase();
       if (displayStatus === 'UNKNOWN' || displayStatus === 'UNAVAILABLE' || displayStatus === 'HAIPATIKANI') {
@@ -612,10 +622,38 @@
       document.getElementById('selectedServerPanelHint').textContent = 'Bonyeza Fungua Panel au tumia vitufe upande wa kulia.';
       document.getElementById('selectedServerId').textContent = server.identifier || server.uuid || server.id || 'N/A';
       document.getElementById('selectedServerEgg').textContent = server.egg || server.nest || 'Unknown';
+      document.getElementById('selectedServerLoginUser').textContent = '...';
+      document.getElementById('selectedServerLoginPassword').textContent = '...';
+      document.getElementById('selectedServerLoginEmail').textContent = '...';
 
       ['powerStartBtn', 'powerStopBtn', 'powerRestartBtn', 'openPanelBtn', 'deleteServerBtn', 'selectedServerNotice'].forEach((id) => document.getElementById(id)?.classList.remove('hidden'));
       document.getElementById('openPanelBtn').textContent = '🖥️ Fungua Panel';
       document.getElementById('openPanelBtn').dataset.panelUrl = server.sftpHost || '';
+
+      try {
+        const accessRes = await fetch(`/api/servers/${encodeURIComponent(server.identifier || server.uuid || server.id)}/access`);
+        if (accessRes.ok) {
+          const accessData = await accessRes.json();
+          const access = accessData.access || {};
+          document.getElementById('selectedServerPanel').textContent = access.panelUrl || access.sftpHost || server.sftpHost || 'N/A';
+          document.getElementById('selectedServerLoginUser').textContent = access.username || access.sftpUser || server.sftpUser || 'N/A';
+          document.getElementById('selectedServerLoginPassword').textContent = access.password || 'N/A';
+          document.getElementById('selectedServerLoginEmail').textContent = access.email || 'N/A';
+          document.getElementById('openPanelBtn').dataset.panelUrl = access.panelUrl || access.sftpHost || server.sftpHost || '';
+          document.getElementById('selectedServerPanelHint').textContent = 'Panel na login details zimetolewa kutoka kwenye server access API.';
+        } else {
+          const errorBody = await accessRes.json().catch(() => ({}));
+          document.getElementById('selectedServerLoginUser').textContent = 'N/A';
+          document.getElementById('selectedServerLoginPassword').textContent = 'N/A';
+          document.getElementById('selectedServerLoginEmail').textContent = 'N/A';
+          document.getElementById('selectedServerPanelHint').textContent = errorBody.error ? `Imeshindikana kupata login details: ${errorBody.error}` : 'Haiwezi kupata login details sasa.';
+        }
+      } catch (err) {
+        document.getElementById('selectedServerLoginUser').textContent = 'N/A';
+        document.getElementById('selectedServerLoginPassword').textContent = 'N/A';
+        document.getElementById('selectedServerLoginEmail').textContent = 'N/A';
+        document.getElementById('selectedServerPanelHint').textContent = 'Haiwezi kupata login details kwa sasa.';
+      }
     }
 
     serverList.addEventListener('click', async (e) => {
