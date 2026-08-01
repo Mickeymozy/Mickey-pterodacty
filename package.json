@@ -4,7 +4,9 @@
   "description": "Web dashboard for managing Pterodactyl servers",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "jest --coverage",
+    "test:watch": "jest --watch"
   },
   "dependencies": {
     "axios": "^1.6.0",
@@ -18,5 +20,8 @@
     "nodemailer": "^6.9.2",
     "passport": "^0.7.0",
     "passport-local": "^1.0.0"
+  },
+  "devDependencies": {
+    "jest": "^30.4.2"
   }
 }
