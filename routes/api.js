@@ -668,7 +668,7 @@ router.post('/api/servers/create', requireAuth, async (req, res) => {
   }
 
   try {
-    const { name, egg, cpu, memory, disk, startupFile, startupCommand, mainFile, main_file, environment, dockerImage } = req.body;
+    const { name, egg, cpu, memory, disk, startupFile, startupCommand, mainFile, main_file, environment, dockerImage, botRepoUrl } = req.body;
     const eggConfig = await resolveEggConfig(egg);
 
     if (!name || !eggConfig) {
@@ -682,8 +682,13 @@ router.post('/api/servers/create', requireAuth, async (req, res) => {
     const safeEnvironment = buildServerEnvironment(resolvedEggConfig, {
       startupFile: startupFile || mainFile || main_file || '',
       startupCommand,
-      environment
+      environment,
+      botRepoUrl
     });
+
+    const resolvedStartupCommand = botRepoUrl
+      ? `if [ -n \"$BOT_REPO_URL\" ] && [ ! -d \"/home/container/.git\" ]; then git clone \"$BOT_REPO_URL\" /home/container; fi; if [ -d \"/home/container/.git\" ] && [ \"$AUTO_UPDATE\" = \"1\" ]; then cd /home/container && git pull; fi; cd /home/container && ${startupCommand || resolvedEggConfig.startup}`
+      : (startupCommand || resolvedEggConfig.startup);
 
     const resolvedPteroId = await resolveAndSavePteroId(req.user);
     if (!resolvedPteroId) {
@@ -973,58 +978,16 @@ router.delete('/api/servers/:id', requireAuth, async (req, res) => {
   }
 });
 
-// External API endpoint for other websites
-router.get('/api/external/servers/:id', async (req, res) => {
-  const providedKey = req.get('x-api-key') || req.query.apiKey || req.query.key || '';
-  const expectedKey = process.env.EXTERNAL_API_KEY || process.env.API_KEY || process.env.PTERODACTYL_APP_API_KEY;
-
-  if (!expectedKey || providedKey !== expectedKey) {
-    return res.status(401).json({ success: false, error: 'Unauthorized.' });
-  }
-
-  if (!appApi) {
-    return res.status(503).json({ success: false, error: 'Pterodactyl API is not configured.' });
-  }
-
-  try {
-    const ref = await resolveServerRef(req.params.id);
-    const [serverResponse, connectionDetails] = await Promise.all([
-      appApi.get(`/servers/${encodeURIComponent(ref.id)}`),
-      getServerConnectionDetails(ref)
-    ]);
-
-    const attrs = serverResponse.data?.attributes || {};
-    res.json({
-      success: true,
-      server: {
-        id: attrs.id,
-        uuid: attrs.uuid,
-        identifier: attrs.identifier,
-        name: attrs.name,
-        status: attrs.status,
-        limits: attrs.limits || {},
-        ipAddress: connectionDetails.ipAddress || '',
-        port: connectionDetails.port || '',
-        sftpHost: connectionDetails.sftpHost || ''
-      }
-    });
-  } catch (err) {
-    const status = err.response?.status;
-    const message = err.response?.data?.errors?.[0]?.detail || err.response?.data?.message || err.message || 'Failed to load external server details.';
-    res.status(status && status !== 500 ? status : 500).json({ success: false, error: message });
-  }
-});
-
 // Create server from package
 router.post('/api/servers/from-package', requireAuth, async (req, res) => {
   try {
-    const { packageId, serverName, eggId, dockerImage, startupFile, startupCommand } = req.body;
+    const { packageId, serverName, eggId, dockerImage, startupFile, startupCommand, botRepoUrl } = req.body;
     
     if (!packageId) {
       return res.status(400).json({ success: false, error: 'Package ID is required.' });
     }
     
-    const serverData = await createServerFromPackage(req.user, packageId, serverName, { eggId, dockerImage, startupFile, startupCommand });
+    const serverData = await createServerFromPackage(req.user, packageId, serverName, { eggId, dockerImage, startupFile, startupCommand, botRepoUrl });
 
     res.json({
       success: true,

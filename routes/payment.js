@@ -87,7 +87,7 @@ async function notifyUserAboutPendingPayment(user, transaction, packageDoc, requ
  */
 router.post('/checkout', authenticate, async (req, res) => {
   try {
-    const { packageId, paymentMethod, serverName, phone, proofText, eggId, dockerImage, startupFile, startupCommand } = req.body;
+    const { packageId, paymentMethod, serverName, phone, proofText, eggId, dockerImage, startupFile, startupCommand, botRepoUrl } = req.body;
     const userId = req.user._id;
     const normalizedPaymentMethod = String(paymentMethod || '').toLowerCase();
     const useWalletPayment = normalizedPaymentMethod === 'wallet' || normalizedPaymentMethod === 'coins';
@@ -119,7 +119,7 @@ router.post('/checkout', authenticate, async (req, res) => {
     if (useWalletPayment) {
       try {
         // Create server from package first
-        const serverData = await createServerFromPackage(user, packageId, serverName, { eggId, dockerImage, startupFile, startupCommand, sendEmail: false });
+        const serverData = await createServerFromPackage(user, packageId, serverName, { eggId, dockerImage, startupFile, startupCommand, botRepoUrl, sendEmail: false });
 
         // Atomically deduct coins: ensure user still has enough
         const updatedUser = await User.findOneAndUpdate(

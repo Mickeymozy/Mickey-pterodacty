@@ -97,6 +97,13 @@ function buildServerEnvironment(eggConfig, options = {}) {
     }
   });
 
+  const botRepoUrl = normalizeEnvironmentValue(options.botRepoUrl || options.repoUrl || process.env.BOT_REPO_URL);
+  if (botRepoUrl) {
+    requestedEnvironment.BOT_REPO_URL = botRepoUrl;
+    requestedEnvironment.BOT_REPO_DIR = '/home/container';
+    requestedEnvironment.AUTO_UPDATE = '1';
+  }
+
   const eggId = Number(resolvedEggConfig.id);
   const startupFile = normalizeEnvironmentValue(options.startupFile || options.mainFile || options.main_file);
   const startupCommand = normalizeEnvironmentValue(options.startupCommand);
@@ -384,8 +391,14 @@ async function createServerFromPackage(user, packageId, serverName, options = {}
   const safeEnvironment = buildServerEnvironment(resolvedEggConfig, {
     startupFile: options.startupFile || pkg.serverConfig.startupFile,
     startupCommand: options.startupCommand || pkg.serverConfig.startupCommand,
-    environment: options.environment
+    environment: options.environment,
+    botRepoUrl: options.botRepoUrl || options.repoUrl
   });
+
+  const resolvedStartupCommand = options.startupCommand || resolvedEggConfig.startup || 'npm start';
+  const botRepoStartup = options.botRepoUrl
+    ? `if [ -n "$BOT_REPO_URL" ] && [ ! -d "/home/container/.git" ]; then git clone "$BOT_REPO_URL" /home/container; fi; if [ -d "/home/container/.git" ] && [ "$AUTO_UPDATE" = "1" ]; then cd /home/container && git pull; fi; cd /home/container && ${resolvedStartupCommand}`
+    : (options.startupCommand || resolvedEggConfig.startup);
 
   const basePayload = {
     name,
@@ -403,14 +416,12 @@ async function createServerFromPackage(user, packageId, serverName, options = {}
       dedicated_ip: false,
       port_range: []
     },
-    start_on_completion: true
+    start_on_completion: true,
+    startup: botRepoStartup
   };
 
   if (options.dockerImage || resolvedEggConfig.docker_image) {
     basePayload.docker_image = options.dockerImage || resolvedEggConfig.docker_image;
-  }
-  if (options.startupCommand || resolvedEggConfig.startup) {
-    basePayload.startup = options.startupCommand || resolvedEggConfig.startup;
   }
 
   const payloads = [basePayload];
@@ -446,13 +457,11 @@ async function createServerFromPackage(user, packageId, serverName, options = {}
       backups: pkg.specifications.backups || 1,
       allocations: 1
     },
-    start_on_completion: true
+    start_on_completion: true,
+    startup: botRepoStartup
   };
   if (options.dockerImage || resolvedEggConfig.docker_image) {
     minimalPayload.docker_image = options.dockerImage || resolvedEggConfig.docker_image;
-  }
-  if (options.startupCommand || resolvedEggConfig.startup) {
-    minimalPayload.startup = options.startupCommand || resolvedEggConfig.startup;
   }
   if (allocationId) {
     minimalPayload.allocation = { default: allocationId };
