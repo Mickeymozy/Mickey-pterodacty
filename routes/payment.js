@@ -812,6 +812,30 @@ router.get('/admin/all', requireAdmin, async (req, res) => {
   }
 });
 
+// Summary of payments grouped by provider and external total
+router.get('/admin/summary', requireAdmin, async (req, res) => {
+  try {
+    const pipeline = [
+      { $match: { status: { $in: ['completed', 'pending', 'failed'] } } },
+      { $group: { _id: '$paymentProvider', totalAmount: { $sum: '$amount' }, count: { $sum: 1 } } }
+    ];
+
+    const byProvider = await Transaction.aggregate(pipeline).exec();
+
+    let externalTotal = 0;
+    byProvider.forEach((p) => {
+      const provider = p._id || 'unknown';
+      if (provider !== 'admin') {
+        externalTotal += Number(p.totalAmount || 0);
+      }
+    });
+
+    res.json({ success: true, data: { byProvider, externalTotal } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 router.post('/admin/:transactionId/approve', requireAdmin, async (req, res) => {
   try {
     const transaction = await Transaction.findById(req.params.transactionId);

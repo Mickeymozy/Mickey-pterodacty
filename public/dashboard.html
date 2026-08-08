@@ -62,6 +62,51 @@
     </div>
   </div>
 
+  <div id="serverDetailsModalOverlay" class="fixed inset-0 z-[92] hidden items-center justify-center bg-slate-950/70 px-4 py-8 backdrop-blur-sm">
+    <div id="serverDetailsModal" class="w-full max-w-3xl overflow-hidden rounded-[24px] border border-slate-700/80 bg-slate-900/95 shadow-2xl">
+      <div class="p-6 space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm text-slate-400">Server Details</p>
+            <h3 id="modalSelectedServerName" class="text-lg font-semibold text-white">-</h3>
+            <p id="modalSelectedServerStatus" class="text-sm text-slate-300">-</p>
+          </div>
+          <div class="flex gap-2">
+            <button id="modalOpenPanelBtn" class="hidden rounded-2xl open-panel-btn px-3 py-2 text-xs font-semibold text-white transition">🖥️ Fungua Panel</button>
+            <button id="modalDeselectServerBtn" class="rounded-lg border border-slate-700/70 px-3 py-1 text-xs text-slate-200 hover:bg-slate-800 transition">Toka</button>
+          </div>
+        </div>
+
+        <div class="grid gap-4 lg:grid-cols-2">
+          <div class="space-y-4">
+            <div class="rounded-3xl border border-slate-800/70 bg-slate-900/70 p-4">
+              <p class="text-xs uppercase tracking-[0.2em] text-slate-400 mb-3">Panel Access</p>
+              <div class="space-y-3 text-sm text-slate-300">
+                <div class="flex justify-between"><span>Panel URL</span><span id="modalSelectedServerPanel" class="font-semibold text-slate-100">-</span></div>
+                <div class="flex justify-between"><span>Username</span><span class="flex items-center gap-2"><span id="modalSelectedServerLoginUser" class="font-semibold text-slate-100">-</span><button class="copy-btn" type="button" onclick="copyField('modalSelectedServerLoginUser')" title="Nakili">📋</button></span></div>
+                <div class="flex justify-between"><span>Password</span><span class="flex items-center gap-2"><span id="modalSelectedServerLoginPassword" class="font-semibold text-slate-100">-</span><button class="copy-btn" type="button" onclick="copyField('modalSelectedServerLoginPassword')" title="Nakili">📋</button></span></div>
+                <div class="flex justify-between"><span>Email</span><span class="flex items-center gap-2"><span id="modalSelectedServerLoginEmail" class="font-semibold text-slate-100">-</span><button class="copy-btn" type="button" onclick="copyField('modalSelectedServerLoginEmail')" title="Nakili">📋</button></span></div>
+              </div>
+            </div>
+
+            <div class="rounded-3xl border border-slate-800/70 bg-slate-900/70 p-4">
+              <p class="text-xs uppercase tracking-[0.2em] text-slate-400 mb-3">Login Details</p>
+              <p class="text-sm text-slate-300">Tumia login hizi ikiwa zinapatikana kwenye server access API.</p>
+            </div>
+          </div>
+
+          <div class="rounded-3xl border border-slate-800/70 bg-slate-900/70 p-4">
+            <p class="text-xs uppercase tracking-[0.2em] text-slate-400 mb-3">Server Information</p>
+            <div class="grid gap-3 text-sm text-slate-300">
+              <div class="flex justify-between"><span>IP / Host</span><span id="modalSelectedServerConnection" class="font-semibold text-slate-100">-</span></div>
+              <div class="flex justify-between"><span>User</span><span id="modalSelectedServerUser" class="font-semibold text-slate-100">-</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="fixed inset-0 overflow-hidden pointer-events-none">
     <div class="absolute -top-40 -right-40 h-96 w-96 rounded-full bg-indigo-500/10 blur-3xl"></div>
     <div class="absolute top-1/2 -left-40 h-96 w-96 rounded-full bg-purple-500/10 blur-3xl"></div>
@@ -632,14 +677,22 @@
       const server = allServers.find((s) => String(s.identifier || s.uuid || s.id) === String(serverId));
       if (!server) return;
       selectedServer = server;
-      const detailsSection = document.getElementById('server-details');
-      detailsSection?.classList.remove('hidden');
       document.getElementById('selectedServerName').textContent = server.name || 'Server bila jina';
       let displayStatus = String(server.status || 'Online').toUpperCase();
       if (displayStatus === 'UNKNOWN' || displayStatus === 'UNAVAILABLE' || displayStatus === 'HAIPATIKANI') {
         displayStatus = 'ONLINE';
       }
       document.getElementById('selectedServerStatus').textContent = `Status: ${displayStatus}`;
+
+      // Populate modal copy of the details and show modal
+      const modalOverlay = document.getElementById('serverDetailsModalOverlay');
+      if (modalOverlay) {
+        document.getElementById('modalSelectedServerName').textContent = server.name || 'Server bila jina';
+        document.getElementById('modalSelectedServerStatus').textContent = `Status: ${displayStatus}`;
+        document.getElementById('modalSelectedServerConnection').textContent = server.ipAddress ? `${server.ipAddress}:${server.port || '25565'}` : (server.sftpHost || 'N/A');
+        document.getElementById('modalSelectedServerUser').textContent = server.sftpUser || 'N/A';
+        modalOverlay.classList.remove('hidden');
+      }
       document.getElementById('selectedServerConnection').textContent = server.ipAddress ? `${server.ipAddress}:${server.port || '25565'}` : (server.sftpHost || 'N/A');
       const initialPanelEl = document.getElementById('selectedServerPanel');
       const defaultPanelShort = DEFAULT_PANEL_URL.replace(/https?:\/\//, '').replace(/\/$/, '');
@@ -671,6 +724,13 @@
           document.getElementById('selectedServerLoginPassword').textContent = 'MICKEY24@';
           document.getElementById('selectedServerLoginEmail').textContent = access.email || 'N/A';
           document.getElementById('selectedServerPanelHint').textContent = 'Panel na login details zimetolewa kutoka kwenye server access API.';
+          // Mirror into modal
+          const modalPanelEl = document.getElementById('modalSelectedServerPanel');
+          if (modalPanelEl) modalPanelEl.innerHTML = `<a href="${panelUrl}" target="_blank" rel="noopener noreferrer" class="text-indigo-400 underline">${shortLabel}</a>`;
+          document.getElementById('modalOpenPanelBtn')?.classList.remove('hidden');
+          document.getElementById('modalSelectedServerLoginUser').textContent = access.username || access.email || access.sftpUser || server.sftpUser || 'N/A';
+          document.getElementById('modalSelectedServerLoginPassword').textContent = 'MICKEY24@';
+          document.getElementById('modalSelectedServerLoginEmail').textContent = access.email || 'N/A';
         } else {
           const errorBody = await accessRes.json().catch(() => ({}));
           document.getElementById('selectedServerLoginUser').textContent = 'N/A';
@@ -681,6 +741,14 @@
           document.getElementById('openPanelBtn').dataset.panelUrl = DEFAULT_PANEL_URL;
           document.getElementById('openPanelBtn')?.classList.remove('hidden');
           document.getElementById('selectedServerPanelHint').textContent = errorBody.error ? `Imeshindikana kupata login details: ${errorBody.error}` : 'Haiwezi kupata login details sasa.';
+          // Mirror into modal for error branch
+          const modalPanelEl2 = document.getElementById('modalSelectedServerPanel');
+          if (modalPanelEl2) modalPanelEl2.innerHTML = `<a href="${DEFAULT_PANEL_URL}" target="_blank" rel="noopener noreferrer" class="text-indigo-400 underline">${DEFAULT_PANEL_URL.replace(/https?:\/\//, '').replace(/\/$/, '')}</a>`;
+          document.getElementById('modalOpenPanelBtn')?.classList.remove('hidden');
+          document.getElementById('modalSelectedServerLoginUser').textContent = 'N/A';
+          document.getElementById('modalSelectedServerLoginPassword').textContent = 'MICKEY24@';
+          document.getElementById('modalSelectedServerLoginEmail').textContent = 'N/A';
+          document.getElementById('serverDetailsModalOverlay')?.classList.remove('hidden');
         }
       } catch (err) {
         document.getElementById('selectedServerLoginUser').textContent = 'N/A';
@@ -702,7 +770,19 @@
 
     document.getElementById('deselectServerBtn')?.addEventListener('click', () => {
       clearSelectedServer();
+      document.getElementById('serverDetailsModalOverlay')?.classList.add('hidden');
       switchDashTab(null, 'my-servers');
+    });
+
+    document.getElementById('modalDeselectServerBtn')?.addEventListener('click', () => {
+      clearSelectedServer();
+      document.getElementById('serverDetailsModalOverlay')?.classList.add('hidden');
+      switchDashTab(null, 'my-servers');
+    });
+
+    document.getElementById('modalOpenPanelBtn')?.addEventListener('click', () => {
+      const url = document.getElementById('modalOpenPanelBtn')?.dataset.panelUrl || DEFAULT_PANEL_URL;
+      if (url) window.open(url, '_blank', 'noopener,noreferrer');
     });
 
     async function handleSelectedServerAction(action) {

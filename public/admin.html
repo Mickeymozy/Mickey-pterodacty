@@ -93,6 +93,14 @@
       </div>
     </section>
 
+    <section class="mb-6">
+      <div class="glass rounded-2xl p-4 max-w-sm">
+        <p class="text-xs text-slate-400">Jumla ya Malipo ya Nje (External)</p>
+        <h3 id="externalPaymentsTotal" class="mt-2 text-xl font-bold text-amber-400">Tsh 0</h3>
+        <p id="externalPaymentsCount" class="mt-1 text-[12px] text-slate-400">Vitu: 0</p>
+      </div>
+    </section>
+
     <!-- Navigation Tabs -->
     <div class="glass rounded-2xl p-4 mb-6">
       <div class="flex flex-wrap gap-2">
@@ -675,6 +683,19 @@
       } catch(e) { console.error(e); }
     }
 
+    async function loadPaymentSummary() {
+      try {
+        const res = await fetch(`${API_URL}/payment/admin/summary`);
+        const d = await res.json();
+        if (d.success && d.data) {
+          const total = d.data.externalTotal || 0;
+          const count = Array.isArray(d.data.byProvider) ? d.data.byProvider.reduce((acc, p) => acc + (p._id && p._id !== 'admin' ? p.count || 0 : 0), 0) : 0;
+          document.getElementById('externalPaymentsTotal').textContent = `Tsh ${Number(total || 0).toLocaleString()}`;
+          document.getElementById('externalPaymentsCount').textContent = `Vitu: ${count}`;
+        }
+      } catch (e) { console.error('Failed to load payment summary', e); }
+    }
+
     async function loadUsers() {
       try {
         const res = await fetch(`${API_URL}/user/users/admin/all`);
@@ -884,7 +905,7 @@
       }
     });
 
-    loadStats(); loadPackages(); loadPayments(); loadUsers(); loadAdminServers();
+    loadStats(); loadPackages(); loadPayments(); loadUsers(); loadAdminServers(); loadPaymentSummary();
   </script>
 </body>
 </html>
