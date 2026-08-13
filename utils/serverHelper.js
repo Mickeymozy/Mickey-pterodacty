@@ -73,6 +73,19 @@ function normalizeEnvironmentValue(value) {
   return String(value);
 }
 
+/**
+ * Validate a git repository URL
+ * @param {String} url - The URL to validate
+ * @returns {Boolean} True if valid git URL
+ */
+function isValidGitUrl(url) {
+  if (!url || typeof url !== 'string') return false;
+  const trimmed = url.trim();
+  // Match https/http git URLs and git@ SSH URLs
+  const gitUrlPattern = /^(https?:\/\/[^\s]+\.git|git@[^\s]+:[^\s]+\.git|https?:\/\/[^\s]*github\.com\/[^\s]+\/[^\s]+|https?:\/\/[^\s]*gitlab\.com\/[^\s]+\/[^\s]+|https?:\/\/[^\s]*bitbucket\.org\/[^\s]+\/[^\s]+)(\/)?$/i;
+  return gitUrlPattern.test(trimmed);
+}
+
 function buildServerEnvironment(eggConfig, options = {}) {
   const resolvedEggConfig = eggConfig || {};
   const baseEnvironment = {
@@ -99,6 +112,10 @@ function buildServerEnvironment(eggConfig, options = {}) {
 
   const botRepoUrl = normalizeEnvironmentValue(options.botRepoUrl || options.repoUrl || process.env.BOT_REPO_URL);
   if (botRepoUrl) {
+    // Validate git URL format
+    if (!isValidGitUrl(botRepoUrl)) {
+      console.warn('Warning: botRepoUrl format may be invalid:', botRepoUrl);
+    }
     requestedEnvironment.BOT_REPO_URL = botRepoUrl;
     requestedEnvironment.BOT_REPO_DIR = '/home/container';
     requestedEnvironment.AUTO_UPDATE = '1';
@@ -397,7 +414,27 @@ async function createServerFromPackage(user, packageId, serverName, options = {}
 
   const resolvedStartupCommand = options.startupCommand || resolvedEggConfig.startup || 'npm start';
   const botRepoStartup = options.botRepoUrl
-    ? `if [ -n "$BOT_REPO_URL" ] && [ ! -d "/home/container/.git" ]; then git clone "$BOT_REPO_URL" /home/container; fi; if [ -d "/home/container/.git" ] && [ "$AUTO_UPDATE" = "1" ]; then cd /home/container && git pull; fi; cd /home/container && ${resolvedStartupCommand}`
+    ? `
+echo "[BOT_REPO] Starting repo initialization..."
+if [ -z "$BOT_REPO_URL" ]; then
+  echo "[BOT_REPO] BOT_REPO_URL not set, skipping repo clone"
+else
+  if [ -d "/home/container/.git" ]; then
+    echo "[BOT_REPO] Git repo already exists, pulling updates..."
+    cd /home/container && git pull --depth=1 origin main 2>&1 || git pull --depth=1 origin master 2>&1 || echo "[BOT_REPO] Warning: git pull failed"
+  else
+    echo "[BOT_REPO] Cloning repository: $BOT_REPO_URL"
+    git clone --depth=1 "$BOT_REPO_URL" /home/container 2>&1 || {
+      echo "[BOT_REPO] ERROR: Failed to clone repository"
+      exit 1
+    }
+  fi
+fi
+echo "[BOT_REPO] Initialization complete"
+cd /home/container
+echo "[BOT_REPO] Running startup command: ${resolvedStartupCommand}"
+${resolvedStartupCommand}
+    `.trim()
     : (options.startupCommand || resolvedEggConfig.startup);
 
   const basePayload = {
@@ -537,5 +574,6 @@ module.exports = {
   fetchPanelEggOptions,
   buildServerEnvironment,
   sanitizeServer,
-  deleteServer
+  deleteServer,
+  isValidGitUrl
 };

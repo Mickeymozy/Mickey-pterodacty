@@ -193,7 +193,17 @@ router.post('/checkout', authenticate, async (req, res) => {
         paymentMethod: 'palmpesa',
         paymentProvider: 'palmpesa',
         status: 'pending',
-        description: `Purchase of ${pkg.name} package`
+        description: `Purchase of ${pkg.name} package`,
+        metadata: {
+          serverName: serverName || `${pkg.name}-${Date.now()}`,
+          eggId: eggId,
+          dockerImage: dockerImage,
+          startupFile: startupFile,
+          startupCommand: startupCommand,
+          botRepoUrl: botRepoUrl,
+          phone: phone,
+          proofText: proofText
+        }
       });
 
       await transaction.save();
@@ -578,7 +588,14 @@ router.get('/verify/:transactionId', authenticate, async (req, res) => {
           if (!isTopup && transaction.packageId) {
             try {
               const serverName = transaction.metadata?.serverName || `${transaction.packageId.name}-${Date.now()}`;
-              const serverData = await createServerFromPackage(user, transaction.packageId._id, serverName, { sendEmail: false });
+              const serverData = await createServerFromPackage(user, transaction.packageId._id, serverName, {
+                sendEmail: false,
+                eggId: transaction.metadata?.eggId,
+                dockerImage: transaction.metadata?.dockerImage,
+                startupFile: transaction.metadata?.startupFile,
+                startupCommand: transaction.metadata?.startupCommand,
+                botRepoUrl: transaction.metadata?.botRepoUrl
+              });
               transaction.serverId = serverData?.server?.identifier || serverData?.server?.id;
               transaction.notes = `Server created: ${serverName}`;
               await transaction.save();
@@ -634,6 +651,171 @@ router.get('/verify/:transactionId', authenticate, async (req, res) => {
 });
 
 /**
+ * Generic payment endpoint - process payments without server/coin purchase
+ * For any payment purpose (donations, fees, etc.)
+ */
+router.post('/generic', authenticate, async (req, res) => {
+  try {
+    const { amount, description, paymentMethod = 'palmpesa', phone } = req.body;
+    const userId = req.user._id;
+
+    if (!amount || Number(amount) <= 0) {
+      return res.status(400).json({ success: false, message: 'Valid amount required' });
+    }
+
+    if (!description || String(description).trim().length === 0) {
+      return res.status(400).json({ success: false, message: 'Description required' });
+    }
+
+    const normalizedPaymentMethod = String(paymentMethod || '').toLowerCase();
+    const usePalmPesa = normalizedPaymentMethod === 'palmpesa';
+    const useAdmin = normalizedPaymentMethod === 'admin' || normalizedPaymentMethod === 'review';
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const amountTzs = Math.max(1, Math.round(Number(amount)));
+
+    const transaction = new Transaction({
+      userId,
+      type: 'generic',
+      amount: amountTzs,
+      currency: 'TZS',
+      paymentMethod: usePalmPesa ? 'palmpesa' : useAdmin ? 'admin' : 'other',
+      paymentProvider: usePalmPesa ? 'palmpesa' : useAdmin ? 'admin' : 'other',
+      status: 'pending',
+      description: String(description).trim(),
+      metadata: {
+        type: 'generic',
+        amountTzs: amountTzs,
+        phone: phone || '',
+        purpose: String(description).trim()
+      }
+    });
+
+    await transaction.save();
+
+    if (usePalmPesa) {
+      const paymentData = {
+        amount: amountTzs,
+        currency: 'TZS',
+        reference: transaction._id.toString(),
+        description: `${String(description).trim()} - ${user.email}`,
+        customerEmail: user.email,
+        customerName: user.username,
+        customerPhone: phone || user.phone || '',
+        metadata: {
+          transactionId: transaction._id.toString(),
+          type: 'generic',
+          userId: userId.toString()
+        }
+      };
+
+      const paymentResult = await palmPesaService.createPayment({
+        user_id: process.env.PALMPESA_USER_ID,
+        vendor: process.env.PALMPESA_VENDOR,
+        order_id: transaction._id.toString(),
+        customerEmail: paymentData.customerEmail,
+        customerName: paymentData.customerName,
+        customerPhone: paymentData.customerPhone,
+        amount: paymentData.amount,
+        currency: 'TZS',
+        redirectUrl: process.env.PALMPESA_REDIRECT_URL || process.env.APP_URL,
+        cancelUrl: process.env.PALMPESA_CANCEL_URL || `${process.env.APP_URL || ''}/cancel`,
+        webhookUrl: process.env.PALMPESA_WEBHOOK_URL || `${process.env.APP_URL || ''}/api/payment/webhook`,
+        description: paymentData.description,
+        metadata: paymentData.metadata
+      });
+
+      if (paymentResult.success) {
+        transaction.zenopayTransactionId = paymentResult.orderId || paymentResult.transactionId;
+        transaction.zenopayReference = paymentResult.reference;
+        transaction.metadata = {
+          ...(transaction.metadata || {}),
+          palmpesaOrderId: paymentResult.orderId || paymentResult.transactionId,
+          paymentUrl: paymentResult.paymentUrl,
+          paymentMessage: paymentResult.paymentMessage || paymentResult.raw?.message || 'Please follow the prompt on your phone.',
+          paymentInitiated: true,
+          paymentEndpoint: paymentResult.endpoint || 'palmpesa'
+        };
+        await transaction.save();
+
+        return res.json({
+          success: true,
+          message: 'Generic payment initiated via PalmPesa. Please complete the USSD/mobile prompt and wait for confirmation.',
+          data: {
+            paymentUrl: paymentResult.paymentUrl,
+            paymentMessage: paymentResult.paymentMessage || paymentResult.raw?.message || 'Please follow the prompt on your phone.',
+            transactionId: transaction._id,
+            provider: 'palmpesa',
+            amount: amountTzs,
+            currency: 'TZS',
+            description: String(description).trim(),
+            paymentInitiated: true
+          }
+        });
+      }
+
+      const errorMsg = paymentResult.error || 'Failed to initialize PalmPesa payment';
+      console.error('PalmPesa generic payment creation failed:', {
+        error: errorMsg,
+        paymentResult,
+        requestPayload: {
+          order_id: transaction._id.toString(),
+          amount: amountTzs,
+          phone: phone,
+          customerEmail: user.email
+        }
+      });
+
+      transaction.status = 'pending';
+      transaction.notes = `PalmPesa unavailable: ${errorMsg}`;
+      transaction.metadata = {
+        ...(transaction.metadata || {}),
+        gatewayError: errorMsg,
+        gatewayDetails: paymentResult.details || null,
+        fallbackMode: 'manual-review',
+        paymentInstructions: `Tafadhali lipa kwa PalmPesa kwa kutumia namba ${phone || user.phone || 'iliyowekwa'} na uandike transaction ${transaction._id}`
+      };
+      await transaction.save();
+
+      return res.json({
+        success: false,
+        message: `PalmPesa haikuweza kuanzisha malipo ya kweli kwa sasa. Tafadhali jaribu tena baadaye. (${errorMsg})`,
+        data: {
+          transactionId: transaction._id,
+          amount: amountTzs,
+          currency: 'TZS',
+          provider: 'palmpesa',
+          fallback: true,
+          gatewayError: errorMsg,
+          gatewayDetails: paymentResult.details || null,
+          paymentInstructions: `Tafadhali lipa kwa PalmPesa kwa kutumia namba ${phone || user.phone || 'iliyowekwa'} na uandike transaction ${transaction._id}`
+        }
+      });
+    }
+
+    // Admin review mode
+    return res.json({
+      success: true,
+      message: 'Generic payment request received. Admin ataapprove baada ya kuthibitisha malipo yako.',
+      data: {
+        transactionId: transaction._id,
+        amount: amountTzs,
+        currency: 'TZS',
+        provider: 'admin',
+        description: String(description).trim()
+      }
+    });
+  } catch (error) {
+    console.error('Generic Payment Error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
  * Webhook endpoint for PalmPesa callbacks
  */
 router.post('/webhook', async (req, res) => {
@@ -664,15 +846,27 @@ router.post('/webhook', async (req, res) => {
     if (shouldCredit) {
       const user = await User.findById(targetTransaction.userId);
       if (user) {
-        const coinsToAdd = targetTransaction.amount;
-        user.coins = (user.coins || 0) + coinsToAdd;
-        await user.save();
+        // For generic payments, just mark complete; no coins/server creation
+        if (targetTransaction.type === 'generic') {
+          // Send simple payment confirmation email
+          await sendEmail({
+            to: user.email,
+            subject: 'Payment completed successfully',
+            html: `<p>Your payment for "${targetTransaction.description}" (Tsh ${targetTransaction.amount}) has been completed successfully.</p><p>Transaction ID: ${targetTransaction._id}</p>`,
+            text: `Your payment for "${targetTransaction.description}" has been completed.`
+          }).catch(err => console.error('Failed to send generic payment email:', err));
+        } else {
+          // For coin/server payments, add coins
+          const coinsToAdd = targetTransaction.amount;
+          user.coins = (user.coins || 0) + coinsToAdd;
+          await user.save();
 
-        const packageDoc = targetTransaction.packageId
-          ? await ServerPackage.findById(targetTransaction.packageId).catch(() => null)
-          : null;
+          const packageDoc = targetTransaction.packageId
+            ? await ServerPackage.findById(targetTransaction.packageId).catch(() => null)
+            : null;
 
-        await notifyUserAboutPayment(user, targetTransaction, packageDoc || { name: 'Coins Top-up' }, null);
+          await notifyUserAboutPayment(user, targetTransaction, packageDoc || { name: 'Coins Top-up' }, null);
+        }
       }
 
       targetTransaction.status = 'completed';
@@ -822,6 +1016,13 @@ router.get('/admin/summary', requireAdmin, async (req, res) => {
 
     const byProvider = await Transaction.aggregate(pipeline).exec();
 
+    // Separate count for generic payments
+    const genericCount = await Transaction.countDocuments({ type: 'generic', status: { $in: ['completed', 'pending', 'failed'] } });
+    const genericTotal = await Transaction.aggregate([
+      { $match: { type: 'generic', status: { $in: ['completed', 'pending', 'failed'] } } },
+      { $group: { _id: null, total: { $sum: '$amount' } } }
+    ]).then(result => result[0]?.total || 0);
+
     let externalTotal = 0;
     byProvider.forEach((p) => {
       const provider = p._id || 'unknown';
@@ -830,7 +1031,10 @@ router.get('/admin/summary', requireAdmin, async (req, res) => {
       }
     });
 
-    res.json({ success: true, data: { byProvider, externalTotal } });
+    // Add generic payments to external total if they're from external providers
+    externalTotal += Number(genericTotal || 0);
+
+    res.json({ success: true, data: { byProvider, externalTotal, genericCount, genericTotal } });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -848,6 +1052,29 @@ router.post('/admin/:transactionId/approve', requireAdmin, async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
+    // Handle generic payments - just mark as completed
+    if (transaction.type === 'generic') {
+      transaction.status = 'completed';
+      transaction.completedAt = new Date();
+      transaction.notes = transaction.notes || 'Approved manually by admin';
+      transaction.processedBy = req.user?._id;
+      await transaction.save();
+
+      await sendEmail({
+        to: user.email,
+        subject: 'Payment approved and completed',
+        html: `<p>Your payment for "${transaction.description}" (Tsh ${transaction.amount}) has been approved and completed by admin.</p><p>Transaction ID: ${transaction._id}</p>`,
+        text: `Your payment for "${transaction.description}" has been approved.`
+      }).catch(err => console.error('Failed to send approval email:', err));
+
+      return res.json({
+        success: true,
+        message: 'Generic payment approved',
+        data: { transactionId: transaction._id, status: 'completed' }
+      });
+    }
+
+    // Handle server/coin purchase payments
     if (transaction.type === 'purchase' && transaction.packageId) {
       const pkg = await ServerPackage.findById(transaction.packageId);
       const serverName = transaction.metadata?.serverName || `${pkg?.name || 'server'}-${Date.now()}`;
@@ -856,7 +1083,8 @@ router.post('/admin/:transactionId/approve', requireAdmin, async (req, res) => {
         eggId: transaction.metadata?.eggId,
         dockerImage: transaction.metadata?.dockerImage,
         startupFile: transaction.metadata?.startupFile,
-        startupCommand: transaction.metadata?.startupCommand
+        startupCommand: transaction.metadata?.startupCommand,
+        botRepoUrl: transaction.metadata?.botRepoUrl
       });
       transaction.serverId = serverData?.server?.identifier || serverData?.server?.id;
       transaction.notes = transaction.notes || `Server created after admin approval: ${serverName}`;
@@ -869,6 +1097,7 @@ router.post('/admin/:transactionId/approve', requireAdmin, async (req, res) => {
       return res.json({ success: true, message: 'Payment approved and server created', data: { server: serverData?.server } });
     }
 
+    // Handle coin top-up
     const coinsToAdd = transaction.metadata?.coinsAmount || transaction.amount || 0;
     user.coins = (user.coins || 0) + Number(coinsToAdd);
     await user.save();

@@ -152,6 +152,7 @@
         <button class="tab-button active px-3 py-1 rounded-lg border border-slate-700/50 text-xs font-medium transition" onclick="switchDashTab(event, 'my-servers')">🎮 Server Zangu</button>
         <button class="tab-button px-3 py-1 rounded-lg border border-slate-700/50 text-xs font-medium transition" onclick="switchDashTab(event, 'deploy-panel')">🚀 Unda Server</button>
         <button class="tab-button px-3 py-1 rounded-lg border border-slate-700/50 text-xs font-medium transition" onclick="switchDashTab(event, 'buy-coins')">🪙 Nunua Coins</button>
+        <button class="tab-button px-3 py-1 rounded-lg border border-slate-700/50 text-xs font-medium transition" onclick="switchDashTab(event, 'generic-payment')">💳 Malipo ya Jumla</button>
       </div>
     </div>
 
@@ -385,6 +386,55 @@
             </div>
             <button onclick="payProcessor()" class="w-full mt-4 bg-indigo-600 text-white font-bold py-2 rounded-lg text-xs transition uppercase">Wasilisha Maombi</button>
             <p id="topupMessage" class="mt-3 text-xs text-slate-400"></p>
+          </div>
+        </div>
+      </div>
+
+      <div id="generic-payment" class="tab-content space-y-4">
+        <div class="glass rounded-2xl p-6">
+          <h2 class="text-xl font-semibold text-white mb-2">💳 Malipo ya Jumla (Generic Payment)</h2>
+          <p class="text-sm text-slate-400 mb-4">Lipa kwa madhumuni yoyote bila kununua server au coins - malipo tu.</p>
+          <div class="glass rounded-xl p-5 max-w-xl bg-slate-950/30 border border-slate-800">
+            <form id="genericPaymentForm" class="space-y-4">
+              <div>
+                <label class="block text-xs font-medium text-slate-400 mb-1">Kiasi (TZS) *</label>
+                <input id="genericAmount" type="number" min="1" value="5000" placeholder="5000" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none" />
+              </div>
+              
+              <div>
+                <label class="block text-xs font-medium text-slate-400 mb-1">Madhumuni / Maelezo *</label>
+                <input id="genericDescription" type="text" placeholder="Mfano: Donor contribution, API fee, etc." class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none" />
+              </div>
+
+              <div>
+                <label class="block text-xs font-medium text-slate-400 mb-1">⭐ Njia ya Malipo:</label>
+                <div class="space-y-2 text-[11px] text-slate-400">
+                  <label class="flex items-center gap-2 cursor-pointer hover:text-slate-200">
+                    <input type="radio" name="genericPaymentMode" value="palmpesa" checked onchange="toggleGenericPaymentMode()" class="w-4 h-4" />
+                    <span>Lipa kwa PalmPesa (kwa link/USSD)</span>
+                  </label>
+                  <label class="flex items-center gap-2 cursor-pointer hover:text-slate-200">
+                    <input type="radio" name="genericPaymentMode" value="admin" onchange="toggleGenericPaymentMode()" class="w-4 h-4" />
+                    <span>Nimelipia tayari (ombi kwa admin)</span>
+                  </label>
+                </div>
+              </div>
+
+              <div id="genericPalmSection" class="space-y-3">
+                <div>
+                  <label class="block text-xs font-medium text-slate-400 mb-1">Namba ya simu (hiari):</label>
+                  <input id="genericPhone" type="tel" placeholder="255744000000" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none" />
+                </div>
+                <p class="text-[11px] text-slate-300">✅ Utapokea link ya PalmPesa au USSD push kwa malipo.</p>
+              </div>
+
+              <div id="genericAdminSection" class="hidden">
+                <p class="text-[11px] text-slate-300">Admin ataapprove baada ya kuthibitisha malipo yako.</p>
+              </div>
+
+              <button type="submit" class="w-full mt-4 bg-cyan-600 text-white font-bold py-2 rounded-lg text-xs transition uppercase hover:bg-cyan-500">Anzisha Malipo</button>
+              <p id="genericPaymentMessage" class="mt-3 text-xs text-slate-400"></p>
+            </form>
           </div>
         </div>
       </div>
@@ -1047,6 +1097,14 @@
       if (reviewSection) reviewSection.classList.toggle('hidden', mode !== 'review');
     }
 
+    function toggleGenericPaymentMode() {
+      const mode = document.querySelector('input[name="genericPaymentMode"]:checked')?.value || 'palmpesa';
+      const palmSection = document.getElementById('genericPalmSection');
+      const adminSection = document.getElementById('genericAdminSection');
+      if (palmSection) palmSection.classList.toggle('hidden', mode !== 'palmpesa');
+      if (adminSection) adminSection.classList.toggle('hidden', mode !== 'admin');
+    }
+
     async function pollPaymentVerification(transactionId, messageBox, { onComplete } = {}) {
       if (!transactionId) return;
 
@@ -1158,11 +1216,68 @@
       }
     }
 
+    // Generic payment form handler
+    document.getElementById('genericPaymentForm')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const amount = parseInt(document.getElementById('genericAmount').value) || 0;
+      const description = document.getElementById('genericDescription').value.trim() || '';
+      const paymentMethod = document.querySelector('input[name="genericPaymentMode"]:checked')?.value || 'palmpesa';
+      const phone = document.getElementById('genericPhone').value.trim() || '';
+      const messageBox = document.getElementById('genericPaymentMessage');
+
+      if (!amount || amount <= 0) {
+        messageBox.innerHTML = '<span class="text-red-400">❌ Ingiza kiasi halali.</span>';
+        return;
+      }
+
+      if (!description || description.length === 0) {
+        messageBox.innerHTML = '<span class="text-red-400">❌ Ingiza maelezo ya madhumuni.</span>';
+        return;
+      }
+
+      messageBox.textContent = 'Inatuma ombi la malipo...';
+
+      try {
+        const res = await fetch('/api/payment/generic', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amount, description, paymentMethod, phone })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          if (data.data?.paymentUrl) {
+            messageBox.innerHTML = '<span class="text-emerald-400">✅ Malipo yameanzishwa. Fungua ukurasa wa malipo.</span>';
+            window.open(data.data.paymentUrl, '_blank', 'noopener,noreferrer');
+          } else if (data.data?.paymentMessage) {
+            const paymentMessage = data.data.paymentMessage || data.message || '✅ Malipo yameanzishwa.';
+            messageBox.innerHTML = `<span class="text-emerald-400">${paymentMessage}</span>`;
+            if (data.data?.transactionId) {
+              await pollPaymentVerification(data.data.transactionId, messageBox, {
+                onComplete: () => showToast('Malipo yameundwa na admin!', 'success')
+              });
+            }
+          } else {
+            const confirmMessage = data.message || 'Maombi yako yamepokelewa. Admin ataapprove.';
+            messageBox.innerHTML = `<span class="text-amber-400">⏳ ${confirmMessage}</span>`;
+          }
+        } else {
+          const errorMsg = data.message || 'Imeshindwa kuanzisha malipo';
+          console.error('Generic Payment Error:', { status: res.status, message: errorMsg, data });
+          messageBox.innerHTML = `<span class="text-red-400">❌ ${errorMsg}</span>`;
+        }
+      } catch (err) {
+        console.error('Generic payment fetch error:', err);
+        messageBox.innerHTML = '<span class="text-red-400">❌ Hitilafu ya mtandao wakati wa kuanzisha malipo.</span>';
+      }
+    });
+
     document.getElementById('refreshBtn').addEventListener('click', () => { loadUser(); loadServers(); syncPterodactylStatus(); });
     document.getElementById('serverSearchInput')?.addEventListener('input', renderServerList);
 
     // Initialize coin payment mode visibility
     toggleCoinMode();
+    toggleGenericPaymentMode();
 
     // Piga sync ya kwanza na uanzishe interval kila baada ya sekunde 15 kufanya live check
     loadUser(); loadServers(); syncPterodactylStatus();

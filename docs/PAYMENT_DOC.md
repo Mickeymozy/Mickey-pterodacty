@@ -2,6 +2,8 @@
 
 Huu ni mwongozo mfupi wa jinsi malipo yanavyofanya kazi kwenye mfumo huu, hatua za kuthibitisha, na sababu kwanini baadhi ya `server details` (username, email, password) zinaweza kuonekana kuwa hazipo.
 
+**Kwa malipo ya nje (PalmPesa) na bot repo, angalia:** [EXTERNAL_PAYMENTS_BOT_REPO.md](EXTERNAL_PAYMENTS_BOT_REPO.md)
+
 ## A. Muhtasari wa mtiririko wa malipo
 - Mtumiaji anaweza kulipa kwa `Coins` (wallet) au kwa `PalmPesa` (pay-by-link / USSD).
 - Kwa `Coins`: mfumo utaunda server mara moja (ikiwa kifurushi kinauto-creation), kisha ukapunguze coins kwa wakati huo.
@@ -20,6 +22,7 @@ Kwa hivyo, ikiwa `username/email/password` hazipo, tafuta yafuatayo: (1) hakikis
 ## C. Jinsi Admin anaweza kuona malipo ya nje (external)
 - Kuna API ya admin: `GET /api/payment/admin/all` ambayo inarudisha transactions za watumiaji. Admin UI inaruhusu kuona orodha ya malipo, hali, na kujibu (approve/reject).
 - Katika Dashboard ya Admin, kuna sehemu ya `Payments` ambayo inaonyesha malipo yote; pia jumla za malipo za nje zinaweza kuhesabiwa kwa pamoja (gateway != 'admin').
+- Tumia `GET /api/payment/admin/summary` kuona jumla za malipo za nje (external payments total).
 
 ## D. Mwongozo wa haraka kwa watumiaji na admin
 - Watumiaji: kwa malipo ya PalmPesa, fungua link ya malipo uliopokea kwenye browser au kukamilisha USSD kwa simu. Muda wa uthibitisho unaweza kuchukua sekunde-chache hadi dakika.
@@ -28,10 +31,12 @@ Kwa hivyo, ikiwa `username/email/password` hazipo, tafuta yafuatayo: (1) hakikis
   - Kiasi: kuonekana katika sarafu inayofaa (Tsh au Coins)
   - Hali: `pending`, `completed`, `failed`
   - Uthibitisho: admin anaweza `Approve & Create` ili kuunda server baada ya kuthibitisha malipo ya nje.
+  - Kwa bot repo deployments, server itajitenga git repo na kuendesha startup command baada ya malipo kukamilika.
 
 ## E. Ndani ya mfumo (kwa developer)
-- Transaction model inahifadhi `paymentMethod`, `paymentProvider`, `metadata` (kama `phone`, `orderId`), `status`.
+- Transaction model inahifadhi `paymentMethod`, `paymentProvider`, `metadata` (kama `phone`, `orderId`, `botRepoUrl`, etc.), `status`.
 - Webhook ya PalmPesa inafuatilia reference inayotuma gateway (order_id/reference) na ku-update transaction (`/api/payment/webhook`).
+- Kwa external payments, metadata.botRepoUrl, metadata.eggId, metadata.startupFile, na metadata.startupCommand huhifadhiwa wakati wa checkout na kisha kutumika wakati wa server creation baada ya malipo.
 
 ---
 
