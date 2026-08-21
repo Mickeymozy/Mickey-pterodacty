@@ -219,6 +219,7 @@ async function fetchPanelEggOptions() {
           name: attrs.name || `Egg ${attrs.id}`,
           docker_image: attrs.docker_image || '',
           startup: attrs.startup || '',
+          startup_command: attrs.environment?.STARTUP_CMD || '',
           environment: attrs.environment || {},
           nestId
         });
@@ -407,12 +408,13 @@ async function createServerFromPackage(user, packageId, serverName, options = {}
 
   const safeEnvironment = buildServerEnvironment(resolvedEggConfig, {
     startupFile: options.startupFile || pkg.serverConfig.startupFile,
-    startupCommand: options.startupCommand || pkg.serverConfig.startupCommand,
+    startupCommand: resolvedEggConfig.startup || options.startupCommand || pkg.serverConfig.startupCommand,
     environment: options.environment,
     botRepoUrl: options.botRepoUrl || options.repoUrl
   });
 
-  const resolvedStartupCommand = options.startupCommand || resolvedEggConfig.startup || 'npm start';
+  const resolvedStartupCommand = resolvedEggConfig.startup || options.startupCommand || pkg.serverConfig.startupCommand || 'npm start';
+  const resolvedDockerImage = resolvedEggConfig.docker_image || options.dockerImage;
   const botRepoStartup = options.botRepoUrl
     ? `
 echo "[BOT_REPO] Starting repo initialization..."
@@ -457,8 +459,8 @@ ${resolvedStartupCommand}
     startup: botRepoStartup
   };
 
-  if (options.dockerImage || resolvedEggConfig.docker_image) {
-    basePayload.docker_image = options.dockerImage || resolvedEggConfig.docker_image;
+  if (resolvedDockerImage) {
+    basePayload.docker_image = resolvedDockerImage;
   }
 
   const payloads = [basePayload];
@@ -497,8 +499,8 @@ ${resolvedStartupCommand}
     start_on_completion: true,
     startup: botRepoStartup
   };
-  if (options.dockerImage || resolvedEggConfig.docker_image) {
-    minimalPayload.docker_image = options.dockerImage || resolvedEggConfig.docker_image;
+  if (resolvedDockerImage) {
+    minimalPayload.docker_image = resolvedDockerImage;
   }
   if (allocationId) {
     minimalPayload.allocation = { default: allocationId };

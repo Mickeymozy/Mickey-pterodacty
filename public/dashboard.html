@@ -6,9 +6,10 @@
   <title>Dashboard Live - Pterodactyl Sync</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-    * { font-family: 'Inter', sans-serif; }
-    body { background: #0a0a14; }
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+    * { font-family: 'DM Sans', sans-serif; }
+    h1, h2, h3 { font-family: 'Space Grotesk', sans-serif; }
+    body { background: #07111f; background-image: linear-gradient(rgba(54, 211, 153, .035) 1px, transparent 1px), linear-gradient(90deg, rgba(54, 211, 153, .035) 1px, transparent 1px); background-size: 32px 32px; }
     .glass {
       background: rgba(255, 255, 255, 0.03);
       backdrop-filter: blur(20px);
@@ -214,6 +215,7 @@
                   <div class="rounded-3xl border border-slate-800/70 bg-slate-900/70 p-4">
                     <p class="text-xs uppercase tracking-[0.2em] text-slate-400 mb-3">Login Details</p>
                     <p class="text-sm text-slate-300">Tumia login hizi ikiwa zinapatikana kwenye server access API.</p>
+                    <p id="selectedServerPanelHint" class="mt-2 text-xs text-slate-500">Chagua server ili kuona panel access.</p>
                   </div>
                 </div>
 
@@ -277,7 +279,7 @@
               <div class="grid gap-3 md:grid-cols-2">
                 <div>
                   <label for="dockerImage" class="mb-1 block text-xs font-medium text-slate-300">Docker Image *</label>
-                  <input id="dockerImage" required placeholder="mfano: ghcr.io/parkervcp/yolks:nodejs_21" class="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-4 py-2.5 text-sm text-white outline-none focus:border-indigo-500" />
+                  <input id="dockerImage" required readonly placeholder="Chagua engine kwanza" class="w-full cursor-not-allowed rounded-xl border border-slate-700 bg-slate-950/80 px-4 py-2.5 text-sm text-emerald-200 outline-none" />
                 </div>
                 <div>
                   <label for="startupFile" class="mb-1 block text-xs font-medium text-slate-300">Startup File *</label>
@@ -287,7 +289,8 @@
 
               <div>
                 <label for="startupCommand" class="mb-1 block text-xs font-medium text-slate-300">Startup Command *</label>
-                <input id="startupCommand" required placeholder="npm start" class="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-4 py-2.5 text-sm text-white outline-none focus:border-indigo-500" />
+                <input id="startupCommand" required readonly placeholder="Chagua engine kwanza" class="w-full cursor-not-allowed rounded-xl border border-slate-700 bg-slate-950/80 px-4 py-2.5 text-sm text-emerald-200 outline-none" />
+                <p id="runtimeSyncMessage" class="mt-2 text-[11px] text-emerald-300/80">Startup command itachukuliwa moja kwa moja kutoka kwenye Egg/Docker uliyochagua.</p>
               </div>
 
               <div>
@@ -968,10 +971,12 @@
       const selectedEgg = globalEggs.find(e => String(e.id) === String(eggSelect?.value)) || globalEggs[0] || {};
       const eggId = Number(selectedEgg.id);
       const defaultFile = eggId === 27 ? 'main.py' : eggId === 28 ? 'server.jar' : 'index.js';
-      const defaultCommand = eggId === 27 ? 'python3 main.py' : eggId === 28 ? 'java -jar server.jar' : 'npm start';
-      if (dockerInput) dockerInput.value = selectedEgg.docker_image || dockerInput.value || '';
-      if (startupFileInput) startupFileInput.value = startupFileInput.value || defaultFile;
-      if (startupCommandInput) startupCommandInput.value = startupCommandInput.value || defaultCommand;
+      const defaultCommand = selectedEgg.startup || selectedEgg.startup_command || (eggId === 27 ? 'python3 main.py' : eggId === 28 ? 'java -jar server.jar' : 'npm start');
+      if (dockerInput) dockerInput.value = selectedEgg.docker_image || '';
+      if (startupFileInput) startupFileInput.value = selectedEgg.environment?.MAIN_FILE || selectedEgg.environment?.PY_FILE || selectedEgg.environment?.SERVER_JARFILE || defaultFile;
+      if (startupCommandInput) startupCommandInput.value = defaultCommand;
+      const syncMessage = document.getElementById('runtimeSyncMessage');
+      if (syncMessage) syncMessage.textContent = selectedEgg.docker_image ? `Runtime synced: ${selectedEgg.name || 'Egg'} itatumia Docker na startup yake ya panel.` : 'Chagua engine yenye Docker image kutoka panel.';
     }
 
     // PACKAGES & EGGS CONFIGURATION DISPLAYER

@@ -283,6 +283,7 @@ async function fetchPanelEggOptions() {
           name: attrs.name || `Egg ${attrs.id}`,
           docker_image: attrs.docker_image || '',
           startup: attrs.startup || '',
+          startup_command: attrs.environment?.STARTUP_CMD || '',
           environment: attrs.environment || {},
           nestId
         });
@@ -679,16 +680,18 @@ router.post('/api/servers/create', requireAuth, async (req, res) => {
     }
 
     const resolvedEggConfig = await fetchEggDetails(eggConfig);
+    const syncedDockerImage = resolvedEggConfig.docker_image || dockerImage;
+    const syncedStartupCommand = resolvedEggConfig.startup || startupCommand;
     const safeEnvironment = buildServerEnvironment(resolvedEggConfig, {
       startupFile: startupFile || mainFile || main_file || '',
-      startupCommand,
+      startupCommand: syncedStartupCommand,
       environment,
       botRepoUrl
     });
 
     const resolvedStartupCommand = botRepoUrl
-      ? `if [ -n \"$BOT_REPO_URL\" ] && [ ! -d \"/home/container/.git\" ]; then git clone \"$BOT_REPO_URL\" /home/container; fi; if [ -d \"/home/container/.git\" ] && [ \"$AUTO_UPDATE\" = \"1\" ]; then cd /home/container && git pull; fi; cd /home/container && ${startupCommand || resolvedEggConfig.startup}`
-      : (startupCommand || resolvedEggConfig.startup);
+      ? `if [ -n \"$BOT_REPO_URL\" ] && [ ! -d \"/home/container/.git\" ]; then git clone \"$BOT_REPO_URL\" /home/container; fi; if [ -d \"/home/container/.git\" ] && [ \"$AUTO_UPDATE\" = \"1\" ]; then cd /home/container && git pull; fi; cd /home/container && ${syncedStartupCommand}`
+      : syncedStartupCommand;
 
     const resolvedPteroId = await resolveAndSavePteroId(req.user);
     if (!resolvedPteroId) {
@@ -743,11 +746,11 @@ router.post('/api/servers/create', requireAuth, async (req, res) => {
       start_on_completion: true
     };
 
-    if (dockerImage || resolvedEggConfig.docker_image) {
-      basePayload.docker_image = dockerImage || resolvedEggConfig.docker_image;
+    if (syncedDockerImage) {
+      basePayload.docker_image = syncedDockerImage;
     }
-    if (startupCommand || resolvedEggConfig.startup) {
-      basePayload.startup = startupCommand || resolvedEggConfig.startup;
+    if (syncedStartupCommand) {
+      basePayload.startup = resolvedStartupCommand;
     }
 
     const payloads = [basePayload];
@@ -792,11 +795,11 @@ router.post('/api/servers/create', requireAuth, async (req, res) => {
       },
       start_on_completion: true
     };
-    if (dockerImage || resolvedEggConfig.docker_image) {
-      minimalPayload.docker_image = dockerImage || resolvedEggConfig.docker_image;
+    if (syncedDockerImage) {
+      minimalPayload.docker_image = syncedDockerImage;
     }
-    if (startupCommand || resolvedEggConfig.startup) {
-      minimalPayload.startup = startupCommand || resolvedEggConfig.startup;
+    if (syncedStartupCommand) {
+      minimalPayload.startup = resolvedStartupCommand;
     }
     if (allocationId) {
       minimalPayload.allocation = { default: allocationId };
