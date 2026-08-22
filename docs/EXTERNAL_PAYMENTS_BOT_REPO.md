@@ -115,10 +115,13 @@ Server init script clones repo and runs startup command
 
 When a server is created with `botRepoUrl`, the Pterodactyl server will:
 
-1. Clone the repository into `/home/container` during first boot
-2. Extract the git repo
-3. Run the specified startup command from within the repo directory
-4. If `AUTO_UPDATE=1`, pull updates on each restart
+1. Validate that the URL is an HTTPS Git repository URL before provisioning
+2. Clone the repository into `/tmp/mickey-bot-repo` during first boot
+3. Copy the repository contents into `/home/container` so existing container files do not break `git clone`
+4. Pull `main` or `master` on later restarts when `/home/container/.git` exists
+5. Run the resolved startup command from the selected Pterodactyl egg in `/home/container`
+
+The generated script uses `set -e`, so a missing URL, failed clone, failed copy, or failed pull stops startup instead of launching a bot from an incomplete directory. The Docker image and startup script are resolved from the selected egg; client-supplied values are only fallbacks.
 
 Example server environment:
 

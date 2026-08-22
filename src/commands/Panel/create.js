@@ -222,7 +222,7 @@ module.exports = {
             .setColor("Green")
             .setTitle("✅ Server Created")
             .setDescription(
-              `🖥️ **Name:** \`${serverName}\`\n🍳 **Type:** \`${egg.name}\`\n📦 **Tier:** \`${selectedTier.name}\`\n🔗 [View on Panel](https://panel.leonodes.xyz/server/${res.data.attributes.identifier})`
+              `🖥️ **Name:** \`${serverName}\`\n🍳 **Type:** \`${egg.name}\`\n📦 **Tier:** \`${selectedTier.name}\`\n🔗 [View on Panel](${(process.env.PTERODACTYL_URL || '').replace(/\/$/, '')}/server/${res.data.attributes.identifier})`
             ),
         ],
       });

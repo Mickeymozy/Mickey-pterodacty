@@ -115,34 +115,20 @@ router.post('/checkout', authenticate, async (req, res) => {
     const coinsCost = Number(pricing.coinsCost ?? pkg?.coinsCost ?? 0);
     const usdCost = Number(pricing.usdCost ?? pkg?.usdCost ?? 0);
 
-    // Handle coin payment separately: create server first, then atomically deduct coins
+    // Reserve coins before provisioning so an insufficient balance cannot create an orphan server.
     if (useWalletPayment) {
+      const updatedUser = await User.findOneAndUpdate(
+        { _id: userId, coins: { $gte: coinsCost } },
+        { $inc: { coins: -coinsCost } },
+        { new: true }
+      );
+
+      if (!updatedUser) {
+        return res.status(400).json({ success: false, message: 'Insufficient coins to create this server.' });
+      }
+
       try {
-        // Create server from package first
         const serverData = await createServerFromPackage(user, packageId, serverName, { eggId, dockerImage, startupFile, startupCommand, botRepoUrl, sendEmail: false });
-
-        // Atomically deduct coins: ensure user still has enough
-        const updatedUser = await User.findOneAndUpdate(
-          { _id: userId, coins: { $gte: coinsCost } },
-          { $inc: { coins: -coinsCost } },
-          { new: true }
-        );
-
-        if (!updatedUser) {
-          // Deduction failed - attempt to remove created server as rollback
-          try {
-            if (appApi && serverData?.server?.id) {
-              await appApi.delete(`/servers/${serverData.server.id}`);
-            }
-          } catch (delErr) {
-            console.error('Failed to delete server after insufficient coins:', delErr?.response?.data || delErr.message || delErr);
-          }
-
-          return res.status(400).json({
-            success: false,
-            message: `Insufficient coins at billing time. Server removed.`
-          });
-        }
 
         // Record transaction
         const transaction = new Transaction({
@@ -177,6 +163,7 @@ router.post('/checkout', authenticate, async (req, res) => {
           }
         });
       } catch (error) {
+        await User.updateOne({ _id: userId }, { $inc: { coins: coinsCost } });
         console.error('Server creation/payment error:', error.message || error);
         return res.status(500).json({
           success: false,
@@ -563,13 +550,16 @@ router.get('/verify/:transactionId', authenticate, async (req, res) => {
 
     if (verificationResult.success) {
       if (verificationResult.paymentStatus === 'completed' || verificationResult.paymentStatus === 'success' || verificationResult.paymentStatus === 'SUCCESS') {
-        const user = await User.findById(transaction.userId);
+          const user = await User.findById(transaction.userId);
         if (user) {
           const isTopup = transaction.metadata?.type === 'topup';
-          const coinsToAdd = isTopup ? (transaction.metadata?.coinsAmount || transaction.amount || 0) : (transaction.packageId?.pricing?.coinsCost || transaction.amount || 0);
-          user.coins = (user.coins || 0) + coinsToAdd;
+            const isGeneric = transaction.type === 'generic' || transaction.metadata?.type === 'generic';
+            const coinsToAdd = isGeneric ? 0 : isTopup ? (transaction.metadata?.coinsAmount || transaction.amount || 0) : (transaction.packageId?.pricing?.coinsCost || transaction.amount || 0);
+            if (!isGeneric) {
+              user.coins = (user.coins || 0) + coinsToAdd;
+            }
 
-          if (!isTopup && transaction.packageId) {
+          if (!isGeneric && !isTopup && transaction.packageId) {
             if (!user.servers) user.servers = [];
             const { calculateExpirationDate } = require('../utils/paymentHelper');
             user.servers.push({
@@ -585,7 +575,7 @@ router.get('/verify/:transactionId', authenticate, async (req, res) => {
           transaction.completedAt = new Date();
           await transaction.save();
 
-          if (!isTopup && transaction.packageId) {
+          if (!isGeneric && !isTopup && transaction.packageId) {
             try {
               const serverName = transaction.metadata?.serverName || `${transaction.packageId.name}-${Date.now()}`;
               const serverData = await createServerFromPackage(user, transaction.packageId._id, serverName, {
@@ -605,19 +595,21 @@ router.get('/verify/:transactionId', authenticate, async (req, res) => {
               await transaction.save();
               console.error('Server creation after payment failed:', serverError.message);
             }
+          } else if (isGeneric) {
+            await notifyUserAboutPendingPayment(user, transaction, { name: transaction.description }, 'generic payment');
           } else {
             await notifyUserAboutPayment(user, transaction, transaction.packageId || { name: 'Coins Top-up' }, null);
           }
 
           res.json({
             success: true,
-            message: 'Payment verified and coins credited',
+            message: isGeneric ? 'Payment verified successfully' : 'Payment verified and coins credited',
             data: {
               status: 'completed',
               transactionId,
               coinsAdded: coinsToAdd,
               userCoins: user.coins,
-              package: transaction.packageId?.name || 'Coins Top-up'
+              package: isGeneric ? 'Generic Payment' : transaction.packageId?.name || 'Coins Top-up'
             }
           });
         } else {
@@ -659,7 +651,7 @@ router.post('/generic', authenticate, async (req, res) => {
     const { amount, description, paymentMethod = 'palmpesa', phone } = req.body;
     const userId = req.user._id;
 
-    if (!amount || Number(amount) <= 0) {
+    if (!Number.isFinite(Number(amount)) || Number(amount) <= 0) {
       return res.status(400).json({ success: false, message: 'Valid amount required' });
     }
 
@@ -670,6 +662,10 @@ router.post('/generic', authenticate, async (req, res) => {
     const normalizedPaymentMethod = String(paymentMethod || '').toLowerCase();
     const usePalmPesa = normalizedPaymentMethod === 'palmpesa';
     const useAdmin = normalizedPaymentMethod === 'admin' || normalizedPaymentMethod === 'review';
+
+    if (!usePalmPesa && !useAdmin) {
+      return res.status(400).json({ success: false, message: 'Unsupported payment method. Use palmpesa or admin.' });
+    }
 
     const user = await User.findById(userId);
     if (!user) {

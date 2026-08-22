@@ -23,7 +23,7 @@ class PteroBot extends Client {
       presence: {
         activities: [
           {
-            name: "panel.leonodes.xyz",
+            name: process.env.PTERODACTYL_URL || "Pterodactyl Panel",
             type: ActivityType.Watching,
           },
         ],

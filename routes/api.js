@@ -4,7 +4,7 @@ const axios = require('axios');
 const User = require('../models/User');
 const sendEmail = require('../utils/email');
 const { requireAuth, requireAdmin, isAdminUser } = require('../middleware/auth');
-const { createServerFromPackage } = require('../utils/serverHelper');
+const { createServerFromPackage, isValidGitUrl } = require('../utils/serverHelper');
 
 const PTERODACTYL_URL = process.env.PTERODACTYL_URL?.replace(/\/$/, '');
 const PTERODACTYL_APP_API_KEY = process.env.PTERODACTYL_APP_API_KEY;
@@ -170,6 +170,7 @@ const sanitizeServer = (server, resourceAttrs = {}, user = null, connectionDetai
     user: attrs.user,
     limits: attrs.limits || {},
     resources: resourceAttrs || {},
+    panelUrl: PTERODACTYL_URL || '',
     ipAddress: resolvedConnection.ipAddress || '',
     port: resolvedConnection.port || '',
     sftpHost: resolvedConnection.sftpHost || '',
@@ -679,6 +680,10 @@ router.post('/api/servers/create', requireAuth, async (req, res) => {
       });
     }
 
+    if (botRepoUrl && !isValidGitUrl(botRepoUrl)) {
+      return res.status(400).json({ success: false, error: 'Invalid GitHub/Git repository URL. Use a public HTTPS .git URL.' });
+    }
+
     const resolvedEggConfig = await fetchEggDetails(eggConfig);
     const syncedDockerImage = resolvedEggConfig.docker_image || dockerImage;
     const syncedStartupCommand = resolvedEggConfig.startup || startupCommand;
@@ -690,7 +695,7 @@ router.post('/api/servers/create', requireAuth, async (req, res) => {
     });
 
     const resolvedStartupCommand = botRepoUrl
-      ? `if [ -n \"$BOT_REPO_URL\" ] && [ ! -d \"/home/container/.git\" ]; then git clone \"$BOT_REPO_URL\" /home/container; fi; if [ -d \"/home/container/.git\" ] && [ \"$AUTO_UPDATE\" = \"1\" ]; then cd /home/container && git pull; fi; cd /home/container && ${syncedStartupCommand}`
+      ? `set -e; if [ -z \"$BOT_REPO_URL\" ]; then echo \"[BOT_REPO] ERROR: BOT_REPO_URL is not set\"; exit 1; fi; if [ -d \"/home/container/.git\" ]; then cd /home/container && (git pull --depth=1 origin main || git pull --depth=1 origin master); else rm -rf /tmp/mickey-bot-repo && git clone --depth=1 \"$BOT_REPO_URL\" /tmp/mickey-bot-repo && cp -a /tmp/mickey-bot-repo/. /home/container/ && rm -rf /tmp/mickey-bot-repo; fi; cd /home/container && ${syncedStartupCommand}`
       : syncedStartupCommand;
 
     const resolvedPteroId = await resolveAndSavePteroId(req.user);
@@ -910,6 +915,7 @@ router.get('/api/servers/:id/details', requireAuth, async (req, res) => {
         status: normalizeServerStatus(resourceAttrs.current_state || attrs.status || 'unknown'),
         limits: attrs.limits || {},
         resources: resourceAttrs,
+        panelUrl: PTERODACTYL_URL || '',
         ipAddress: connectionDetails.ipAddress,
         port: connectionDetails.port,
         sftpHost: connectionDetails.sftpHost

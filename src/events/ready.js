@@ -6,7 +6,7 @@ const fs = require("fs");
 const path = require("path");
 
 // === CONFIG ===
-const PANEL_URL = "https://panel.leonodes.xyz/server/";
+const PANEL_URL = `${(process.env.PTERODACTYL_URL || "").replace(/\/$/, "")}/server/`;
 const GUILD_ID = "1374783116291477524";
 const ANNOUNCE_CHANNEL_ID = "1387303798153678930";
 const NO_SERVER_ROLE_ID = "1386310918442455140";

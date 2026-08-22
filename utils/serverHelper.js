@@ -415,21 +415,28 @@ async function createServerFromPackage(user, packageId, serverName, options = {}
 
   const resolvedStartupCommand = resolvedEggConfig.startup || options.startupCommand || pkg.serverConfig.startupCommand || 'npm start';
   const resolvedDockerImage = resolvedEggConfig.docker_image || options.dockerImage;
-  const botRepoStartup = options.botRepoUrl
+  const botRepoUrl = options.botRepoUrl || options.repoUrl;
+  if (botRepoUrl && !isValidGitUrl(botRepoUrl)) {
+    throw new Error('Invalid GitHub/Git repository URL. Use a public HTTPS .git URL.');
+  }
+  const botRepoStartup = botRepoUrl
     ? `
+set -e
 echo "[BOT_REPO] Starting repo initialization..."
 if [ -z "$BOT_REPO_URL" ]; then
-  echo "[BOT_REPO] BOT_REPO_URL not set, skipping repo clone"
+  echo "[BOT_REPO] ERROR: BOT_REPO_URL is not set"
+  exit 1
 else
   if [ -d "/home/container/.git" ]; then
     echo "[BOT_REPO] Git repo already exists, pulling updates..."
-    cd /home/container && git pull --depth=1 origin main 2>&1 || git pull --depth=1 origin master 2>&1 || echo "[BOT_REPO] Warning: git pull failed"
+    cd /home/container
+    git pull --depth=1 origin main 2>&1 || git pull --depth=1 origin master 2>&1
   else
-    echo "[BOT_REPO] Cloning repository: $BOT_REPO_URL"
-    git clone --depth=1 "$BOT_REPO_URL" /home/container 2>&1 || {
-      echo "[BOT_REPO] ERROR: Failed to clone repository"
-      exit 1
-    }
+    echo "[BOT_REPO] Cloning repository into a temporary directory..."
+    rm -rf /tmp/mickey-bot-repo
+    git clone --depth=1 "$BOT_REPO_URL" /tmp/mickey-bot-repo 2>&1
+    cp -a /tmp/mickey-bot-repo/. /home/container/
+    rm -rf /tmp/mickey-bot-repo
   fi
 fi
 echo "[BOT_REPO] Initialization complete"
@@ -437,7 +444,7 @@ cd /home/container
 echo "[BOT_REPO] Running startup command: ${resolvedStartupCommand}"
 ${resolvedStartupCommand}
     `.trim()
-    : (options.startupCommand || resolvedEggConfig.startup);
+    : resolvedStartupCommand;
 
   const basePayload = {
     name,
