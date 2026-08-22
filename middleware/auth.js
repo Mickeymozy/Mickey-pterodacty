@@ -77,11 +77,11 @@ const requireAdmin = async (req, res, next) => {
     }
   }
 
-  req.flash('error_msg', '⚠️ Hii sehemu ni ya Admin tu.');
+  req.flash('error_msg', '⚠️ No access: Admin only. Please log in with an admin account.');
   if (isApiRequest(req)) {
     return res.status(403).json({ success: false, message: 'Admin access required' });
   }
-  res.redirect('/dashboard.html');
+  res.redirect('/login.html?error=admin_required');
 };
 
 // Get user from database and attach to req

@@ -298,7 +298,7 @@ function buildPteroLimitsFromPackage(specifications = {}) {
   const diskValue = Number(specifications?.disk ?? specifications?.storage ?? 0);
 
   const cpu = Number.isFinite(cpuValue) && cpuValue > 0
-    ? (cpuValue < 1 ? Math.round(cpuValue * 100) : Math.round(cpuValue))
+    ? Math.round(cpuValue * 100)
     : 100;
 
   const memory = Number.isFinite(ramValue) && ramValue > 0
@@ -406,15 +406,18 @@ async function createServerFromPackage(user, packageId, serverName, options = {}
   const name = serverName || pkg.name + '-' + Date.now();
   const limits = buildPteroLimitsFromPackage(pkg.specifications || {});
 
+  const preferredStartupCommand = normalizeEnvironmentValue(options.startupCommand || pkg.serverConfig.startupCommand || resolvedEggConfig.startup || 'npm start');
+  const preferredDockerImage = normalizeEnvironmentValue(options.dockerImage || pkg.serverConfig.dockerImage || resolvedEggConfig.docker_image || '');
+
   const safeEnvironment = buildServerEnvironment(resolvedEggConfig, {
     startupFile: options.startupFile || pkg.serverConfig.startupFile,
-    startupCommand: resolvedEggConfig.startup || options.startupCommand || pkg.serverConfig.startupCommand,
+    startupCommand: preferredStartupCommand,
     environment: options.environment,
     botRepoUrl: options.botRepoUrl || options.repoUrl
   });
 
-  const resolvedStartupCommand = resolvedEggConfig.startup || options.startupCommand || pkg.serverConfig.startupCommand || 'npm start';
-  const resolvedDockerImage = resolvedEggConfig.docker_image || options.dockerImage || pkg.serverConfig.dockerImage;
+  const resolvedStartupCommand = preferredStartupCommand;
+  const resolvedDockerImage = preferredDockerImage;
   const botRepoUrl = options.botRepoUrl || options.repoUrl;
   if (botRepoUrl && !isValidGitUrl(botRepoUrl)) {
     throw new Error('Invalid GitHub/Git repository URL. Use a public HTTPS .git URL.');
