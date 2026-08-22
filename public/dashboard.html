@@ -41,9 +41,28 @@
     .open-panel-btn { background: var(--accent); border-color: var(--accent); }
     .copy-btn { display: inline-flex; align-items: center; justify-content: center; background: transparent; border: 1px solid rgba(255,255,255,0.04); color: inherit; padding: 4px 6px; border-radius: 8px; font-size: 12px; cursor: pointer; }
     .copy-btn:hover { background: rgba(255,255,255,0.02); }
+    .guide-ad { animation: guide-slide-in .45s ease-out both; }
+    @keyframes guide-slide-in { from { opacity: 0; transform: translateY(18px) scale(.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
   </style>
 </head>
 <body class="min-h-screen bg-[#0a0a14] text-slate-50">
+
+  <aside id="serverGuideAd" class="guide-ad fixed bottom-5 right-5 z-[80] hidden w-[min(360px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-cyan-400/30 bg-slate-950/95 shadow-2xl shadow-cyan-950/30 backdrop-blur-xl" aria-label="Mwongozo wa kutengeneza server">
+    <div class="flex items-center justify-between border-b border-slate-800 px-4 py-3">
+      <div>
+        <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300">Mwongozo wa haraka</p>
+        <p class="mt-1 text-sm font-semibold text-white">Jinsi ya kutengeneza server</p>
+      </div>
+      <button id="closeServerGuideAd" type="button" class="rounded-lg border border-slate-700 px-2 py-1 text-slate-400 transition hover:bg-slate-800 hover:text-white" aria-label="Funga mwongozo">&#10005;</button>
+    </div>
+    <div class="aspect-video bg-black">
+      <iframe class="h-full w-full" src="https://www.youtube-nocookie.com/embed/SfQTj4TSYOg?autoplay=1&mute=1&rel=0" title="Mwongozo wa kutengeneza server" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+    </div>
+    <div class="flex items-center justify-between gap-3 px-4 py-3">
+      <p class="text-[11px] leading-4 text-slate-400">Jifunze kuchagua package, engine na GitHub repo.</p>
+      <a href="https://youtu.be/SfQTj4TSYOg?si=F0INaPeZiAr0e_kc" target="_blank" rel="noopener noreferrer" class="shrink-0 rounded-xl bg-cyan-500 px-3 py-2 text-xs font-bold text-slate-950 transition hover:bg-cyan-300">Fungua YouTube</a>
+    </div>
+  </aside>
 
   <div id="uiToast" class="fixed right-5 top-5 z-[100] hidden max-w-sm overflow-hidden rounded-3xl border border-slate-700/60 bg-slate-950/95 p-4 shadow-2xl backdrop-blur-xl text-sm text-white">
     <div id="uiToastMessage" class="flex items-center gap-3"></div>
@@ -245,6 +264,7 @@
               <p class="text-sm text-slate-400">Chagua kifurushi, malipo, na engine yako kabla ya kupeleka ombi kwenye panel.</p>
             </div>
             <div class="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.2em] text-cyan-300">Pterodactyl Deploy</div>
+            <button id="openServerGuideBtn" type="button" class="inline-flex items-center justify-center gap-2 rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-xs font-semibold text-cyan-200 transition hover:bg-cyan-400/20">&#9654; Fungua video ya maelekezo</button>
           </div>
           <form id="createForm" class="grid gap-6 md:grid-cols-[1.5fr_1fr]">
             
@@ -527,6 +547,21 @@
     const createForm = document.getElementById('createForm');
     const formMessage = document.getElementById('formMessage');
     const statusIndicator = document.getElementById('nodeStatus');
+    const serverGuideAd = document.getElementById('serverGuideAd');
+
+    function openServerGuide() {
+      if (!serverGuideAd) return;
+      serverGuideAd.classList.remove('hidden');
+      try { sessionStorage.removeItem('serverGuideDismissed'); } catch (error) {}
+    }
+
+    function closeServerGuide() {
+      serverGuideAd?.classList.add('hidden');
+      try { sessionStorage.setItem('serverGuideDismissed', '1'); } catch (error) {}
+    }
+
+    document.getElementById('closeServerGuideAd')?.addEventListener('click', closeServerGuide);
+    document.getElementById('openServerGuideBtn')?.addEventListener('click', openServerGuide);
 
     function switchDashTab(event, tabName) {
       document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
@@ -581,6 +616,11 @@
         } else {
           adminBadge.classList.add('hidden');
           adminLink.classList.add('hidden');
+        }
+        try {
+          if (sessionStorage.getItem('serverGuideDismissed') !== '1') openServerGuide();
+        } catch (error) {
+          openServerGuide();
         }
       } catch (e) {
         window.location.href = '/login.html?error=account_offline';
