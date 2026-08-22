@@ -414,7 +414,7 @@ async function createServerFromPackage(user, packageId, serverName, options = {}
   });
 
   const resolvedStartupCommand = resolvedEggConfig.startup || options.startupCommand || pkg.serverConfig.startupCommand || 'npm start';
-  const resolvedDockerImage = resolvedEggConfig.docker_image || options.dockerImage;
+  const resolvedDockerImage = resolvedEggConfig.docker_image || options.dockerImage || pkg.serverConfig.dockerImage;
   const botRepoUrl = options.botRepoUrl || options.repoUrl;
   if (botRepoUrl && !isValidGitUrl(botRepoUrl)) {
     throw new Error('Invalid GitHub/Git repository URL. Use a public HTTPS .git URL.');
@@ -537,7 +537,7 @@ ${resolvedStartupCommand}
     panelUrl: process.env.PTERODACTYL_URL || '',
     username: user?.username || user?.displayName || user?.email || '',
     email: user?.email || '',
-    password: options.password || process.env.DEFAULT_SERVER_PASSWORD || process.env.SERVER_DEFAULT_PASSWORD || 'MICKEY24@',
+    password: null,
     serverName: createdAttributes.name || name,
     serverId: createdAttributes.identifier || createdAttributes.uuid || createdAttributes.id || '',
     ipAddress: '',
@@ -554,7 +554,7 @@ ${resolvedStartupCommand}
       <p><strong>Panel:</strong> ${accessDetails.panelUrl}</p>
       <p><strong>Username:</strong> ${accessDetails.username}</p>
       <p><strong>Email:</strong> ${accessDetails.email}</p>
-      <p><strong>Password:</strong> ${accessDetails.password}</p>
+      <p>Password ya panel haijatumwi kwa email. Tumia password yako ya Pterodactyl au reset kupitia panel.</p>
       <p>Unaweza kuingia kwenye dashboard yako kuona server yako na taarifa za ufikiaji.</p>
     `;
 
@@ -562,7 +562,7 @@ ${resolvedStartupCommand}
       to: user.email,
       subject: 'Server created successfully',
       html: emailBody,
-      text: `Server yako imeundwa. Jina: ${accessDetails.serverName}. Panel: ${accessDetails.panelUrl}.`
+      text: `Server yako imeundwa. Jina: ${accessDetails.serverName}. Panel: ${accessDetails.panelUrl}. Password haijatumwa kwa email.`
     });
   }
 

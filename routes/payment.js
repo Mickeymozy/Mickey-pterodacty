@@ -29,7 +29,6 @@ async function notifyUserAboutPayment(user, transaction, packageDoc, serverData)
   const serverName = serverData?.server?.name || serverData?.server?.identifier || 'server';
   const panelUrl = process.env.PTERODACTYL_URL || 'N/A';
   const accessDetails = serverData?.access || {};
-  const password = accessDetails.password || process.env.DEFAULT_SERVER_PASSWORD || process.env.SERVER_DEFAULT_PASSWORD || 'MICKEY24@';
   const emailBody = `
     <p>Malipo yako yamekamilika na huduma yako imeandaliwa.</p>
     <p><strong>Package:</strong> ${packageDoc?.name || 'Top-up'}</p>
@@ -37,7 +36,7 @@ async function notifyUserAboutPayment(user, transaction, packageDoc, serverData)
     <p><strong>Panel:</strong> ${panelUrl}</p>
     <p><strong>Username:</strong> ${accessDetails.username || user.username || 'N/A'}</p>
     <p><strong>Email:</strong> ${accessDetails.email || user.email || 'N/A'}</p>
-    <p><strong>Password:</strong> ${password}</p>
+    <p>Password haijatumwi kwa email kwa usalama. Tumia password yako ya Pterodactyl au reset kupitia panel.</p>
     <p>Unaweza kuingia kwenye dashboard yako ukitumia email yako na password ya akaunti yako ili kuona server yako.</p>
   `;
 
@@ -542,6 +541,12 @@ router.get('/verify/:transactionId', authenticate, async (req, res) => {
 
     if (!transaction) {
       return res.status(404).json({ success: false, message: 'Transaction not found' });
+    }
+    if (String(transaction.userId) !== String(req.user._id)) {
+      return res.status(403).json({ success: false, message: 'Huna ruhusa ya transaction hii.' });
+    }
+    if (transaction.status === 'completed') {
+      return res.json({ success: true, message: 'Payment already verified', data: { status: 'completed', transactionId } });
     }
 
     const verificationResult = await palmPesaService.verifyPayment(

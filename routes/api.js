@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const axios = require('axios');
+const mongoose = require('mongoose');
 const User = require('../models/User');
 const sendEmail = require('../utils/email');
 const { requireAuth, requireAdmin, isAdminUser } = require('../middleware/auth');
@@ -44,7 +45,6 @@ const clientApi = hasClientConfig
   : null;
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const DEFAULT_SERVER_PASSWORD = process.env.DEFAULT_SERVER_PASSWORD || process.env.SERVER_DEFAULT_PASSWORD || 'MICKEY24@';
 
 const eggConfigs = {
   16: {
@@ -455,6 +455,15 @@ async function resolveAndSavePteroId(user) {
   return null;
 }
 
+async function requireOwnedServer(user, serverRef) {
+  const pteroUserId = await resolveAndSavePteroId(user);
+  if (!pteroUserId || !appApi || !serverRef?.id) return null;
+  const response = await appApi.get(`/servers/${encodeURIComponent(serverRef.id)}`);
+  const attrs = response.data?.attributes || {};
+  if (Number(attrs.user) !== Number(pteroUserId)) return null;
+  return attrs;
+}
+
 async function fetchPteroUserById(pteroUserId) {
   if (!appApi || !pteroUserId) return null;
   try {
@@ -601,6 +610,22 @@ router.get('/api/me', requireAuth, (req, res) => {
 });
 
 // Get user servers
+router.get('/api/health', requireAuth, async (req, res) => {
+  const checks = {
+    database: mongoose.connection.readyState === 1,
+    pterodactyl: false,
+    panelUrl: PTERODACTYL_URL || ''
+  };
+  if (appApi) {
+    try {
+      await appApi.get('/nodes?per_page=1');
+      checks.pterodactyl = true;
+    } catch (error) {}
+  }
+  const healthy = checks.database && checks.pterodactyl;
+  res.status(healthy ? 200 : 503).json({ success: healthy, status: healthy ? 'healthy' : 'degraded', checks, timestamp: new Date().toISOString() });
+});
+
 router.get('/api/servers', requireAuth, async (req, res) => {
   if (!appApi) {
     return res.status(503).json({ success: false, error: 'Pterodactyl API is not configured.' });
@@ -856,6 +881,9 @@ router.get('/api/servers/:id/access', requireAuth, async (req, res) => {
     const ref = await resolveServerRef(req.params.id);
     const serverResponse = await appApi.get(`/servers/${encodeURIComponent(ref.id)}`);
     const attrs = serverResponse.data?.attributes || {};
+    if (!(await requireOwnedServer(req.user, ref))) {
+      return res.status(403).json({ success: false, error: 'Huna ruhusa ya kuona server hii.' });
+    }
 
     const connectionDetails = await getServerConnectionDetails(ref);
     const panelUrl = process.env.PTERODACTYL_URL || '';
@@ -866,7 +894,7 @@ router.get('/api/servers/:id/access', requireAuth, async (req, res) => {
         panelUrl,
         username: req.user?.username || req.user?.displayName || '',
         email: req.user?.email || '',
-        password: DEFAULT_SERVER_PASSWORD,
+        password: null,
         serverName: attrs.name || '',
         serverId: attrs.identifier || attrs.id || '',
         ipAddress: connectionDetails.ipAddress,
@@ -890,6 +918,9 @@ router.get('/api/servers/:id/details', requireAuth, async (req, res) => {
 
   try {
     const ref = await resolveServerRef(req.params.id);
+    if (!(await requireOwnedServer(req.user, ref))) {
+      return res.status(403).json({ success: false, error: 'Huna ruhusa ya kuona server hii.' });
+    }
     const [serverResponse, resourcesResponse] = await Promise.allSettled([
       appApi.get(`/servers/${encodeURIComponent(ref.id)}`),
       (clientApiUsable && clientApi && ref.identifier)
@@ -928,6 +959,67 @@ router.get('/api/servers/:id/details', requireAuth, async (req, res) => {
   }
 });
 
+// Server backups and console websocket details use the Pterodactyl Client API.
+router.get('/api/servers/:id/backups', requireAuth, async (req, res) => {
+  if (!clientApiUsable || !clientApi) return res.status(503).json({ success: false, error: CLIENT_KEY_REQUIRED_MESSAGE });
+  try {
+    const ref = await resolveServerRef(req.params.id);
+    if (!(await requireOwnedServer(req.user, ref))) return res.status(403).json({ success: false, error: 'Huna ruhusa ya kuona backups za server hii.' });
+    const response = await clientApi.get(`/servers/${encodeURIComponent(ref.identifier)}/backups`);
+    res.json({ success: true, data: response.data?.data || [], meta: response.data?.meta || {} });
+  } catch (err) {
+    res.status(err.response?.status || 500).json({ success: false, error: err.response?.data?.errors?.[0]?.detail || err.message || 'Failed to load backups.' });
+  }
+});
+
+router.post('/api/servers/:id/backups', requireAuth, async (req, res) => {
+  if (!clientApiUsable || !clientApi) return res.status(503).json({ success: false, error: CLIENT_KEY_REQUIRED_MESSAGE });
+  try {
+    const ref = await resolveServerRef(req.params.id);
+    if (!(await requireOwnedServer(req.user, ref))) return res.status(403).json({ success: false, error: 'Huna ruhusa ya kuunda backup ya server hii.' });
+    const response = await clientApi.post(`/servers/${encodeURIComponent(ref.identifier)}/backups`, { name: String(req.body?.name || '').trim() || undefined });
+    res.status(201).json({ success: true, data: response.data?.attributes || response.data?.data || {} });
+  } catch (err) {
+    res.status(err.response?.status || 500).json({ success: false, error: err.response?.data?.errors?.[0]?.detail || err.message || 'Failed to create backup.' });
+  }
+});
+
+router.delete('/api/servers/:id/backups/:backupId', requireAuth, async (req, res) => {
+  if (!clientApiUsable || !clientApi) return res.status(503).json({ success: false, error: CLIENT_KEY_REQUIRED_MESSAGE });
+  try {
+    const ref = await resolveServerRef(req.params.id);
+    if (!(await requireOwnedServer(req.user, ref))) return res.status(403).json({ success: false, error: 'Huna ruhusa ya kufuta backup ya server hii.' });
+    await clientApi.delete(`/servers/${encodeURIComponent(ref.identifier)}/backups/${encodeURIComponent(req.params.backupId)}`);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(err.response?.status || 500).json({ success: false, error: err.response?.data?.errors?.[0]?.detail || err.message || 'Failed to delete backup.' });
+  }
+});
+
+router.post('/api/servers/:id/backups/:backupId/restore', requireAuth, async (req, res) => {
+  if (!clientApiUsable || !clientApi) return res.status(503).json({ success: false, error: CLIENT_KEY_REQUIRED_MESSAGE });
+  try {
+    const ref = await resolveServerRef(req.params.id);
+    if (!(await requireOwnedServer(req.user, ref))) return res.status(403).json({ success: false, error: 'Huna ruhusa ya kurestore backup ya server hii.' });
+    const response = await clientApi.post(`/servers/${encodeURIComponent(ref.identifier)}/backups/${encodeURIComponent(req.params.backupId)}/restore`);
+    res.json({ success: true, data: response.data?.attributes || response.data?.data || {} });
+  } catch (err) {
+    res.status(err.response?.status || 500).json({ success: false, error: err.response?.data?.errors?.[0]?.detail || err.message || 'Failed to restore backup.' });
+  }
+});
+
+router.get('/api/servers/:id/console', requireAuth, async (req, res) => {
+  if (!clientApiUsable || !clientApi) return res.status(503).json({ success: false, error: CLIENT_KEY_REQUIRED_MESSAGE });
+  try {
+    const ref = await resolveServerRef(req.params.id);
+    if (!(await requireOwnedServer(req.user, ref))) return res.status(403).json({ success: false, error: 'Huna ruhusa ya kuona console ya server hii.' });
+    const response = await clientApi.get(`/servers/${encodeURIComponent(ref.identifier)}/websocket`);
+    res.json({ success: true, data: response.data?.data || {} });
+  } catch (err) {
+    res.status(err.response?.status || 500).json({ success: false, error: err.response?.data?.errors?.[0]?.detail || err.message || 'Failed to load console connection.' });
+  }
+});
+
 // Power action (start/stop/restart) — only available via the Client API
 router.post('/api/servers/:id/power/:action', requireAuth, async (req, res) => {
   const validActions = ['start', 'stop', 'restart'];
@@ -943,6 +1035,9 @@ router.post('/api/servers/:id/power/:action', requireAuth, async (req, res) => {
 
   try {
     const ref = await resolveServerRef(req.params.id);
+    if (!(await requireOwnedServer(req.user, ref))) {
+      return res.status(403).json({ success: false, error: 'Huna ruhusa ya kubadilisha server hii.' });
+    }
     if (!ref.identifier) {
       return res.status(404).json({ success: false, error: 'Server haijapatikana kwenye panel.' });
     }
@@ -969,6 +1064,9 @@ router.delete('/api/servers/:id', requireAuth, async (req, res) => {
 
   try {
     const serverRef = await resolveServerRef(req.params.id);
+    if (!(await requireOwnedServer(req.user, serverRef))) {
+      return res.status(403).json({ success: false, error: 'Huna ruhusa ya kufuta server hii.' });
+    }
     const serverResponse = await appApi.get(`/servers/${encodeURIComponent(serverRef.id)}`);
     const serverAttributes = serverResponse.data?.attributes || {};
     const expectedName = String(serverAttributes.name || serverAttributes.identifier || '').trim();

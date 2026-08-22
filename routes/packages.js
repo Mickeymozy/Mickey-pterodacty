@@ -80,7 +80,8 @@ router.post('/packages', adminOnly, async (req, res) => {
       eggId: Number(serverConfig?.eggId || 16),
       eggName: serverConfig?.eggName || 'Node.js',
       startupFile: serverConfig?.startupFile || 'index.js',
-      startupCommand: serverConfig?.startupCommand || 'npm start'
+      startupCommand: serverConfig?.startupCommand || 'npm start',
+      dockerImage: serverConfig?.dockerImage || ''
     };
 
     const newPackage = new ServerPackage({
@@ -133,7 +134,8 @@ router.put('/packages/:id', adminOnly, async (req, res) => {
         eggId: Number(serverConfig.eggId || pkg.serverConfig?.eggId || 16),
         eggName: serverConfig.eggName || pkg.serverConfig?.eggName || 'Node.js',
         startupFile: serverConfig.startupFile || pkg.serverConfig?.startupFile || 'index.js',
-        startupCommand: serverConfig.startupCommand || pkg.serverConfig?.startupCommand || 'npm start'
+        startupCommand: serverConfig.startupCommand || pkg.serverConfig?.startupCommand || 'npm start',
+        dockerImage: serverConfig.dockerImage || pkg.serverConfig?.dockerImage || ''
       };
     }
     if (specifications) {

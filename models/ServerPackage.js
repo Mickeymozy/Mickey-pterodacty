@@ -68,6 +68,10 @@ const serverPackageSchema = new mongoose.Schema({
       type: String,
       required: [true, 'Startup command is required'],
       trim: true
+    },
+    dockerImage: {
+      type: String,
+      trim: true
     }
   },
 

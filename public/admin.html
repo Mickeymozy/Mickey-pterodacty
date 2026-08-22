@@ -27,6 +27,9 @@
     }
     .tab-content { display: none; }
     .tab-content.active { display: block; }
+    .admin-nav { overflow-x: auto; scrollbar-width: thin; }
+    .admin-nav .tab-button { flex: 0 0 auto; white-space: nowrap; }
+    @media (max-width: 640px) { .admin-nav { flex-wrap: nowrap; position: sticky; top: .5rem; z-index: 30; padding: .5rem; background: rgba(7, 17, 31, .94); backdrop-filter: blur(14px); border-radius: 1rem; } }
     ::-webkit-scrollbar { width: 8px; height: 8px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: rgba(99,102,241,.4); border-radius: 8px; }
@@ -112,7 +115,7 @@
 
     <!-- Navigation Tabs -->
     <div class="glass rounded-2xl p-4 mb-6">
-      <div class="flex flex-wrap gap-2">
+          <div class="admin-nav flex flex-wrap gap-2">
         <button class="tab-button active px-4 py-2 rounded-lg border border-slate-700/50 text-sm font-medium transition" onclick="switchTab(event, 'overview')">📊 Overview</button>
         <button class="tab-button px-4 py-2 rounded-lg border border-slate-700/50 text-sm font-medium transition" onclick="switchTab(event, 'packages')">📦 Packages</button>
         <button class="tab-button px-4 py-2 rounded-lg border border-slate-700/50 text-sm font-medium transition" onclick="switchTab(event, 'payments')">💳 Malipo</button>
@@ -192,6 +195,18 @@
                 <label class="block text-xs text-slate-400">Disk (GB)</label>
                 <input type="number" id="pkgDisk" class="w-full rounded bg-slate-950/50 border border-slate-700/50 p-1 text-white" required>
               </div>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Docker Image</label>
+              <input type="text" id="pkgDocker" placeholder="ghcr.io/parkervcp/yolks:nodejs_21" class="w-full rounded-xl bg-slate-950/50 border border-slate-700/50 px-3 py-2 text-white outline-none focus:border-indigo-500">
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div><label class="block text-xs text-slate-400 mb-1">Egg ID</label><input type="number" id="pkgEggId" value="16" class="w-full rounded-lg bg-slate-950/50 border border-slate-700/50 p-2 text-white"></div>
+              <div><label class="block text-xs text-slate-400 mb-1">Egg Name</label><input type="text" id="pkgEggName" value="Node.js" class="w-full rounded-lg bg-slate-950/50 border border-slate-700/50 p-2 text-white"></div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div><label class="block text-xs text-slate-400 mb-1">Startup File</label><input type="text" id="pkgStartupFile" value="index.js" class="w-full rounded-lg bg-slate-950/50 border border-slate-700/50 p-2 text-white"></div>
+              <div><label class="block text-xs text-slate-400 mb-1">Startup Command</label><input type="text" id="pkgStartupCommand" value="npm start" class="w-full rounded-lg bg-slate-950/50 border border-slate-700/50 p-2 text-white"></div>
             </div>
             <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 rounded-lg transition">Save Package</button>
             <p id="pkgFormMsg" class="text-xs"></p>
@@ -864,6 +879,11 @@
         document.getElementById('pkgCpu').value = pkg.specifications?.cpu || '';
         document.getElementById('pkgRam').value = pkg.specifications?.ram || '';
         document.getElementById('pkgDisk').value = pkg.specifications?.disk || '';
+        document.getElementById('pkgDocker').value = pkg.serverConfig?.dockerImage || '';
+        document.getElementById('pkgEggId').value = pkg.serverConfig?.eggId || 16;
+        document.getElementById('pkgEggName').value = pkg.serverConfig?.eggName || 'Node.js';
+        document.getElementById('pkgStartupFile').value = pkg.serverConfig?.startupFile || 'index.js';
+        document.getElementById('pkgStartupCommand').value = pkg.serverConfig?.startupCommand || 'npm start';
         document.getElementById('pkgFormMsg').textContent = 'Hariri package yako kwa sasa';
         document.getElementById('pkgFormMsg').className = 'text-xs text-amber-400';
       } catch (e) {
@@ -900,10 +920,11 @@
           disk: parseInt(document.getElementById('pkgDisk').value)
         },
         serverConfig: {
-          eggId: 16,
-          eggName: 'Node.js',
-          startupFile: 'index.js',
-          startupCommand: 'npm start'
+          eggId: parseInt(document.getElementById('pkgEggId').value, 10),
+          eggName: document.getElementById('pkgEggName').value.trim(),
+          startupFile: document.getElementById('pkgStartupFile').value.trim(),
+          startupCommand: document.getElementById('pkgStartupCommand').value.trim(),
+          dockerImage: document.getElementById('pkgDocker').value.trim()
         }
       };
       const url = id ? `${API_URL}/packages/${id}` : `${API_URL}/packages`;

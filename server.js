@@ -37,6 +37,29 @@ require('./config/passport')(passport);
 // IMEREKEBISHWA: 'trust proxy' imewekwa kuwa true ili kuruhusu Cloudflare/Nginx kupitisha secure cookies vizuri
 app.set('trust proxy', true);
 
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('Referrer-Policy', 'same-origin');
+  next();
+});
+
+const requestBuckets = new Map();
+app.use((req, res, next) => {
+  if (!(/^\/auth\//.test(req.path) || /^\/api\/payment\//.test(req.path))) return next();
+  const key = `${req.ip}:${req.path}`;
+  const now = Date.now();
+  const bucket = requestBuckets.get(key) || { count: 0, resetAt: now + 60_000 };
+  if (now > bucket.resetAt) {
+    bucket.count = 0;
+    bucket.resetAt = now + 60_000;
+  }
+  bucket.count += 1;
+  requestBuckets.set(key, bucket);
+  if (bucket.count > 30) return res.status(429).json({ success: false, error: 'Requests nyingi sana. Jaribu tena baada ya dakika moja.' });
+  next();
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -54,7 +77,7 @@ const sessionStore = process.env.MONGODB_URI
 const isProduction = process.env.NODE_ENV === 'production';
 
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'default-secret-change-this',
+  secret: process.env.SESSION_SECRET || (isProduction ? (() => { throw new Error('SESSION_SECRET is required in production.'); })() : 'development-only-session-secret'),
   resave: true, // Imewekwa true ili kuzuia session kufutika mapema kwenye baadhi ya hosting
   saveUninitialized: false,
   store: sessionStore || undefined,

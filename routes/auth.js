@@ -3,6 +3,7 @@ const passport = require('passport');
 const crypto = require('crypto');
 const router = express.Router();
 const User = require('../models/User');
+const { validatePasswordComplexity } = require('../utils/passwordValidator');
 const { requireGuest, ADMIN_EMAILS } = require('../middleware/auth');
 const sendEmail = require('../utils/email');
 const axios = require('axios');
@@ -14,7 +15,7 @@ const COMMON_PASSWORDS = new Set([
 
 function isAcceptablePassword(password) {
   const trimmed = String(password || '').trim();
-  return trimmed.length >= 4 && !COMMON_PASSWORDS.has(trimmed.toLowerCase());
+  return validatePasswordComplexity(trimmed).isValid && !COMMON_PASSWORDS.has(trimmed.toLowerCase());
 }
 
 function generateRandomPassword(length = 24) {

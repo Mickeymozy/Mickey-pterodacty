@@ -41,6 +41,9 @@
     .open-panel-btn { background: var(--accent); border-color: var(--accent); }
     .copy-btn { display: inline-flex; align-items: center; justify-content: center; background: transparent; border: 1px solid rgba(255,255,255,0.04); color: inherit; padding: 4px 6px; border-radius: 8px; font-size: 12px; cursor: pointer; }
     .copy-btn:hover { background: rgba(255,255,255,0.02); }
+    .dash-nav { overflow-x: auto; scrollbar-width: thin; }
+    .dash-nav .tab-button { flex: 0 0 auto; white-space: nowrap; }
+    @media (max-width: 640px) { .dash-nav { position: sticky; top: .5rem; z-index: 30; padding: .5rem; background: rgba(7, 17, 31, .94); backdrop-filter: blur(14px); border-radius: 1rem; } }
     .guide-ad { animation: guide-slide-in .45s ease-out both; }
     @keyframes guide-slide-in { from { opacity: 0; transform: translateY(18px) scale(.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
   </style>
@@ -168,7 +171,7 @@
     </header>
 
     <div class="glass rounded-2xl p-4 mb-6">
-          <div class="flex gap-2 flex-wrap">
+          <div class="dash-nav flex gap-2 pb-1">
         <button class="tab-button active px-3 py-1 rounded-lg border border-slate-700/50 text-xs font-medium transition" onclick="switchDashTab(event, 'my-servers')">🎮 Server Zangu</button>
         <button class="tab-button px-3 py-1 rounded-lg border border-slate-700/50 text-xs font-medium transition" onclick="switchDashTab(event, 'deploy-panel')">🚀 Unda Server</button>
         <button class="tab-button px-3 py-1 rounded-lg border border-slate-700/50 text-xs font-medium transition" onclick="switchDashTab(event, 'buy-coins')">🪙 Nunua Coins</button>
@@ -217,6 +220,13 @@
                   </div>
                 </div>
               </div>
+
+              <div class="flex flex-wrap gap-2">
+                <button id="loadServerLogsBtn" type="button" class="rounded-xl border border-slate-700 bg-slate-800/80 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:bg-slate-700">Console token</button>
+                <button id="createBackupBtn" type="button" class="rounded-xl bg-cyan-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-cyan-500">Create backup</button>
+                <button id="loadBackupsBtn" type="button" class="rounded-xl border border-slate-700 bg-slate-800/80 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:bg-slate-700">Backups</button>
+              </div>
+              <div id="serverBackupList" class="hidden rounded-3xl border border-slate-800/70 bg-slate-900/70 p-4 text-xs text-slate-400"></div>
 
               <div class="grid gap-4 lg:grid-cols-2">
                 <div class="space-y-4">
@@ -325,6 +335,12 @@
 
               <button type="submit" class="w-full rounded-xl bg-cyan-600 hover:bg-cyan-500 px-4 py-2.5 text-sm font-semibold text-white transition shadow-lg">⚡ Deploy Sasa</button>
               <p id="formMessage" class="mt-2 text-xs text-slate-400"></p>
+              <ol id="deploymentProgress" class="hidden space-y-2 rounded-2xl border border-slate-800 bg-slate-950/50 p-4 text-xs text-slate-400">
+                <li data-deploy-step="payment">1. Inathibitisha malipo</li>
+                <li data-deploy-step="server">2. Inaunda server kwenye panel</li>
+                <li data-deploy-step="repo">3. Inaandaa GitHub repository</li>
+                <li data-deploy-step="start">4. Inaanzisha server</li>
+              </ol>
             </div>
 
             <div class="glass rounded-xl p-5 border border-slate-800 flex flex-col justify-between bg-gradient-to-br from-slate-950/70 to-slate-900/40">
@@ -582,7 +598,7 @@
     async function syncPterodactylStatus() {
       try {
         const startCheck = Date.now();
-        const res = await fetch('/api/servers');
+        const res = await fetch('/api/health');
         if (res.ok) {
           const ping = Date.now() - startCheck;
           statusIndicator.className = "text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold";
@@ -711,7 +727,7 @@
       document.getElementById('selectedServerLoginPassword').textContent = '-';
       document.getElementById('selectedServerLoginEmail').textContent = '-';
       document.getElementById('selectedServerPanelHint').textContent = 'Bonyeza Fungua Panel au tumia vitufe upande wa kulia.';
-      ['powerStartBtn', 'powerStopBtn', 'powerRestartBtn', 'openPanelBtn', 'deleteServerBtn', 'selectedServerNotice'].forEach((id) => document.getElementById(id)?.classList.add('hidden'));
+      ['powerStartBtn', 'powerStopBtn', 'powerRestartBtn', 'openPanelBtn', 'deleteServerBtn', 'selectedServerNotice', 'loadServerLogsBtn', 'createBackupBtn', 'loadBackupsBtn'].forEach((id) => document.getElementById(id)?.classList.add('hidden'));
     }
 
     async function selectServer(serverId) {
@@ -746,7 +762,8 @@
       document.getElementById('selectedServerLoginEmail').textContent = '...';
 
       // show power/delete controls but keep openPanelBtn hidden until we confirm a panel URL
-      ['powerStartBtn', 'powerStopBtn', 'powerRestartBtn', 'deleteServerBtn', 'selectedServerNotice'].forEach((id) => document.getElementById(id)?.classList.remove('hidden'));
+      ['powerStartBtn', 'powerStopBtn', 'powerRestartBtn', 'deleteServerBtn', 'selectedServerNotice', 'loadServerLogsBtn', 'createBackupBtn', 'loadBackupsBtn'].forEach((id) => document.getElementById(id)?.classList.remove('hidden'));
+      document.getElementById('serverBackupList')?.classList.add('hidden');
       document.getElementById('openPanelBtn')?.classList.add('hidden');
       document.getElementById('openPanelBtn').textContent = '🖥️ Fungua Panel';
       document.getElementById('openPanelBtn').dataset.panelUrl = '';
@@ -764,7 +781,7 @@
           document.getElementById('openPanelBtn').dataset.panelUrl = panelUrl;
           document.getElementById('openPanelBtn')?.classList.remove('hidden');
           document.getElementById('selectedServerLoginUser').textContent = access.username || access.email || access.sftpUser || server.sftpUser || 'N/A';
-          document.getElementById('selectedServerLoginPassword').textContent = 'MICKEY24@';
+          document.getElementById('selectedServerLoginPassword').textContent = 'Tumia password ya panel';
           document.getElementById('selectedServerLoginEmail').textContent = access.email || 'N/A';
           document.getElementById('selectedServerPanelHint').textContent = 'Panel na login details zimetolewa kutoka kwenye server access API.';
           // Mirror into modal
@@ -773,12 +790,12 @@
           document.getElementById('modalOpenPanelBtn')?.classList.remove('hidden');
           document.getElementById('modalOpenPanelBtn').dataset.panelUrl = panelUrl;
           document.getElementById('modalSelectedServerLoginUser').textContent = access.username || access.email || access.sftpUser || server.sftpUser || 'N/A';
-          document.getElementById('modalSelectedServerLoginPassword').textContent = 'MICKEY24@';
+          document.getElementById('modalSelectedServerLoginPassword').textContent = 'Tumia password ya panel';
           document.getElementById('modalSelectedServerLoginEmail').textContent = access.email || 'N/A';
         } else {
           const errorBody = await accessRes.json().catch(() => ({}));
           document.getElementById('selectedServerLoginUser').textContent = 'N/A';
-          document.getElementById('selectedServerLoginPassword').textContent = 'MICKEY24@';
+          document.getElementById('selectedServerLoginPassword').textContent = 'Tumia password ya panel';
           document.getElementById('selectedServerLoginEmail').textContent = 'N/A';
           const panelEl = document.getElementById('selectedServerPanel');
           if (panelEl) panelEl.textContent = 'Haipatikani';
@@ -790,7 +807,7 @@
           if (modalPanelEl2) modalPanelEl2.textContent = 'Haipatikani';
           document.getElementById('modalOpenPanelBtn')?.classList.add('hidden');
           document.getElementById('modalSelectedServerLoginUser').textContent = 'N/A';
-          document.getElementById('modalSelectedServerLoginPassword').textContent = 'MICKEY24@';
+          document.getElementById('modalSelectedServerLoginPassword').textContent = 'Tumia password ya panel';
           document.getElementById('modalSelectedServerLoginEmail').textContent = 'N/A';
           document.getElementById('serverDetailsModalOverlay')?.classList.remove('hidden');
         }
@@ -890,6 +907,49 @@
     document.getElementById('powerRestartBtn')?.addEventListener('click', () => handleSelectedServerAction('restart'));
     document.getElementById('openPanelBtn')?.addEventListener('click', () => handleSelectedServerAction('openPanel'));
     document.getElementById('deleteServerBtn')?.addEventListener('click', () => handleSelectedServerAction('delete'));
+
+    async function loadServerBackups() {
+      if (!selectedServer) return;
+      const id = selectedServer.identifier || selectedServer.uuid || selectedServer.id;
+      const list = document.getElementById('serverBackupList');
+      if (!list) return;
+      list.classList.remove('hidden');
+      list.textContent = 'Inapakia backups...';
+      const response = await fetch(`/api/servers/${encodeURIComponent(id)}/backups`);
+      const data = await response.json();
+      if (!data.success) { list.textContent = data.error || 'Backups hazipatikani.'; return; }
+      const backups = data.data || [];
+      list.innerHTML = backups.length ? backups.map((item) => {
+        const backup = item.attributes || item;
+        return `<div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 py-2"><span>${backup.name || backup.uuid || 'Backup'} <small class="text-slate-500">${backup.completed_at || backup.created_at || ''}</small></span><button type="button" class="restore-backup-btn rounded-lg bg-amber-500/20 px-2 py-1 text-amber-300" data-backup-id="${backup.uuid || backup.id}">Restore</button></div>`;
+      }).join('') : 'Hakuna backup bado.';
+    }
+
+    document.getElementById('loadBackupsBtn')?.addEventListener('click', loadServerBackups);
+    document.getElementById('createBackupBtn')?.addEventListener('click', async () => {
+      if (!selectedServer) return;
+      const id = selectedServer.identifier || selectedServer.uuid || selectedServer.id;
+      const response = await fetch(`/api/servers/${encodeURIComponent(id)}/backups`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+      const data = await response.json();
+      showToast(data.success ? 'Backup imeanzishwa.' : (data.error || 'Backup imeshindikana.'), data.success ? 'success' : 'error', true);
+      if (data.success) loadServerBackups();
+    });
+    document.getElementById('serverBackupList')?.addEventListener('click', async (event) => {
+      const button = event.target.closest('.restore-backup-btn');
+      if (!button || !selectedServer) return;
+      const id = selectedServer.identifier || selectedServer.uuid || selectedServer.id;
+      const response = await fetch(`/api/servers/${encodeURIComponent(id)}/backups/${encodeURIComponent(button.dataset.backupId)}/restore`, { method: 'POST' });
+      const data = await response.json();
+      showToast(data.success ? 'Restore imeanzishwa.' : (data.error || 'Restore imeshindikana.'), data.success ? 'success' : 'error', true);
+    });
+    document.getElementById('loadServerLogsBtn')?.addEventListener('click', async () => {
+      if (!selectedServer) return;
+      const id = selectedServer.identifier || selectedServer.uuid || selectedServer.id;
+      const response = await fetch(`/api/servers/${encodeURIComponent(id)}/console`);
+      const data = await response.json();
+      if (data.success) showToast('Console connection token imepatikana kwa WebSocket client.', 'success', true);
+      else showToast(data.error || 'Console haipatikani.', 'error', true);
+    });
 
     // Copy to clipboard helper
     async function copyField(elementId) {
@@ -1020,7 +1080,17 @@
 
     createForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      formMessage.innerHTML = '<span class="text-indigo-400 animate-pulse">Inatengeneza container na kuunganisha live kwenye Pterodactyl daemon...</span>';
+      const progress = document.getElementById('deploymentProgress');
+      const updateProgress = (step) => {
+        progress?.classList.remove('hidden');
+        progress?.querySelectorAll('[data-deploy-step]').forEach((item) => {
+          const active = item.dataset.deployStep === step;
+          item.classList.toggle('text-cyan-300', active);
+          item.classList.toggle('font-semibold', active);
+        });
+      };
+      updateProgress('payment');
+      formMessage.innerHTML = '<span class="text-indigo-400 animate-pulse">Inathibitisha malipo na kuandaa deployment...</span>';
       
       const packageId = document.getElementById('packageSelect').value;
       const packageInfo = globalPackages.find(p => (p._id || p.id) === packageId) || {};
@@ -1051,6 +1121,7 @@
       };
 
       try {
+        updateProgress('server');
         const res = await fetch('/api/payment/checkout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1072,6 +1143,9 @@
             });
           }
         } else if (data.success && data.data?.server) {
+          updateProgress('repo');
+          await new Promise((resolve) => setTimeout(resolve, 350));
+          updateProgress('start');
           formMessage.innerHTML = '<span class="text-emerald-400 font-bold">✅ Server imeundwa kikamilifu kwenye Pterodactyl!</span>';
           if (data.data?.remainingCoins !== undefined) setUserCoins(data.data.remainingCoins);
           createForm.reset();
