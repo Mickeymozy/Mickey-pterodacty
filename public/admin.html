@@ -27,9 +27,16 @@
     }
     .tab-content { display: none; }
     .tab-content.active { display: block; }
-    .admin-nav { overflow-x: auto; scrollbar-width: thin; }
-    .admin-nav .tab-button { flex: 0 0 auto; white-space: nowrap; }
-    @media (max-width: 640px) { .admin-nav { flex-wrap: nowrap; position: sticky; top: .5rem; z-index: 30; padding: .5rem; background: rgba(7, 17, 31, .94); backdrop-filter: blur(14px); border-radius: 1rem; } }
+    .admin-nav { overflow-x: auto; scrollbar-width: thin; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: .5rem; }
+    .admin-nav .tab-button { min-height: 2.75rem; white-space: nowrap; }
+    .admin-section { animation: adminReveal .35s ease both; }
+    .admin-section + .admin-section { margin-top: 1.5rem; }
+    @keyframes adminReveal { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    @media (max-width: 1024px) { .admin-nav { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+    @media (max-width: 640px) {
+      .admin-nav { grid-template-columns: repeat(5, max-content); display: flex; flex-wrap: nowrap; position: sticky; top: .5rem; z-index: 30; padding: .5rem; background: rgba(7, 17, 31, .94); backdrop-filter: blur(14px); border-radius: 1rem; }
+      .admin-nav .tab-button { padding-left: .75rem; padding-right: .75rem; }
+    }
     ::-webkit-scrollbar { width: 8px; height: 8px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: rgba(99,102,241,.4); border-radius: 8px; }
@@ -71,9 +78,9 @@
     <div class="absolute bottom-0 right-1/3 h-72 w-72 rounded-full bg-cyan-500/5 blur-3xl"></div>
   </div>
 
-  <div class="relative mx-auto max-w-7xl px-4 py-6">
+  <div class="relative mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
     <!-- Header -->
-    <header class="glass rounded-2xl p-6 mb-6">
+    <header class="glass rounded-2xl p-6 mb-6 sm:p-7">
       <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p class="text-sm text-slate-400 font-medium">Sehemu ya Admin</p>
@@ -88,7 +95,7 @@
     </header>
 
     <!-- Stats -->
-    <section class="grid gap-4 grid-cols-2 sm:grid-cols-4 mb-6">
+    <section class="admin-section grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 mb-4">
       <div class="glass glass-hover rounded-2xl p-5">
         <p class="text-xs sm:text-sm text-slate-400 font-medium">Jumla ya Packages</p>
         <h2 id="statTotal" class="mt-2 text-2xl sm:text-3xl font-bold text-white">0</h2>
@@ -115,27 +122,33 @@
       </div>
     </section>
 
-    <section class="mb-6">
-      <div class="glass rounded-2xl p-4 max-w-sm">
+    <section class="admin-section mb-6">
+      <div class="glass flex flex-wrap items-center justify-between gap-3 rounded-2xl p-4 sm:p-5">
+        <div>
         <p class="text-xs text-slate-400">Jumla ya Malipo ya Nje (External)</p>
-        <h3 id="externalPaymentsTotal" class="mt-2 text-xl font-bold text-amber-400">Tsh 0</h3>
-        <p id="externalPaymentsCount" class="mt-1 text-[12px] text-slate-400">Vitu: 0</p>
+        <p class="mt-1 text-[12px] text-slate-500">Malipo yaliyopokelewa nje ya mfumo</p>
+        </div>
+        <div class="text-left sm:text-right">
+          <h3 id="externalPaymentsTotal" class="text-xl font-bold text-amber-400">Tsh 0</h3>
+          <p id="externalPaymentsCount" class="mt-1 text-[12px] text-slate-400">Vitu: 0</p>
+        </div>
       </div>
     </section>
 
     <!-- Navigation Tabs -->
-    <div class="glass rounded-2xl p-4 mb-6">
-          <div class="admin-nav flex flex-wrap gap-2">
+        <div class="admin-section glass rounded-2xl p-3 mb-6 sm:p-4">
+          <div class="admin-nav">
         <button class="tab-button active px-4 py-2 rounded-lg border border-slate-700/50 text-sm font-medium transition" onclick="switchTab(event, 'overview')">📊 Overview</button>
         <button class="tab-button px-4 py-2 rounded-lg border border-slate-700/50 text-sm font-medium transition" onclick="switchTab(event, 'packages')">📦 Packages</button>
         <button class="tab-button px-4 py-2 rounded-lg border border-slate-700/50 text-sm font-medium transition" onclick="switchTab(event, 'payments')">💳 Malipo</button>
         <button class="tab-button px-4 py-2 rounded-lg border border-slate-700/50 text-sm font-medium transition" onclick="switchTab(event, 'adminServers')">🖥️ Servers</button>
         <button class="tab-button px-4 py-2 rounded-lg border border-slate-700/50 text-sm font-medium transition" onclick="switchTab(event, 'users')">👥 Watumiaji</button>
+        <button class="tab-button px-4 py-2 rounded-lg border border-slate-700/50 text-sm font-medium transition" onclick="switchTab(event, 'activity')">🧾 Activity</button>
       </div>
     </div>
 
     <!-- Overview Tab -->
-    <div id="overview" class="tab-content active">
+    <div id="overview" class="tab-content active admin-section">
       <div class="grid gap-6 lg:grid-cols-2">
         <div class="glass rounded-2xl p-6">
           <h2 class="text-xl font-semibold text-white mb-4">📋 Taarifa za Mfumo</h2>
@@ -170,7 +183,7 @@
     </div>
 
     <!-- Packages Tab -->
-    <div id="packages" class="tab-content">
+    <div id="packages" class="tab-content admin-section">
       <div class="grid gap-6 lg:grid-cols-2">
         <!-- Create Form -->
         <div class="glass rounded-2xl p-6">
@@ -211,7 +224,7 @@
               <input type="text" id="pkgDocker" placeholder="Inasoma kutoka Pterodactyl..." class="w-full rounded-xl bg-slate-950/50 border border-slate-700/50 px-3 py-2 text-white outline-none focus:border-indigo-500">
             </div>
             <div class="grid grid-cols-2 gap-3">
-              <div><label class="block text-xs text-slate-400 mb-1">Egg ID</label><input type="number" id="pkgEggId" value="16" readonly class="w-full rounded-lg bg-slate-950/50 border border-slate-700/50 p-2 text-emerald-200"></div>
+              <div><label class="block text-xs text-slate-400 mb-1">Egg kutoka Pterodactyl</label><select id="pkgEggId" class="w-full rounded-lg bg-slate-950/50 border border-slate-700/50 p-2 text-emerald-200"><option value="">Inapakia eggs...</option></select></div>
               <div><label class="block text-xs text-slate-400 mb-1">Egg Name</label><input type="text" id="pkgEggName" value="Node.js" readonly class="w-full rounded-lg bg-slate-950/50 border border-slate-700/50 p-2 text-emerald-200"></div>
             </div>
             <div class="grid grid-cols-2 gap-3">
@@ -233,7 +246,7 @@
     </div>
 
     <!-- Payments Tab -->
-    <div id="payments" class="tab-content">
+    <div id="payments" class="tab-content admin-section">
       <div class="glass rounded-2xl p-6">
         <div class="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div>
@@ -258,7 +271,7 @@
     </div>
 
     <!-- Servers Tab -->
-    <div id="adminServers" class="tab-content">
+    <div id="adminServers" class="tab-content admin-section">
       <div class="glass rounded-2xl p-6 mb-6">
         <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
@@ -293,7 +306,7 @@
     </div>
 
     <!-- Users Tab -->
-    <div id="users" class="tab-content">
+    <div id="users" class="tab-content admin-section">
       <div class="glass rounded-2xl p-6 mb-6">
         <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
@@ -361,6 +374,24 @@
               </tr>
             </thead>
             <tbody id="usersList"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div id="activity" class="tab-content admin-section">
+      <div class="glass rounded-2xl p-6">
+        <div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 class="text-xl font-semibold text-white">🧾 Admin Activity</h2>
+            <p class="text-sm text-slate-400">Historia ya actions muhimu zilizofanywa kwenye mfumo.</p>
+          </div>
+          <button type="button" onclick="loadAuditLogs()" class="rounded-xl bg-slate-800 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-700">Refresh</button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm border-collapse">
+            <thead><tr class="border-b border-slate-800 text-slate-400 text-xs"><th class="py-2 px-4">Time</th><th class="py-2 px-4">Admin</th><th class="py-2 px-4">Action</th><th class="py-2 px-4">Details</th></tr></thead>
+            <tbody id="auditLogsList"><tr><td colspan="4" class="p-4 text-center text-slate-500">Chagua Activity kupakia logs.</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -496,6 +527,12 @@
       showToast(message, type);
     }
 
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>'"]/g, (character) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+      }[character]));
+    }
+
     function switchTab(event, tabName) {
       document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
       document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
@@ -504,6 +541,7 @@
       if(tabName === 'payments') loadPayments();
       if(tabName === 'adminServers') loadAdminServers();
       if(tabName === 'users') loadUsers();
+      if(tabName === 'activity') loadAuditLogs();
     }
 
     function prefillAdminEmail(email) {
@@ -741,10 +779,13 @@
         }
 
         panelEggs = data.eggs;
-        const eggIds = panelEggs.map((egg) => String(egg.id));
-        const currentEggId = String(document.getElementById('pkgEggId').value || '16');
-        const selectedEgg = panelEggs.find((egg) => String(egg.id) === currentEggId) || panelEggs[0];
-        document.getElementById('pkgEggId').setAttribute('data-panel-egg-ids', eggIds.join(','));
+        const eggSelect = document.getElementById('pkgEggId');
+        const currentEggId = String(eggSelect.value || '16');
+        eggSelect.innerHTML = panelEggs.map((egg) =>
+          `<option value="${egg.id}">${egg.name} (ID: ${egg.id})</option>`
+        ).join('');
+        eggSelect.value = panelEggs.some((egg) => String(egg.id) === currentEggId) ? currentEggId : String(panelEggs[0].id);
+        const selectedEgg = panelEggs.find((egg) => String(egg.id) === String(eggSelect.value)) || panelEggs[0];
         applyPanelEgg(selectedEgg);
       } catch (error) {
         if (syncMessage) syncMessage.textContent = `Sync ya Pterodactyl imefeli: ${error.message}`;
@@ -829,6 +870,26 @@
           `).join('');
         }
       } catch(e) { console.error(e); }
+    }
+
+    async function loadAuditLogs() {
+      const tbody = document.getElementById('auditLogsList');
+      if (!tbody) return;
+      try {
+        const res = await fetch(`${API_URL}/user/admin/audit-logs?limit=100`);
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.message || 'Audit logs unavailable');
+        tbody.innerHTML = data.data.length ? data.data.map((log) => `
+          <tr class="border-b border-slate-800/40 text-xs align-top">
+            <td class="py-2 px-4 text-slate-400">${new Date(log.createdAt).toLocaleString()}</td>
+            <td class="py-2 px-4 text-slate-200">${log.actor?.username || log.actor?.email || 'Admin'}</td>
+            <td class="py-2 px-4 font-semibold text-indigo-300">${log.action}</td>
+            <td class="py-2 px-4 text-slate-400">${escapeHtml(JSON.stringify(log.details || {}))}</td>
+          </tr>
+        `).join('') : '<tr><td colspan="4" class="p-4 text-center text-slate-500">Hakuna activity logs.</td></tr>';
+      } catch (error) {
+        tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-red-400">${error.message}</td></tr>`;
+      }
     }
 
     let adminServerList = [];
@@ -967,10 +1028,14 @@
         document.getElementById('pkgRam').value = pkg.specifications?.ram || '';
         document.getElementById('pkgDisk').value = pkg.specifications?.disk || '';
         document.getElementById('pkgDocker').value = pkg.serverConfig?.dockerImage || '';
-        document.getElementById('pkgEggId').value = pkg.serverConfig?.eggId || 16;
+        const savedEggId = String(pkg.serverConfig?.eggId || 16);
+        const eggSelect = document.getElementById('pkgEggId');
+        eggSelect.value = savedEggId;
         document.getElementById('pkgEggName').value = pkg.serverConfig?.eggName || 'Node.js';
         document.getElementById('pkgStartupFile').value = pkg.serverConfig?.startupFile || 'index.js';
         document.getElementById('pkgStartupCommand').value = pkg.serverConfig?.startupCommand || 'npm start';
+        const selectedPanelEgg = panelEggs.find((egg) => String(egg.id) === savedEggId);
+        if (selectedPanelEgg) applyPanelEgg(selectedPanelEgg);
         document.getElementById('pkgFormMsg').textContent = 'Hariri package yako kwa sasa';
         document.getElementById('pkgFormMsg').className = 'text-xs text-amber-400';
       } catch (e) {

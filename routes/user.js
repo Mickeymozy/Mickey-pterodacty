@@ -6,6 +6,8 @@ const ServerPackage = require('../models/ServerPackage');
 const Transaction = require('../models/Transaction');
 const sendEmail = require('../utils/email');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { writeAuditLog } = require('../utils/auditLog');
+const AuditLog = require('../models/AuditLog');
 
 const PTERODACTYL_URL = process.env.PTERODACTYL_URL?.replace(/\/$/, '');
 const PTERODACTYL_APP_API_KEY = process.env.PTERODACTYL_APP_API_KEY;
@@ -168,6 +170,12 @@ router.put('/users/:id/coins', requireAuth, requireAdmin, async (req, res) => {
       completedAt: new Date()
     });
     await transaction.save();
+    await writeAuditLog(req, 'user.coins_adjusted', { type: 'User', id: user._id }, {
+      amount,
+      oldCoins,
+      newCoins: user.coins,
+      reason: reason || 'Admin adjustment'
+    });
 
     res.json({
       success: true,
@@ -177,6 +185,20 @@ router.put('/users/:id/coins', requireAuth, requireAdmin, async (req, res) => {
   } catch (error) {
     console.error('Error updating coins:', error);
     res.status(500).json({ success: false, message: 'Error updating coins' });
+  }
+});
+
+router.get('/admin/audit-logs', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 200);
+    const logs = await AuditLog.find()
+      .populate('actor', 'username email')
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean();
+    res.json({ success: true, data: logs });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error fetching audit logs' });
   }
 });
 

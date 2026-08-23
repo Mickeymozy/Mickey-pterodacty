@@ -13,7 +13,7 @@ const transactionSchema = new mongoose.Schema({
   
   type: {
     type: String,
-    enum: ['payment', 'refund', 'purchase', 'reward', 'admin_adjustment'],
+    enum: ['payment', 'refund', 'purchase', 'reward', 'admin_adjustment', 'generic'],
     required: true
   },
 
@@ -25,7 +25,7 @@ const transactionSchema = new mongoose.Schema({
 
   currency: {
     type: String,
-    enum: ['USD', 'coins'],
+    enum: ['USD', 'TZS', 'coins'],
     default: 'coins'
   },
 
@@ -37,7 +37,7 @@ const transactionSchema = new mongoose.Schema({
 
   status: {
     type: String,
-    enum: ['pending', 'completed', 'failed', 'refunded'],
+    enum: ['pending', 'processing', 'completed', 'failed', 'refunded'],
     default: 'pending'
   },
 

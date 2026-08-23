@@ -7,6 +7,7 @@ const router = express.Router();
 const ServerPackage = require('../models/ServerPackage');
 const User = require('../models/User');
 const { isAdminUser } = require('../middleware/auth');
+const { writeAuditLog } = require('../utils/auditLog');
 
 const adminOnly = (req, res, next) => {
   if (!req.user || !isAdminUser(req.user)) {
@@ -107,6 +108,7 @@ router.post('/packages', adminOnly, async (req, res) => {
     });
 
     await newPackage.save();
+    await writeAuditLog(req, 'package.created', { type: 'ServerPackage', id: newPackage._id }, { name: newPackage.name });
 
     res.status(201).json({
       success: true,
@@ -155,6 +157,7 @@ router.put('/packages/:id', adminOnly, async (req, res) => {
     if (typeof isPopular === 'boolean') pkg.isPopular = isPopular;
 
     await pkg.save();
+    await writeAuditLog(req, 'package.updated', { type: 'ServerPackage', id: pkg._id }, { name: pkg.name });
 
     res.json({
       success: true,
@@ -173,6 +176,7 @@ router.delete('/packages/:id', adminOnly, async (req, res) => {
     if (!pkg) {
       return res.status(404).json({ success: false, message: 'Package not found' });
     }
+    await writeAuditLog(req, 'package.deleted', { type: 'ServerPackage', id: pkg._id }, { name: pkg.name });
 
     res.json({
       success: true,

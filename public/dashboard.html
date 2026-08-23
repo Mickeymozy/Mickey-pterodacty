@@ -175,6 +175,7 @@
         <button class="tab-button active px-3 py-1 rounded-lg border border-slate-700/50 text-xs font-medium transition" onclick="switchDashTab(event, 'my-servers')">🎮 Server Zangu</button>
         <button class="tab-button px-3 py-1 rounded-lg border border-slate-700/50 text-xs font-medium transition" onclick="switchDashTab(event, 'deploy-panel')">🚀 Unda Server</button>
         <button class="tab-button px-3 py-1 rounded-lg border border-slate-700/50 text-xs font-medium transition" onclick="switchDashTab(event, 'buy-coins')">🪙 Nunua Coins</button>
+        <button class="tab-button px-3 py-1 rounded-lg border border-slate-700/50 text-xs font-medium transition" onclick="switchDashTab(event, 'transactions')">🧾 Transactions</button>
       </div>
     </div>
 
@@ -265,6 +266,24 @@
         </div>
       </div>
     </div>
+
+      <div id="transactions" class="tab-content space-y-4">
+        <div class="glass rounded-2xl p-6">
+          <div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 class="text-xl font-semibold text-white">Historia ya Transactions</h2>
+              <p class="text-xs text-slate-400">Angalia malipo, purchases na coin top-ups za akaunti yako.</p>
+            </div>
+            <button type="button" onclick="loadTransactions()" class="rounded-xl bg-slate-800 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-700">Refresh</button>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm border-collapse">
+              <thead><tr class="border-b border-slate-800 text-slate-400 text-xs"><th class="py-2 px-3">Tarehe</th><th class="py-2 px-3">Maelezo</th><th class="py-2 px-3">Kiasi</th><th class="py-2 px-3">Status</th></tr></thead>
+              <tbody id="transactionsList"><tr><td colspan="4" class="p-4 text-center text-slate-500">Inapakia transactions...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
 
       <div id="deploy-panel" class="tab-content space-y-4">
         <div class="glass rounded-2xl border border-slate-800/70 bg-slate-950/60 p-6 shadow-2xl shadow-slate-950/30">
@@ -586,6 +605,7 @@
       if(event) event.currentTarget.classList.add('active');
       
       if (tabName === 'deploy-panel') fetchConfigs();
+      if (tabName === 'transactions') loadTransactions();
       const detailsSection = document.getElementById('server-details');
       if (tabName === 'my-servers' && selectedServer) {
         detailsSection?.classList.remove('hidden');
@@ -711,6 +731,29 @@
         renderServerList();
       } catch (e) {
         serverList.innerHTML = `<p class="text-xs text-red-400 text-center">Hitilafu: Imeshindwa kusoma data halisi kutoka Pterodactyl Node.</p>`;
+      }
+    }
+
+    async function loadTransactions() {
+      const list = document.getElementById('transactionsList');
+      if (!list) return;
+      try {
+        const res = await fetch('/api/payment/transactions?limit=50');
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.message || 'Transactions hazipatikani.');
+        list.innerHTML = data.data.length ? data.data.map((transaction) => {
+          const status = String(transaction.status || 'pending').toLowerCase();
+          const statusClass = status === 'completed' ? 'text-emerald-400' : status === 'failed' ? 'text-red-400' : 'text-amber-400';
+          const currency = transaction.currency || 'coins';
+          return `<tr class="border-b border-slate-800/40 text-xs">
+            <td class="py-2 px-3 text-slate-400">${new Date(transaction.createdAt).toLocaleString()}</td>
+            <td class="py-2 px-3 text-slate-200">${transaction.packageId?.name || transaction.description || transaction.type || 'Transaction'}</td>
+            <td class="py-2 px-3 text-slate-200">${Number(transaction.amount || 0).toLocaleString()} ${currency}</td>
+            <td class="py-2 px-3 font-semibold uppercase ${statusClass}">${status}</td>
+          </tr>`;
+        }).join('') : '<tr><td colspan="4" class="p-4 text-center text-slate-500">Hakuna transactions bado.</td></tr>';
+      } catch (error) {
+        list.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-red-400">${error.message}</td></tr>`;
       }
     }
 

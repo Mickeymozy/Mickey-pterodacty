@@ -60,7 +60,6 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -132,6 +131,8 @@ app.get('/admin.html', requireAuth, requireAdmin, (req, res) => {
 app.get('/admin', requireAuth, requireAdmin, (req, res) => {
   res.redirect('/admin.html');
 });
+
+app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/', requireAuth, (req, res) => {
   res.redirect('/dashboard.html');

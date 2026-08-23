@@ -6,6 +6,7 @@ const User = require('../models/User');
 const sendEmail = require('../utils/email');
 const { requireAuth, requireAdmin, isAdminUser } = require('../middleware/auth');
 const { createServerFromPackage, isValidGitUrl } = require('../utils/serverHelper');
+const { writeAuditLog } = require('../utils/auditLog');
 
 const PTERODACTYL_URL = process.env.PTERODACTYL_URL?.replace(/\/$/, '');
 const PTERODACTYL_APP_API_KEY = process.env.PTERODACTYL_APP_API_KEY;
@@ -582,6 +583,8 @@ router.post(['/admin/servers/:id/:action', '/api/admin/servers/:id/:action'], re
         text
       });
     }
+
+    await writeAuditLog(req, `server.${action}`, { type: 'PterodactylServer', id: ref.id }, { serverName, reason });
 
     res.json({ success: true, message: `Server ${action} operation completed.`, data: { server: attrs, owner: ownerContact } });
   } catch (err) {

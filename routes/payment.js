@@ -11,6 +11,7 @@ const User = require('../models/User');
 const { createServerFromPackage } = require('../utils/serverHelper');
 const sendEmail = require('../utils/email');
 const axios = require('axios');
+const { writeAuditLog } = require('../utils/auditLog');
 const PTERODACTYL_URL = process.env.PTERODACTYL_URL?.replace(/\/$/, '');
 const PTERODACTYL_APP_API_KEY = process.env.PTERODACTYL_APP_API_KEY;
 const appApi = PTERODACTYL_URL && PTERODACTYL_APP_API_KEY ? axios.create({ baseURL: `${PTERODACTYL_URL}/api/application`, headers: { Authorization: `Bearer ${PTERODACTYL_APP_API_KEY}`, 'Content-Type': 'application/json', Accept: 'application/json' }, timeout: 10000 }) : null;
@@ -1042,10 +1043,19 @@ router.get('/admin/summary', requireAdmin, async (req, res) => {
 });
 
 router.post('/admin/:transactionId/approve', requireAdmin, async (req, res) => {
+  let transaction;
   try {
-    const transaction = await Transaction.findById(req.params.transactionId);
+    transaction = await Transaction.findOneAndUpdate(
+      { _id: req.params.transactionId, status: 'pending' },
+      { $set: { status: 'processing', processedBy: req.user?._id } },
+      { new: true }
+    );
     if (!transaction) {
-      return res.status(404).json({ success: false, message: 'Transaction not found' });
+      const existing = await Transaction.findById(req.params.transactionId).select('status');
+      if (!existing) {
+        return res.status(404).json({ success: false, message: 'Transaction not found' });
+      }
+      return res.status(409).json({ success: false, message: `Transaction is already ${existing.status}.` });
     }
 
     const user = await User.findById(transaction.userId);
@@ -1060,6 +1070,7 @@ router.post('/admin/:transactionId/approve', requireAdmin, async (req, res) => {
       transaction.notes = transaction.notes || 'Approved manually by admin';
       transaction.processedBy = req.user?._id;
       await transaction.save();
+      await writeAuditLog(req, 'payment.approved', { type: 'Transaction', id: transaction._id }, { type: transaction.type, amount: transaction.amount });
 
       await sendEmail({
         to: user.email,
@@ -1093,6 +1104,7 @@ router.post('/admin/:transactionId/approve', requireAdmin, async (req, res) => {
       transaction.status = 'completed';
       transaction.completedAt = new Date();
       await transaction.save();
+      await writeAuditLog(req, 'payment.approved_server_created', { type: 'Transaction', id: transaction._id }, { serverId: transaction.serverId });
       await notifyUserAboutPayment(user, transaction, pkg, serverData);
 
       return res.json({ success: true, message: 'Payment approved and server created', data: { server: serverData?.server } });
@@ -1108,11 +1120,17 @@ router.post('/admin/:transactionId/approve', requireAdmin, async (req, res) => {
     transaction.notes = transaction.notes || 'Approved manually by admin';
     transaction.processedBy = req.user?._id;
     await transaction.save();
+    await writeAuditLog(req, 'payment.approved_coins_credited', { type: 'Transaction', id: transaction._id }, { coins: coinsToAdd, userId: user._id });
 
     await notifyUserAboutPayment(user, transaction, { name: 'Coins Top-up' }, null);
 
     res.json({ success: true, message: 'Payment approved and coins credited', data: { coins: user.coins } });
   } catch (error) {
+    if (transaction?._id && transaction.status === 'processing') {
+      await Transaction.findByIdAndUpdate(transaction._id, {
+        $set: { status: 'failed', notes: error.message || 'Fulfillment failed.' }
+      }).catch(() => {});
+    }
     res.status(500).json({ success: false, message: error.message });
   }
 });
