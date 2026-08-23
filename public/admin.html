@@ -9,21 +9,21 @@
     @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
     * { font-family: 'DM Sans', sans-serif; }
     h1, h2, h3, h4 { font-family: 'Space Grotesk', sans-serif; }
-    body { background: #07111f; background-image: linear-gradient(rgba(54, 211, 153, .035) 1px, transparent 1px), linear-gradient(90deg, rgba(54, 211, 153, .035) 1px, transparent 1px); background-size: 32px 32px; }
+    body { background: #101315; background-image: linear-gradient(rgba(148, 163, 184, .035) 1px, transparent 1px), linear-gradient(90deg, rgba(148, 163, 184, .035) 1px, transparent 1px); background-size: 36px 36px; }
     .glass {
-      background: rgba(255, 255, 255, 0.03);
-      backdrop-filter: blur(20px);
-      border: 1px solid rgba(255, 255, 255, 0.06);
+      background: rgba(24, 29, 31, 0.92);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(148, 163, 184, 0.13);
     }
     .glass-hover { transition: transform .25s ease, border-color .25s ease, box-shadow .25s ease; }
-    .glass-hover:hover { transform: translateY(-2px); border-color: rgba(99,102,241,.35); box-shadow: 0 12px 30px rgba(0,0,0,.35); }
-    .gradient-text { background: linear-gradient(135deg, #5eead4, #38bdf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .glass-hover:hover { transform: translateY(-2px); border-color: rgba(45,212,191,.42); box-shadow: 0 14px 30px rgba(0,0,0,.25); }
+    .gradient-text { color: #f8fafc; }
     .tab-button { transition: all 0.3s ease; }
     .tab-button.active {
-      background: #6366f1;
-      border-color: #6366f1;
-      color: white;
-      box-shadow: 0 4px 15px rgba(99,102,241,.3);
+      background: #14b8a6;
+      border-color: #14b8a6;
+      color: #071312;
+      box-shadow: 0 4px 15px rgba(20,184,166,.2);
     }
     .tab-content { display: none; }
     .tab-content.active { display: block; }
@@ -34,16 +34,16 @@
     @keyframes adminReveal { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
     @media (max-width: 1024px) { .admin-nav { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
     @media (max-width: 640px) {
-      .admin-nav { grid-template-columns: repeat(5, max-content); display: flex; flex-wrap: nowrap; position: sticky; top: .5rem; z-index: 30; padding: .5rem; background: rgba(7, 17, 31, .94); backdrop-filter: blur(14px); border-radius: 1rem; }
+      .admin-nav { grid-template-columns: repeat(6, max-content); display: flex; flex-wrap: nowrap; position: sticky; top: .5rem; z-index: 30; padding: .5rem; background: rgba(16, 19, 21, .96); backdrop-filter: blur(12px); border-radius: .75rem; }
       .admin-nav .tab-button { padding-left: .75rem; padding-right: .75rem; }
     }
     ::-webkit-scrollbar { width: 8px; height: 8px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: rgba(99,102,241,.4); border-radius: 8px; }
-    ::-webkit-scrollbar-thumb:hover { background: rgba(99,102,241,.6); }
+    ::-webkit-scrollbar-thumb { background: rgba(45,212,191,.35); border-radius: 8px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(45,212,191,.58); }
   </style>
 </head>
-<body class="min-h-screen bg-[#0a0a14] text-slate-50">
+<body class="min-h-screen bg-[#101315] text-slate-50">
   <div id="adminAccessOverlay" class="fixed inset-0 z-[110] hidden items-center justify-center bg-slate-950/70 px-4 py-8 backdrop-blur-md">
     <div class="w-full max-w-md rounded-[28px] border border-red-500/30 bg-slate-900/95 p-6 text-center shadow-2xl shadow-black/40">
       <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-red-500/30 bg-red-500/10 text-2xl">⛔</div>
