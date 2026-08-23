@@ -208,16 +208,17 @@
             </div>
             <div>
               <label class="block text-xs font-medium text-slate-300 mb-1">Docker Image</label>
-              <input type="text" id="pkgDocker" placeholder="ghcr.io/parkervcp/yolks:nodejs_21" class="w-full rounded-xl bg-slate-950/50 border border-slate-700/50 px-3 py-2 text-white outline-none focus:border-indigo-500">
+              <input type="text" id="pkgDocker" placeholder="Inasoma kutoka Pterodactyl..." class="w-full rounded-xl bg-slate-950/50 border border-slate-700/50 px-3 py-2 text-white outline-none focus:border-indigo-500">
             </div>
             <div class="grid grid-cols-2 gap-3">
-              <div><label class="block text-xs text-slate-400 mb-1">Egg ID</label><input type="number" id="pkgEggId" value="16" class="w-full rounded-lg bg-slate-950/50 border border-slate-700/50 p-2 text-white"></div>
-              <div><label class="block text-xs text-slate-400 mb-1">Egg Name</label><input type="text" id="pkgEggName" value="Node.js" class="w-full rounded-lg bg-slate-950/50 border border-slate-700/50 p-2 text-white"></div>
+              <div><label class="block text-xs text-slate-400 mb-1">Egg ID</label><input type="number" id="pkgEggId" value="16" readonly class="w-full rounded-lg bg-slate-950/50 border border-slate-700/50 p-2 text-emerald-200"></div>
+              <div><label class="block text-xs text-slate-400 mb-1">Egg Name</label><input type="text" id="pkgEggName" value="Node.js" readonly class="w-full rounded-lg bg-slate-950/50 border border-slate-700/50 p-2 text-emerald-200"></div>
             </div>
             <div class="grid grid-cols-2 gap-3">
-              <div><label class="block text-xs text-slate-400 mb-1">Startup File</label><input type="text" id="pkgStartupFile" value="index.js" class="w-full rounded-lg bg-slate-950/50 border border-slate-700/50 p-2 text-white"></div>
-              <div><label class="block text-xs text-slate-400 mb-1">Startup Command</label><input type="text" id="pkgStartupCommand" value="npm start" class="w-full rounded-lg bg-slate-950/50 border border-slate-700/50 p-2 text-white"></div>
+              <div><label class="block text-xs text-slate-400 mb-1">Startup File</label><input type="text" id="pkgStartupFile" value="index.js" readonly class="w-full rounded-lg bg-slate-950/50 border border-slate-700/50 p-2 text-emerald-200"></div>
+              <div><label class="block text-xs text-slate-400 mb-1">Startup Command</label><input type="text" id="pkgStartupCommand" value="npm start" readonly class="w-full rounded-lg bg-slate-950/50 border border-slate-700/50 p-2 text-emerald-200"></div>
             </div>
+            <p id="pkgRuntimeSyncMsg" class="text-xs text-slate-500">Inasubiri data ya egg kutoka Pterodactyl...</p>
             <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 rounded-lg transition">Save Package</button>
             <p id="pkgFormMsg" class="text-xs"></p>
           </form>
@@ -711,6 +712,51 @@
       } catch(e) { console.error(e); }
     }
 
+    let panelEggs = [];
+
+    function applyPanelEgg(egg) {
+      if (!egg) return;
+      const environment = egg.environment || {};
+      const startupFile = environment.MAIN_FILE || environment.PY_FILE || environment.SERVER_JARFILE ||
+        (Number(egg.id) === 27 ? 'main.py' : Number(egg.id) === 28 ? 'server.jar' : 'index.js');
+      const startupCommand = egg.startup_command ||
+        (Number(egg.id) === 27 ? 'python3 main.py' : Number(egg.id) === 28 ? 'java -jar server.jar' : 'npm start');
+
+      document.getElementById('pkgDocker').value = egg.docker_image || '';
+      document.getElementById('pkgEggId').value = egg.id || '';
+      document.getElementById('pkgEggName').value = egg.name || '';
+      document.getElementById('pkgStartupFile').value = startupFile;
+      document.getElementById('pkgStartupCommand').value = startupCommand;
+      document.getElementById('pkgRuntimeSyncMsg').textContent =
+        `Runtime synced kutoka Pterodactyl: ${egg.name || 'Egg'} (${egg.id}).`;
+    }
+
+    async function loadPanelEggs() {
+      const syncMessage = document.getElementById('pkgRuntimeSyncMsg');
+      try {
+        const res = await fetch(`${API_URL}/eggs`);
+        const data = await res.json();
+        if (!res.ok || !data.success || !Array.isArray(data.eggs) || !data.eggs.length) {
+          throw new Error(data.error || 'Hakuna egg zilizopatikana kwenye Pterodactyl.');
+        }
+
+        panelEggs = data.eggs;
+        const eggIds = panelEggs.map((egg) => String(egg.id));
+        const currentEggId = String(document.getElementById('pkgEggId').value || '16');
+        const selectedEgg = panelEggs.find((egg) => String(egg.id) === currentEggId) || panelEggs[0];
+        document.getElementById('pkgEggId').setAttribute('data-panel-egg-ids', eggIds.join(','));
+        applyPanelEgg(selectedEgg);
+      } catch (error) {
+        if (syncMessage) syncMessage.textContent = `Sync ya Pterodactyl imefeli: ${error.message}`;
+        notify('Imeshindikana kusoma Docker/Egg/Startup kutoka Pterodactyl.', 'error');
+      }
+    }
+
+    document.getElementById('pkgEggId')?.addEventListener('change', () => {
+      const egg = panelEggs.find((item) => String(item.id) === String(document.getElementById('pkgEggId').value));
+      if (egg) applyPanelEgg(egg);
+    });
+
     async function loadPayments() {
       try {
         const res = await fetch(`${API_URL}/payment/admin/all`);
@@ -977,7 +1023,7 @@
     });
 
     enforceAdminAccess();
-    loadStats(); loadPackages(); loadPayments(); loadUsers(); loadAdminServers(); loadPaymentSummary();
+    loadStats(); loadPackages(); loadPanelEggs(); loadPayments(); loadUsers(); loadAdminServers(); loadPaymentSummary();
   </script>
 </body>
 </html>

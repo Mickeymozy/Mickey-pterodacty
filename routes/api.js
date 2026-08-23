@@ -320,6 +320,7 @@ async function fetchEggDetails(eggConfig) {
       ...eggConfig,
       docker_image: attrs.docker_image || eggConfig.docker_image,
       startup: attrs.startup || eggConfig.startup,
+      startup_command: attrs.environment?.STARTUP_CMD || eggConfig.startup_command || '',
       environment: {
         ...(eggConfig.environment || {}),
         ...(attrs.environment || {}),
@@ -682,7 +683,19 @@ router.get('/api/eggs', requireAuth, async (req, res) => {
 
   try {
     const eggs = await fetchPanelEggOptions();
-    res.json({ success: true, eggs });
+    const syncedEggs = await Promise.all(eggs.map((egg) => fetchEggDetails(egg)));
+    res.json({
+      success: true,
+      eggs: syncedEggs.map((egg) => ({
+        id: egg.id,
+        name: egg.name,
+        docker_image: egg.docker_image || '',
+        startup: egg.startup || '',
+        startup_command: egg.startup_command || egg.environment?.STARTUP_CMD || '',
+        environment: egg.environment || {},
+        nestId: egg.nestId
+      }))
+    });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message || 'Failed to fetch eggs.' });
   }
