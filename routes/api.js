@@ -5,7 +5,7 @@ const mongoose = require('mongoose');
 const User = require('../models/User');
 const sendEmail = require('../utils/email');
 const { requireAuth, requireAdmin, isAdminUser } = require('../middleware/auth');
-const { createServerFromPackage, isValidGitUrl } = require('../utils/serverHelper');
+const { createServerFromPackage, isValidGitUrl, buildStartupCommand } = require('../utils/serverHelper');
 const { writeAuditLog } = require('../utils/auditLog');
 
 const PTERODACTYL_URL = process.env.PTERODACTYL_URL?.replace(/\/$/, '');
@@ -735,9 +735,7 @@ router.post('/api/servers/create', requireAuth, async (req, res) => {
       botRepoUrl
     });
 
-    const resolvedStartupCommand = botRepoUrl
-      ? `set -e; if [ -z \"$BOT_REPO_URL\" ]; then echo \"[BOT_REPO] ERROR: BOT_REPO_URL is not set\"; exit 1; fi; if [ -d \"/home/container/.git\" ]; then cd /home/container && (git pull --depth=1 origin main || git pull --depth=1 origin master); else rm -rf /tmp/mickey-bot-repo && git clone --depth=1 \"$BOT_REPO_URL\" /tmp/mickey-bot-repo && cp -a /tmp/mickey-bot-repo/. /home/container/ && rm -rf /tmp/mickey-bot-repo; fi; cd /home/container && ${syncedStartupCommand}`
-      : syncedStartupCommand;
+    const resolvedStartupCommand = buildStartupCommand(syncedStartupCommand, botRepoUrl);
 
     const resolvedPteroId = await resolveAndSavePteroId(req.user);
     if (!resolvedPteroId) {

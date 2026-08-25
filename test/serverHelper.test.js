@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { buildPteroLimitsFromPackage, isValidGitUrl } = require('../utils/serverHelper');
+const { buildPteroLimitsFromPackage, isValidGitUrl, buildStartupCommand } = require('../utils/serverHelper');
 
 test('validates public git repository URLs', () => {
   assert.equal(isValidGitUrl('https://github.com/example/bot.git'), true);
@@ -18,4 +18,17 @@ test('converts package resources to Pterodactyl limits', () => {
     cpu: 100,
     oom_disabled: false
   });
+});
+
+test('keeps the startup command unchanged when no repository is configured', () => {
+  const startupCommand = 'npm start';
+  assert.equal(buildStartupCommand(startupCommand), startupCommand);
+});
+
+test('initializes a repository before running the original startup command', () => {
+  const startupCommand = 'npm start';
+  const repositoryStartup = buildStartupCommand(startupCommand, 'https://github.com/example/bot.git');
+
+  assert.match(repositoryStartup, /git clone --depth=1/);
+  assert.ok(repositoryStartup.endsWith('cd /home/container\nnpm start'));
 });
