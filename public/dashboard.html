@@ -24,6 +24,12 @@
     .tab-content { display: none; }
     .tab-content.active { display: block; }
     .toast-animate { animation: toast-pop 0.45s ease-out; }
+    .payment-success { animation: payment-success .55s ease-out both; }
+    @keyframes payment-success {
+      0% { opacity: 0; transform: translateY(10px) scale(.97); }
+      65% { opacity: 1; transform: translateY(-2px) scale(1.01); }
+      100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
     @keyframes toast-pop {
       0% { transform: translateY(-6px) scale(0.96); opacity: 0.5; }
       60% { transform: translateY(0) scale(1.03); opacity: 1; }
@@ -471,6 +477,22 @@
             </div>
             <button onclick="payProcessor()" class="w-full mt-4 bg-indigo-600 text-white font-bold py-2 rounded-lg text-xs transition uppercase">Wasilisha Maombi</button>
             <p id="topupMessage" class="mt-3 text-xs text-slate-400"></p>
+            <div id="paymentReceipt" class="payment-success hidden mt-4 rounded-2xl border border-emerald-400/25 bg-emerald-400/10 p-4">
+              <div class="flex items-center gap-3">
+                <div class="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-400 text-lg text-slate-950">✓</div>
+                <div>
+                  <p class="text-sm font-bold text-emerald-300">Malipo yamekamilika</p>
+                  <p class="text-[11px] text-slate-300">Risiti ya transaction yako</p>
+                </div>
+              </div>
+              <div class="mt-3 grid gap-2 text-xs text-slate-300 sm:grid-cols-2">
+                <p>Transaction: <strong id="receiptTransaction" class="text-white">-</strong></p>
+                <p>Kiasi: <strong id="receiptAmount" class="text-white">-</strong></p>
+                <p>Coins: <strong id="receiptCoins" class="text-amber-300">-</strong></p>
+                <p>Service: <strong id="receiptService" class="text-cyan-300">-</strong></p>
+              </div>
+              <p id="receiptDate" class="mt-3 text-[11px] text-slate-400"></p>
+            </div>
           </div>
         </div>
       </div>
@@ -1231,6 +1253,7 @@
           updateProgress('start');
           formMessage.innerHTML = '<span class="text-emerald-400 font-bold">✅ Server imeundwa kikamilifu kwenye Pterodactyl!</span>';
           if (data.data?.remainingCoins !== undefined) setUserCoins(data.data.remainingCoins);
+          showPaymentReceipt({ ...data.data, coinsAdded: data.data.coinsDeducted ? -data.data.coinsDeducted : 0 }, 'server');
           createForm.reset();
           setTimeout(() => { loadUser(); loadServers(); switchDashTab(null, 'my-servers'); }, 1500);
         } else {
@@ -1254,6 +1277,26 @@
       if (reviewSection) reviewSection.classList.toggle('hidden', mode !== 'review');
     }
 
+    function showPaymentReceipt(data = {}, type = 'coins') {
+      const receipt = document.getElementById('paymentReceipt');
+      if (!receipt) return;
+      const transactionId = data.transactionId || data.transaction?._id || '-';
+      const coins = data.coinsAdded ?? data.coins ?? 0;
+      const amount = data.amountTzs ? `Tsh ${Number(data.amountTzs).toLocaleString()}` : type === 'coins' ? `${Number(coins).toLocaleString()} coins` : 'Imekamilika';
+      const service = data.server?.name || data.server?.identifier || (type === 'coins' ? 'Coin top-up' : data.package || 'Server');
+      document.getElementById('receiptTransaction').textContent = transactionId;
+      document.getElementById('receiptAmount').textContent = amount;
+      document.getElementById('receiptCoins').textContent = type === 'server' && data.coinsDeducted
+        ? `${Number(data.coinsDeducted).toLocaleString()} coins used`
+        : `${Number(coins).toLocaleString()} coins added`;
+      document.getElementById('receiptService').textContent = service;
+      document.getElementById('receiptDate').textContent = new Date().toLocaleString();
+      receipt.classList.remove('hidden');
+      receipt.classList.remove('payment-success');
+      void receipt.offsetWidth;
+      receipt.classList.add('payment-success');
+    }
+
     async function pollPaymentVerification(transactionId, messageBox, { onComplete } = {}) {
       if (!transactionId) return;
 
@@ -1272,6 +1315,7 @@
             messageBox.innerHTML = `<span class="text-emerald-400 animate-pulse">${completedMessage}</span>`;
             showToast('✅ Malipo yamepokewa na umepokea coin kadhaa', 'success', true);
             if (verifyData.data?.userCoins !== undefined) setUserCoins(verifyData.data.userCoins);
+            showPaymentReceipt(verifyData.data, verifyData.data.server ? 'server' : 'coins');
             if (typeof onComplete === 'function') onComplete(verifyData);
             return;
           }
@@ -1342,16 +1386,16 @@
             messageBox.innerHTML = `<span class="text-emerald-400">${paymentMessage}</span>`;
             if (data.data?.transactionId) {
               await pollPaymentVerification(data.data.transactionId, messageBox, {
-                onComplete: () => loadUser()
+                onComplete: (verifiedData) => {
+                  showPaymentReceipt(verifiedData?.data || data.data, 'coins');
+                  loadUser();
+                }
               });
             }
           } else {
             const fallbackMessage = data.message || 'Maombi yako yamepokelewa. Admin ataapprove baada ya kuthibitisha malipo yako.';
             const instructions = data.data?.paymentInstructions ? `<div class="mt-2 text-xs text-slate-300">${data.data.paymentInstructions}</div>` : '';
             const tone = data.success === false ? 'text-red-400' : 'text-amber-400';
-            if (data.success) {
-              showToast('Malipo yamepokewa, umepokea coin kadhaa.', 'success', true);
-            }
             messageBox.innerHTML = `<span class="${tone}">⚠️ ${fallbackMessage}</span>${instructions}`;
           }
         } else {

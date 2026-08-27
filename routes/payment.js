@@ -46,6 +46,8 @@ async function notifyUserAboutPayment(user, transaction, packageDoc, serverData)
     subject: 'Payment completed successfully',
     html: emailBody,
     text: `Malipo yako yamekamilika. Server yako imeandaliwa na unaweza kuiona kwenye dashboard.`
+  }).catch((error) => {
+    console.error('Payment notification email failed:', error.message);
   });
 }
 
@@ -80,6 +82,74 @@ async function notifyUserAboutPendingPayment(user, transaction, packageDoc, requ
     html: `<p>Maombi yako ya ${requestType} yamepokelewa.</p><p>Admin atakagua na kukubali hivi karibuni.</p><p><strong>Transaction:</strong> ${transaction?._id || 'N/A'}</p><p><strong>Package:</strong> ${packageDoc?.name || 'N/A'}</p>`,
     text: `Your ${requestType} has been received and is waiting for admin approval.`
   });
+}
+
+async function fulfillSuccessfulTransaction(transactionId) {
+  const transaction = await Transaction.findOneAndUpdate(
+    { _id: transactionId, status: 'pending' },
+    { $set: { status: 'processing' } },
+    { new: true }
+  ).populate('packageId');
+
+  if (!transaction) {
+    const existing = await Transaction.findById(transactionId).populate('packageId');
+    if (!existing) throw new Error('Transaction not found');
+    return { transaction: existing, alreadyProcessed: true, userCoins: null };
+  }
+
+  try {
+    const user = await User.findById(transaction.userId);
+    if (!user) throw new Error('User not found');
+
+    const isTopup = transaction.metadata?.type === 'topup';
+    const isGeneric = transaction.type === 'generic' || transaction.metadata?.type === 'generic';
+    let userCoins = Number(user.coins || 0);
+    let serverData = null;
+
+    if (isTopup) {
+      const coinsToAdd = Number(transaction.metadata?.coinsAmount ?? transaction.amount ?? 0);
+      const updatedUser = await User.findByIdAndUpdate(
+        user._id,
+        { $inc: { coins: coinsToAdd } },
+        { new: true }
+      );
+      userCoins = Number(updatedUser?.coins || 0);
+      await notifyUserAboutPayment(updatedUser || user, transaction, { name: 'Coins Top-up' }, null);
+    } else if (!isGeneric && transaction.packageId) {
+      const serverName = transaction.metadata?.serverName || `${transaction.packageId.name}-${Date.now()}`;
+      serverData = await createServerFromPackage(user, transaction.packageId._id, serverName, {
+        sendEmail: false,
+        eggId: transaction.metadata?.eggId,
+        dockerImage: transaction.metadata?.dockerImage,
+        startupFile: transaction.metadata?.startupFile,
+        startupCommand: transaction.metadata?.startupCommand,
+        botRepoUrl: transaction.metadata?.botRepoUrl
+      });
+      transaction.serverId = serverData?.server?.identifier || serverData?.server?.id;
+      if (!user.servers) user.servers = [];
+      const { calculateExpirationDate } = require('../utils/paymentHelper');
+      user.servers.push({
+        packageId: transaction.packageId._id,
+        purchasedAt: new Date(),
+        expiresAt: calculateExpirationDate(transaction.packageId.pricing?.billingCycle || transaction.packageId.billingCycle)
+      });
+      await user.save();
+      await notifyUserAboutPayment(user, transaction, transaction.packageId, serverData);
+    } else {
+      await notifyUserAboutPendingPayment(user, transaction, { name: transaction.description }, 'generic payment');
+    }
+
+    transaction.status = 'completed';
+    transaction.completedAt = new Date();
+    transaction.notes = transaction.notes || 'Payment fulfilled successfully.';
+    await transaction.save();
+    return { transaction, alreadyProcessed: false, userCoins, serverData };
+  } catch (error) {
+    transaction.status = 'failed';
+    transaction.notes = `Payment received but fulfillment failed: ${error.message}`;
+    await transaction.save();
+    throw error;
+  }
 }
 
 /**
@@ -556,71 +626,22 @@ router.get('/verify/:transactionId', authenticate, async (req, res) => {
 
     if (verificationResult.success) {
       if (verificationResult.paymentStatus === 'completed' || verificationResult.paymentStatus === 'success' || verificationResult.paymentStatus === 'SUCCESS') {
-          const user = await User.findById(transaction.userId);
-        if (user) {
-          const isTopup = transaction.metadata?.type === 'topup';
-            const isGeneric = transaction.type === 'generic' || transaction.metadata?.type === 'generic';
-            const coinsToAdd = isGeneric ? 0 : isTopup ? (transaction.metadata?.coinsAmount || transaction.amount || 0) : (transaction.packageId?.pricing?.coinsCost || transaction.amount || 0);
-            if (!isGeneric) {
-              user.coins = (user.coins || 0) + coinsToAdd;
-            }
-
-          if (!isGeneric && !isTopup && transaction.packageId) {
-            if (!user.servers) user.servers = [];
-            const { calculateExpirationDate } = require('../utils/paymentHelper');
-            user.servers.push({
-              packageId: transaction.packageId._id,
-              purchasedAt: new Date(),
-              expiresAt: calculateExpirationDate(transaction.packageId.billingCycle)
-            });
+        const result = await fulfillSuccessfulTransaction(transactionId);
+        const completedTransaction = result.transaction;
+        const isTopup = completedTransaction.metadata?.type === 'topup';
+        const isGeneric = completedTransaction.type === 'generic' || completedTransaction.metadata?.type === 'generic';
+        res.json({
+          success: true,
+          message: result.alreadyProcessed ? 'Payment already fulfilled' : isTopup ? 'Payment verified and coins credited' : 'Payment verified and service delivered',
+          data: {
+            status: 'completed',
+            transactionId,
+            coinsAdded: isTopup ? Number(completedTransaction.metadata?.coinsAmount ?? completedTransaction.amount ?? 0) : 0,
+            userCoins: result.userCoins,
+            package: isGeneric ? 'Generic Payment' : completedTransaction.packageId?.name || 'Coins Top-up',
+            server: result.serverData?.server || null
           }
-
-          await user.save();
-
-          transaction.status = 'completed';
-          transaction.completedAt = new Date();
-          await transaction.save();
-
-          if (!isGeneric && !isTopup && transaction.packageId) {
-            try {
-              const serverName = transaction.metadata?.serverName || `${transaction.packageId.name}-${Date.now()}`;
-              const serverData = await createServerFromPackage(user, transaction.packageId._id, serverName, {
-                sendEmail: false,
-                eggId: transaction.metadata?.eggId,
-                dockerImage: transaction.metadata?.dockerImage,
-                startupFile: transaction.metadata?.startupFile,
-                startupCommand: transaction.metadata?.startupCommand,
-                botRepoUrl: transaction.metadata?.botRepoUrl
-              });
-              transaction.serverId = serverData?.server?.identifier || serverData?.server?.id;
-              transaction.notes = `Server created: ${serverName}`;
-              await transaction.save();
-              await notifyUserAboutPayment(user, transaction, transaction.packageId, serverData);
-            } catch (serverError) {
-              transaction.notes = transaction.notes || `Server creation failed: ${serverError.message}`;
-              await transaction.save();
-              console.error('Server creation after payment failed:', serverError.message);
-            }
-          } else if (isGeneric) {
-            await notifyUserAboutPendingPayment(user, transaction, { name: transaction.description }, 'generic payment');
-          } else {
-            await notifyUserAboutPayment(user, transaction, transaction.packageId || { name: 'Coins Top-up' }, null);
-          }
-
-          res.json({
-            success: true,
-            message: isGeneric ? 'Payment verified successfully' : 'Payment verified and coins credited',
-            data: {
-              status: 'completed',
-              transactionId,
-              coinsAdded: coinsToAdd,
-              userCoins: user.coins,
-              package: isGeneric ? 'Generic Payment' : transaction.packageId?.name || 'Coins Top-up'
-            }
-          });
-        } else {
-          res.status(404).json({ success: false, message: 'User not found' });
-        }
+        });
       } else if (verificationResult.paymentStatus === 'pending') {
         res.json({
           success: true,
@@ -846,33 +867,7 @@ router.post('/webhook', async (req, res) => {
     const shouldCredit = status === 'success' || status === 'completed' || status === 'succeeded';
 
     if (shouldCredit) {
-      const user = await User.findById(targetTransaction.userId);
-      if (user) {
-        // For generic payments, just mark complete; no coins/server creation
-        if (targetTransaction.type === 'generic') {
-          // Send simple payment confirmation email
-          await sendEmail({
-            to: user.email,
-            subject: 'Payment completed successfully',
-            html: `<p>Your payment for "${targetTransaction.description}" (Tsh ${targetTransaction.amount}) has been completed successfully.</p><p>Transaction ID: ${targetTransaction._id}</p>`,
-            text: `Your payment for "${targetTransaction.description}" has been completed.`
-          }).catch(err => console.error('Failed to send generic payment email:', err));
-        } else {
-          // For coin/server payments, add coins
-          const coinsToAdd = targetTransaction.amount;
-          user.coins = (user.coins || 0) + coinsToAdd;
-          await user.save();
-
-          const packageDoc = targetTransaction.packageId
-            ? await ServerPackage.findById(targetTransaction.packageId).catch(() => null)
-            : null;
-
-          await notifyUserAboutPayment(user, targetTransaction, packageDoc || { name: 'Coins Top-up' }, null);
-        }
-      }
-
-      targetTransaction.status = 'completed';
-      targetTransaction.completedAt = new Date();
+      await fulfillSuccessfulTransaction(targetTransaction._id);
     } else if (status === 'failed' || status === 'cancelled' || status === 'rejected' || status === 'usercancelled') {
       targetTransaction.status = 'failed';
     } else {
