@@ -126,9 +126,15 @@ async function sendVerificationMessage(user) {
 
   const sent = await sendEmail({
     to: user.email,
-    subject: 'Verify your account',
-    text: `Your verification code is ${code}`,
-    html: `<p>Your verification code is <strong>${code}</strong>. It expires in 5 minutes.</p>`
+    subject: 'Thibitisha akaunti yako',
+    text: `Msimbo wako wa kuthibitisha akaunti ni ${code}. Msimbo huu utaisha baada ya dakika 5.`,
+    html: `
+      <p style="margin:0 0 8px; color:#506466;">Karibu kwenye akaunti yako.</p>
+      <h1 style="margin:0 0 18px; color:#173638; font-size:26px; line-height:1.2;">Thibitisha email yako</h1>
+      <p style="margin:0 0 18px;">Tumia msimbo huu kukamilisha usajili wako:</p>
+      <div style="margin:0 0 20px; padding:18px; border:1px solid #b9ded8; border-radius:12px; background:#effaf8; color:#0f766e; font-size:32px; font-weight:700; letter-spacing:8px; text-align:center;">${code}</div>
+      <p style="margin:0; color:#506466;">Msimbo huu utaisha baada ya <strong>dakika 5</strong>. Kama hukuomba akaunti hii, unaweza kupuuza ujumbe huu.</p>
+    `
   });
 
   return sent;
@@ -165,9 +171,9 @@ router.post('/auth/login', (req, res, next) => {
 
       const loginEmailSent = await sendEmail({
         to: user.email,
-        subject: 'Login notification',
+        subject: 'Taarifa ya kuingia kwenye akaunti',
         text: `Hello ${user.displayName || user.username}, you signed in to your account at ${new Date().toLocaleString()}. If this was not you, please contact support immediately.`,
-        html: `<p>Hello <strong>${user.displayName || user.username}</strong>,</p><p>You signed in to your account at <strong>${new Date().toLocaleString()}</strong>.</p><p>If this was not you, please contact support immediately.</p>`
+        html: `<p style="margin:0 0 8px; color:#506466;">Usalama wa akaunti</p><h1 style="margin:0 0 18px; color:#173638; font-size:26px;">Umeingia kwenye akaunti</h1><p style="margin:0 0 12px;">Habari <strong>${user.displayName || user.username}</strong>, akaunti yako iliingiliwa kwa mafanikio.</p><div style="padding:14px 16px; border-left:4px solid #0f766e; background:#f2f8f7; color:#506466;"><strong>Muda:</strong> ${new Date().toLocaleString()}</div><p style="margin:18px 0 0; color:#506466;">Kama si wewe, badilisha password mara moja na wasiliana na support.</p>`
       });
 
       if (!loginEmailSent) {
@@ -300,9 +306,9 @@ router.post('/auth/reset-password', async (req, res) => {
   const resetLink = `${process.env.APP_URL || 'http://localhost:3000'}/login.html?tab=reset&token=${token}`;
   const sent = await sendEmail({
     to: user.email,
-    subject: 'Reset your password',
-    text: `Use this link to reset your password: ${resetLink}`,
-    html: `<p>Use this link to reset your password:</p><p><a href="${resetLink}">${resetLink}</a></p>`
+    subject: 'Badilisha password ya akaunti yako',
+    text: `Fungua link hii kubadilisha password yako: ${resetLink}. Link hii itaisha baada ya muda mfupi.`,
+    html: `<p style="margin:0 0 8px; color:#506466;">Ombi la usalama wa akaunti</p><h1 style="margin:0 0 18px; color:#173638; font-size:26px;">Badilisha password yako</h1><p style="margin:0 0 22px;">Bonyeza kitufe hapa chini kuweka password mpya. Link hii ni ya matumizi ya mara moja.</p><p style="margin:0 0 22px;"><a href="${resetLink}" style="display:inline-block; padding:13px 20px; border-radius:9px; background:#0f766e; color:#ffffff; font-weight:700; text-decoration:none;">Badilisha password</a></p><p style="margin:0; color:#718083; font-size:13px;">Kama kitufe hakifanyi kazi, tumia link hii: <a href="${resetLink}" style="color:#0f766e; word-break:break-all;">${resetLink}</a></p>`
   });
 
   if (sent) {
