@@ -254,6 +254,7 @@
           <form id="botScriptForm" class="space-y-3">
             <input type="hidden" id="botScriptId" />
             <input id="botScriptTitle" required maxlength="120" placeholder="Jina la bot script" class="w-full rounded-xl bg-slate-950/50 border border-slate-700/50 px-3 py-2 text-white outline-none" />
+            <div class="grid grid-cols-2 gap-3"><input id="botScriptCategory" maxlength="60" placeholder="Category" class="w-full rounded-xl bg-slate-950/50 border border-slate-700/50 px-3 py-2 text-white outline-none" /><input id="botScriptTags" placeholder="Tags: music, utility" class="w-full rounded-xl bg-slate-950/50 border border-slate-700/50 px-3 py-2 text-white outline-none" /></div>
             <textarea id="botScriptDescription" required maxlength="2000" rows="4" placeholder="Maelezo ya script na features zake" class="w-full rounded-xl bg-slate-950/50 border border-slate-700/50 px-3 py-2 text-white outline-none"></textarea>
             <input id="botScriptPreview" type="url" placeholder="Preview image URL (HTTPS, hiari)" class="w-full rounded-xl bg-slate-950/50 border border-slate-700/50 px-3 py-2 text-white outline-none" />
             <input id="botScriptZip" required type="url" placeholder="ZIP download URL (HTTPS)" class="w-full rounded-xl bg-slate-950/50 border border-slate-700/50 px-3 py-2 text-white outline-none" />
@@ -262,7 +263,7 @@
             <p id="botScriptFormMsg" class="text-xs"></p>
           </form>
         </div>
-        <div class="glass rounded-2xl p-6"><h2 class="text-xl font-semibold text-white mb-4">Scripts Zilizowekwa</h2><div id="botScriptsList" class="grid gap-4 sm:grid-cols-2"></div></div>
+        <div class="glass rounded-2xl p-6"><div class="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4"><div><p class="text-xs text-slate-400">Scripts</p><strong id="botScriptStatCount" class="text-xl text-white">0</strong></div><div><p class="text-xs text-slate-400">Sales</p><strong id="botScriptStatSales" class="text-xl text-white">0</strong></div><div><p class="text-xs text-slate-400">Coins</p><strong id="botScriptStatCoins" class="text-xl text-amber-300">0</strong></div><div><p class="text-xs text-slate-400">TZS</p><strong id="botScriptStatTzs" class="text-xl text-emerald-300">0</strong></div></div><h2 class="text-xl font-semibold text-white mb-4">Scripts Zilizowekwa</h2><div id="botScriptsList" class="grid gap-4 sm:grid-cols-2"></div><h2 class="mt-8 text-xl font-semibold text-white mb-4">🎧 Support Tickets</h2><div id="supportTicketsAdmin" class="space-y-3"></div></div>
       </div>
     </div>
 
@@ -1080,6 +1081,30 @@
       list.innerHTML = result.data.length ? result.data.map((script) => `<article class="overflow-hidden rounded-2xl border border-slate-700/60 bg-slate-950/50">${script.previewImageUrl ? `<img src="${script.previewImageUrl}" alt="" class="h-32 w-full object-cover">` : '<div class="flex h-32 items-center justify-center bg-slate-900 text-4xl">🤖</div>'}<div class="p-4"><h3 class="font-semibold text-white">${script.title}</h3><p class="mt-1 line-clamp-3 text-xs text-slate-400">${script.description}</p><p class="mt-3 font-bold text-amber-300">🪙 ${Number(script.priceCoins).toLocaleString()}</p><div class="mt-3 flex gap-2"><button onclick="editBotScript('${script._id}')" class="rounded-lg bg-slate-800 px-3 py-1.5 text-xs text-white">Edit</button><button onclick="deleteBotScript('${script._id}')" class="rounded-lg bg-red-500/20 px-3 py-1.5 text-xs text-red-300">Futa</button></div></div></article>`).join('') : '<p class="text-sm text-slate-500">Hakuna bot scripts bado.</p>';
     }
 
+    async function loadBotScriptAnalytics() {
+      const result = await (await fetch(`${API_URL}/bot-scripts/admin/analytics`)).json();
+      if (!result.success) return;
+      document.getElementById('botScriptStatCount').textContent = result.data.scripts;
+      document.getElementById('botScriptStatSales').textContent = result.data.sales;
+      document.getElementById('botScriptStatCoins').textContent = Number(result.data.revenue.coins || 0).toLocaleString();
+      document.getElementById('botScriptStatTzs').textContent = Number(result.data.revenue.tzs || 0).toLocaleString();
+    }
+
+    async function loadSupportAdmin() {
+      const target = document.getElementById('supportTicketsAdmin');
+      if (!target) return;
+      const result = await (await fetch(`${API_URL}/support/admin/all`)).json();
+      if (!result.success) return;
+      target.innerHTML = result.data.length ? result.data.map((ticket) => `<div class="rounded-xl border border-slate-700 bg-slate-950/50 p-4"><div class="flex justify-between gap-3"><strong class="text-white">${ticket.subject}</strong><span class="text-xs ${ticket.status === 'resolved' ? 'text-emerald-300' : 'text-amber-300'}">${ticket.status}</span></div><p class="mt-1 text-xs text-slate-400">${ticket.userId?.email || ''}</p><p class="mt-3 text-sm text-slate-300">${ticket.message}</p><textarea id="reply-${ticket._id}" rows="2" placeholder="Jibu la admin..." class="mt-3 w-full rounded-lg border border-slate-700 bg-slate-900 p-2 text-xs text-white"></textarea><button onclick="replySupport('${ticket._id}')" class="mt-2 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white">Jibu / Resolve</button></div>`).join('') : '<p class="text-sm text-slate-500">Hakuna tickets.</p>';
+    }
+
+    async function replySupport(id) {
+      const reply = document.getElementById(`reply-${id}`).value.trim();
+      const result = await (await fetch(`${API_URL}/support/admin/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'resolved', adminReply: reply }) })).json();
+      notify(result.message || (result.success ? 'Ticket imetatuliwa.' : 'Imeshindikana.'), result.success ? 'success' : 'error');
+      loadSupportAdmin();
+    }
+
     async function editBotScript(id) {
       const result = await (await fetch(`${API_URL}/bot-scripts/admin/all`)).json();
       const script = result.data?.find((item) => String(item._id) === String(id));
@@ -1087,6 +1112,8 @@
       document.getElementById('botScriptId').value = script._id;
       document.getElementById('botScriptTitle').value = script.title;
       document.getElementById('botScriptDescription').value = script.description;
+      document.getElementById('botScriptCategory').value = script.category || '';
+      document.getElementById('botScriptTags').value = (script.tags || []).join(', ');
       document.getElementById('botScriptPreview').value = script.previewImageUrl || '';
       document.getElementById('botScriptZip').value = script.zipUrl;
       document.getElementById('botScriptPrice').value = script.priceCoins;
@@ -1105,11 +1132,12 @@
     window.deletePackage = deletePackage;
     window.editBotScript = editBotScript;
     window.deleteBotScript = deleteBotScript;
+    window.replySupport = replySupport;
 
     document.getElementById('botScriptForm').addEventListener('submit', async (event) => {
       event.preventDefault();
       const id = document.getElementById('botScriptId').value;
-      const payload = { title: document.getElementById('botScriptTitle').value.trim(), description: document.getElementById('botScriptDescription').value.trim(), previewImageUrl: document.getElementById('botScriptPreview').value.trim(), zipUrl: document.getElementById('botScriptZip').value.trim(), priceCoins: Number(document.getElementById('botScriptPrice').value) };
+      const payload = { title: document.getElementById('botScriptTitle').value.trim(), description: document.getElementById('botScriptDescription').value.trim(), category: document.getElementById('botScriptCategory').value.trim() || 'General', tags: document.getElementById('botScriptTags').value.split(',').map((tag) => tag.trim()).filter(Boolean), previewImageUrl: document.getElementById('botScriptPreview').value.trim(), zipUrl: document.getElementById('botScriptZip').value.trim(), priceCoins: Number(document.getElementById('botScriptPrice').value) };
       const result = await (await fetch(id ? `${API_URL}/bot-scripts/admin/${id}` : `${API_URL}/bot-scripts/admin`, { method: id ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })).json();
       const message = document.getElementById('botScriptFormMsg');
       message.textContent = result.message || (result.success ? 'Imehifadhiwa.' : 'Imeshindikana.');
@@ -1149,7 +1177,7 @@
     });
 
     enforceAdminAccess();
-    loadStats(); loadPackages(); loadBotScripts(); loadPanelEggs(); loadPayments(); loadUsers(); loadAdminServers(); loadPaymentSummary();
+    loadStats(); loadPackages(); loadBotScripts(); loadBotScriptAnalytics(); loadSupportAdmin(); loadPanelEggs(); loadPayments(); loadUsers(); loadAdminServers(); loadPaymentSummary();
   </script>
 </body>
 </html>

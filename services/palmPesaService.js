@@ -4,6 +4,7 @@
  */
 
 const axios = require('axios');
+const crypto = require('crypto');
 
 class PalmPesaService {
   constructor() {
@@ -14,6 +15,7 @@ class PalmPesaService {
     this.redirectUrl = process.env.PALMPESA_REDIRECT_URL || process.env.APP_URL || 'https://mickey-pterodacty.vercel.app';
     this.cancelUrl = process.env.PALMPESA_CANCEL_URL || `${this.redirectUrl}/cancel`;
     this.webhookUrl = process.env.PALMPESA_WEBHOOK_URL || `${this.redirectUrl}/api/payment/webhook`;
+    this.webhookSecret = process.env.PALMPESA_WEBHOOK_SECRET || '';
   }
 
   formatPhoneNumber(phone) {
@@ -400,8 +402,16 @@ class PalmPesaService {
     }
   }
 
-  validateWebhookSignature() {
-    return true;
+  validateWebhookSignature(payload, signature) {
+    if (!this.webhookSecret) {
+      console.warn('[PalmPesa] PALMPESA_WEBHOOK_SECRET is not configured; webhook signature cannot be verified.');
+      return process.env.NODE_ENV !== 'production';
+    }
+    if (!signature) return false;
+    const expected = crypto.createHmac('sha256', this.webhookSecret).update(String(payload || '')).digest('hex');
+    const supplied = String(signature).replace(/^sha256=/i, '').trim();
+    if (supplied.length !== expected.length) return false;
+    return crypto.timingSafeEqual(Buffer.from(supplied), Buffer.from(expected));
   }
 
   getAvailablePaymentMethods() {

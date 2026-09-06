@@ -37,6 +37,7 @@ async function notifyUserAboutPayment(user, transaction, packageDoc, serverData)
     <p><strong>Panel:</strong> ${panelUrl}</p>
     <p><strong>Username:</strong> ${accessDetails.username || user.username || 'N/A'}</p>
     <p><strong>Email:</strong> ${accessDetails.email || user.email || 'N/A'}</p>
+    ${accessDetails.downloadUrl ? `<p><a href="${accessDetails.downloadUrl}" style="display:inline-block;padding:12px 18px;border-radius:8px;background:#0f766e;color:#fff;font-weight:700;text-decoration:none;">Download ZIP</a></p><p>Link ya download itaisha baada ya saa 24.</p>` : ''}
     <p>Password haijatumwi kwa email kwa usalama. Tumia password yako ya Pterodactyl au reset kupitia panel.</p>
     <p>Unaweza kuingia kwenye dashboard yako ukitumia email yako na password ya akaunti yako ili kuona server yako.</p>
   `;
@@ -103,6 +104,7 @@ async function fulfillSuccessfulTransaction(transactionId) {
 
     const isTopup = transaction.metadata?.type === 'topup';
     const isGeneric = transaction.type === 'generic' || transaction.metadata?.type === 'generic';
+    const isBotScript = transaction.metadata?.kind === 'bot-script';
     let userCoins = Number(user.coins || 0);
     let serverData = null;
 
@@ -115,6 +117,10 @@ async function fulfillSuccessfulTransaction(transactionId) {
       );
       userCoins = Number(updatedUser?.coins || 0);
       await notifyUserAboutPayment(updatedUser || user, transaction, { name: 'Coins Top-up' }, null);
+    } else if (isBotScript) {
+      await notifyUserAboutPayment(user, transaction, { name: transaction.metadata?.title || 'Bot Script' }, {
+        access: { downloadUrl: transaction.metadata?.downloadUrl }
+      });
     } else if (!isGeneric && transaction.packageId) {
       const serverName = transaction.metadata?.serverName || `${transaction.packageId.name}-${Date.now()}`;
       serverData = await createServerFromPackage(user, transaction.packageId._id, serverName, {
@@ -844,8 +850,7 @@ router.post('/webhook', async (req, res) => {
     const signature = req.headers['x-palmpesa-signature'] || req.headers['x-signature'] || req.headers['signature'];
     const payload = JSON.stringify(req.body || {});
 
-    // PalmPesa service validator currently accepts webhooks by default
-    if (signature && !palmPesaService.validateWebhookSignature(payload, signature)) {
+    if (!palmPesaService.validateWebhookSignature(payload, signature)) {
       return res.status(400).json({ success: false, message: 'Invalid signature' });
     }
 

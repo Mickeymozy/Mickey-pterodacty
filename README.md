@@ -174,6 +174,8 @@ SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=your-email@gmail.com
 SMTP_PASS=your-app-password
+SUPPORT_EMAIL=support@example.com
+EMAIL_BRAND_COLOR=#0f766e
 
 # ZenoPay
 ZENOPAY_API_KEY=your-api-key
@@ -185,6 +187,8 @@ APP_URL=http://localhost:3000
 NODE_ENV=development
 SESSION_SECRET=random-secret-string
 JWT_SECRET=random-jwt-secret
+DOWNLOAD_LINK_SECRET=use-a-long-random-secret
+PALMPESA_WEBHOOK_SECRET=use-the-provider-webhook-secret
 ```
 
 See [QUICK_START.md](QUICK_START.md) for detailed SMTP/ZenoPay setup.
