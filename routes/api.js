@@ -1090,8 +1090,33 @@ router.delete('/api/servers/:id', requireAuth, async (req, res) => {
       return res.status(400).json({ success: false, error: 'Andika jina la server kwa usahihi ili kuithibitisha ufutaji.' });
     }
 
-    const response = await appApi.delete(`/servers/${encodeURIComponent(serverRef.id)}`);
-    res.json({ success: true, data: response.data });
+    // The Pterodactyl Application API is the source of truth for servers.
+    // Delete there first so the panel and dashboard cannot diverge.
+    await appApi.delete(`/servers/${encodeURIComponent(serverRef.id)}`);
+
+    if (Array.isArray(req.user.servers)) {
+      req.user.servers = req.user.servers.filter((entry) => {
+        const storedId = String(entry?.serverId || '').trim();
+        return storedId !== String(serverRef.id) && storedId !== String(serverRef.identifier);
+      });
+      await req.user.save();
+    }
+
+    await writeAuditLog(req, 'server.deleted', { type: 'PterodactylServer', id: serverRef.id }, {
+      serverId: String(serverRef.id),
+      identifier: String(serverRef.identifier || ''),
+      serverName: expectedName,
+      source: 'pterodactyl_application_api'
+    });
+
+    res.json({
+      success: true,
+      message: 'Server imefutwa moja kwa moja kwenye Pterodactyl.',
+      data: {
+        id: String(serverRef.id),
+        identifier: String(serverRef.identifier || '')
+      }
+    });
   } catch (err) {
     const status = err.response?.status;
     const message = err.response?.data?.errors?.[0]?.detail || err.response?.data?.message || err.message || 'Failed to delete server.';
