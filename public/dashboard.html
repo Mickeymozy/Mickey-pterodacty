@@ -538,7 +538,7 @@
                 </label>
                 <label class="flex items-center gap-2 cursor-pointer hover:text-slate-200">
                   <input type="radio" name="coinPaymentMode" value="review" onchange="toggleCoinMode()" class="w-4 h-4" />
-                  <span>Nimelipia tayari (ombi kwa admin)</span>
+                  <span>Manual: nimelipia tayari (admin)</span>
                 </label>
               </div>
             </div>
@@ -1475,6 +1475,14 @@
           if (data.data?.paymentUrl) {
             messageBox.innerHTML = '<span class="text-emerald-400">✅ Malipo yameanzishwa. Fungua ukurasa wa malipo.</span>';
             window.open(data.data.paymentUrl, '_blank', 'noopener,noreferrer');
+            if (data.data?.transactionId) {
+              await pollPaymentVerification(data.data.transactionId, messageBox, {
+                onComplete: (verifiedData) => {
+                  showPaymentReceipt(verifiedData?.data || data.data, 'coins');
+                  loadUser();
+                }
+              });
+            }
           } else if (data.data?.paymentInitiated) {
             const paymentMessage = data.data?.paymentMessage || data.message || '✅ Malipo yameanzishwa. Endelea na mfumo wa USSD/mobile.';
             messageBox.innerHTML = `<span class="text-emerald-400">${paymentMessage}</span>`;
@@ -1487,7 +1495,7 @@
               });
             }
           } else {
-            const fallbackMessage = data.message || 'Maombi yako yamepokelewa. Admin ataapprove baada ya kuthibitisha malipo yako.';
+            const fallbackMessage = data.message || 'PalmPesa haikuanza malipo. Jaribu tena baadaye.';
             const instructions = data.data?.paymentInstructions ? `<div class="mt-2 text-xs text-slate-300">${data.data.paymentInstructions}</div>` : '';
             const tone = data.success === false ? 'text-red-400' : 'text-amber-400';
             messageBox.innerHTML = `<span class="${tone}">⚠️ ${fallbackMessage}</span>${instructions}`;
@@ -1502,6 +1510,17 @@
         messageBox.innerHTML = '<span class="text-red-400">❌ Hitilafu ya mtandao wakati wa kuanzisha malipo.</span>';
       }
     }
+
+    document.addEventListener('contextmenu', (event) => event.preventDefault());
+    document.addEventListener('keydown', (event) => {
+      const blocked = event.key === 'F12'
+        || (event.ctrlKey && event.shiftKey && ['I', 'J', 'C'].includes(event.key.toUpperCase()))
+        || (event.ctrlKey && event.key.toUpperCase() === 'U');
+      if (!blocked) return;
+      event.preventDefault();
+      event.stopPropagation();
+      showToast('Access denied', 'error', true);
+    }, true);
 
     document.getElementById('refreshBtn').addEventListener('click', () => { loadUser(); loadServers(); syncPterodactylStatus(); });
     document.getElementById('serverSearchInput')?.addEventListener('input', renderServerList);

@@ -560,14 +560,13 @@ router.post('/topup', authenticate, async (req, res) => {
         }
       });
 
-      transaction.status = 'pending';
+      transaction.status = 'failed';
       transaction.notes = `PalmPesa unavailable: ${errorMsg}`;
       transaction.metadata = {
         ...(transaction.metadata || {}),
         gatewayError: errorMsg,
         gatewayDetails: paymentResult.details || null,
-        fallbackMode: 'manual-review',
-        paymentInstructions: `Tafadhali lipa kwa PalmPesa kwa kutumia namba ${phone || user.phone || 'iliyowekwa'} na uandike transaction ${transaction._id}`
+        paymentInitializationFailed: true
       };
       await transaction.save();
 
@@ -579,10 +578,9 @@ router.post('/topup', authenticate, async (req, res) => {
           coins: coinAmount,
           amountTzs: amountTzs,
           provider: 'palmpesa',
-          fallback: true,
+          fallback: false,
           gatewayError: errorMsg,
-          gatewayDetails: paymentResult.details || null,
-          paymentInstructions: `Tafadhali lipa kwa PalmPesa kwa kutumia namba ${phone || user.phone || 'iliyowekwa'} na uandike transaction ${transaction._id}`
+          gatewayDetails: paymentResult.details || null
         }
       });
     }
@@ -851,10 +849,17 @@ router.post('/webhook', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid signature' });
     }
 
-    const reference = req.body?.reference || req.body?.order_id || req.body?.data?.reference || req.body?.orderId;
+    const webhookData = req.body?.data && typeof req.body.data === 'object' ? req.body.data : {};
+    const reference = req.body?.reference || req.body?.order_id || req.body?.transaction_id || req.body?.transid || webhookData.reference || req.body?.orderId || webhookData.order_id || webhookData.orderId || webhookData.transaction_id || webhookData.transid;
     const transaction = await Transaction.findById(reference).catch(() => null);
     const fallbackTransaction = reference
-      ? await Transaction.findOne({ zenopayReference: reference }).catch(() => null)
+      ? await Transaction.findOne({
+        $or: [
+          { zenopayReference: reference },
+          { zenopayTransactionId: reference },
+          { 'metadata.palmpesaOrderId': reference }
+        ]
+      }).catch(() => null)
       : null;
     const targetTransaction = transaction || fallbackTransaction;
 
@@ -863,19 +868,20 @@ router.post('/webhook', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Transaction not found' });
     }
 
-    const status = String(req.body?.status || req.body?.payment_status || req.body?.paymentStatus || '').toLowerCase();
-    const shouldCredit = status === 'success' || status === 'completed' || status === 'succeeded';
+    const status = String(req.body?.status || req.body?.payment_status || req.body?.paymentStatus || webhookData.status || webhookData.payment_status || webhookData.paymentStatus || '').toLowerCase();
+    const shouldCredit = status === 'success' || status === 'successful' || status === 'completed' || status === 'complete' || status === 'succeeded' || status === 'paid' || status === 'confirmed';
 
     if (shouldCredit) {
       await fulfillSuccessfulTransaction(targetTransaction._id);
     } else if (status === 'failed' || status === 'cancelled' || status === 'rejected' || status === 'usercancelled') {
       targetTransaction.status = 'failed';
+      targetTransaction.notes = targetTransaction.notes || JSON.stringify(req.body);
+      await targetTransaction.save();
     } else {
       targetTransaction.status = 'pending';
+      targetTransaction.notes = targetTransaction.notes || JSON.stringify(req.body);
+      await targetTransaction.save();
     }
-
-    targetTransaction.notes = targetTransaction.notes || JSON.stringify(req.body);
-    await targetTransaction.save();
 
     res.json({ success: true, message: 'Webhook processed' });
   } catch (error) {
