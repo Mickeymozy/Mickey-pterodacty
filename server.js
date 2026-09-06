@@ -13,6 +13,7 @@ const authRoutes = require('./routes/auth');
 const apiRoutes = require('./routes/api');
 const packagesRouter = require('./routes/packages');
 const paymentRouter = require('./routes/payment');
+const botScriptsRouter = require('./routes/botScripts');
 const userRouter = require('./routes/user');
 const { requireAuth, requireAdmin, getUserFromSession } = require('./middleware/auth');
 
@@ -109,6 +110,7 @@ app.use('/', authRoutes);
 app.use('/', apiRoutes);
 app.use('/api', packagesRouter);
 app.use('/api/payment', paymentRouter);
+app.use('/api/bot-scripts', botScriptsRouter);
 app.use('/api/user', userRouter);
 
 // Dashboard (protected)

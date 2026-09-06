@@ -298,6 +298,7 @@
         <button class="tab-button active px-3 py-1 rounded-lg border border-slate-700/50 text-xs font-medium transition" onclick="switchDashTab(event, 'my-servers')">🎮 Server Zangu</button>
         <button class="tab-button px-3 py-1 rounded-lg border border-slate-700/50 text-xs font-medium transition" onclick="switchDashTab(event, 'deploy-panel')">🚀 Unda Server</button>
         <button class="tab-button px-3 py-1 rounded-lg border border-slate-700/50 text-xs font-medium transition" onclick="switchDashTab(event, 'buy-coins')">🪙 Nunua Coins</button>
+        <button class="tab-button px-3 py-1 rounded-lg border border-slate-700/50 text-xs font-medium transition" onclick="switchDashTab(event, 'bot-scripts')">🤖 Bot Scripts</button>
         <button class="tab-button px-3 py-1 rounded-lg border border-slate-700/50 text-xs font-medium transition" onclick="switchDashTab(event, 'transactions')">🧾 Transactions</button>
       </div>
     </div>
@@ -394,6 +395,8 @@
         </div>
       </div>
     </div>
+
+      <div id="bot-scripts" class="tab-content space-y-4"><div class="glass rounded-2xl p-6"><div class="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between"><div><p class="text-xs uppercase tracking-[0.2em] text-indigo-300">Marketplace</p><h2 class="mt-1 text-xl font-semibold text-white">🤖 Bot Scripts</h2><p class="text-xs text-slate-400">Preview scripts, lipia kwa coins, kisha download ZIP yako.</p></div><span class="text-xs text-slate-400">Malipo: Coins wallet</span></div><div id="botScriptsGrid" class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3"><p class="text-sm text-slate-400">Inapakia scripts...</p></div></div></div>
 
       <div id="transactions" class="tab-content space-y-4">
         <div class="glass rounded-2xl p-6">
@@ -1511,6 +1514,22 @@
       }
     }
 
+    async function loadBotScripts() {
+      const grid = document.getElementById('botScriptsGrid');
+      if (!grid) return;
+      const result = await (await fetch('/api/bot-scripts')).json();
+      if (!result.success) { grid.innerHTML = '<p class="text-sm text-red-400">Imeshindikana kupakia scripts.</p>'; return; }
+      grid.innerHTML = result.data.length ? result.data.map((script) => `<article class="overflow-hidden rounded-2xl border border-slate-700/60 bg-slate-950/50">${script.previewImageUrl ? `<img src="${script.previewImageUrl}" alt="${script.title}" class="h-40 w-full object-cover">` : '<div class="flex h-40 items-center justify-center bg-slate-900 text-5xl">🤖</div>'}<div class="p-5"><h3 class="text-lg font-semibold text-white">${script.title}</h3><p class="mt-2 min-h-16 text-sm text-slate-400">${script.description}</p><div class="mt-4 flex items-center justify-between gap-3"><span class="font-bold text-amber-300">🪙 ${Number(script.priceCoins).toLocaleString()}</span>${script.purchased ? `<a href="/api/bot-scripts/${script._id}/download" class="rounded-xl bg-emerald-500 px-3 py-2 text-xs font-bold text-slate-950">Download ZIP</a>` : `<button onclick="buyBotScript('${script._id}')" class="rounded-xl bg-indigo-600 px-3 py-2 text-xs font-bold text-white">Lipa & Download</button>`}</div></div></article>`).join('') : '<p class="text-sm text-slate-400">Hakuna script active kwa sasa.</p>';
+    }
+
+    async function buyBotScript(id) {
+      const result = await (await fetch(`/api/bot-scripts/${id}/purchase`, { method: 'POST', headers: { 'Content-Type': 'application/json' } })).json();
+      if (!result.success) { showToast(result.message || 'Malipo yameshindikana', 'error', true); return; }
+      if (result.data?.remainingCoins !== undefined) setUserCoins(result.data.remainingCoins);
+      showToast('Malipo yamekamilika. Download inaanza.', 'success', true);
+      window.location.href = result.data.downloadUrl;
+    }
+
     document.addEventListener('contextmenu', (event) => event.preventDefault());
     document.addEventListener('keydown', (event) => {
       const blocked = event.key === 'F12'
@@ -1535,7 +1554,7 @@
     toggleCoinMode();
 
     // Piga sync ya kwanza na uanzishe interval kila baada ya sekunde 15 kufanya live check
-    loadUser(); loadServers(); syncPterodactylStatus();
+    loadUser(); loadServers(); syncPterodactylStatus(); loadBotScripts();
     setInterval(syncPterodactylStatus, 15000);
   </script>
 </body>
