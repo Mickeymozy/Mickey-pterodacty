@@ -44,16 +44,24 @@ const downloadLinkFor = (userId, scriptId) => {
   return `${process.env.APP_URL || ''}/api/bot-scripts/download/${createDownloadToken(userId, scriptId, expiresAt)}`;
 };
 
+const getScriptPriceTzs = (script) => {
+  const directPrice = Number(script?.priceTzs);
+  if (Number.isFinite(directPrice) && directPrice > 0) return Math.round(directPrice);
+  const legacyPrice = Number(script?.priceCoins);
+  const conversionRate = Number(process.env.COIN_TOPUP_RATE_TZS || 250);
+  return Number.isFinite(legacyPrice) && legacyPrice > 0 ? Math.round(legacyPrice * conversionRate) : 0;
+};
+
 router.get('/', requireAuth, async (req, res) => {
   const query = String(req.query.q || '').trim();
   const category = String(req.query.category || '').trim();
   const filter = { isActive: true };
   if (category) filter.category = category;
   if (query) filter.$or = [{ title: { $regex: query, $options: 'i' } }, { description: { $regex: query, $options: 'i' } }, { tags: { $regex: query, $options: 'i' } }];
-  const scripts = await BotScript.find(filter).select('-zipUrl -createdBy').sort({ createdAt: -1 }).lean();
+  const scripts = await BotScript.find(filter).select('+priceCoins -zipUrl -createdBy').sort({ createdAt: -1 }).lean();
   const owned = await Transaction.find({ userId: req.user._id, type: 'purchase', status: 'completed', 'metadata.kind': 'bot-script' }).select('metadata.botScriptId').lean();
   const ownedIds = new Set(owned.map((item) => String(item.metadata?.botScriptId)));
-  res.json({ success: true, data: scripts.map((script) => ({ ...script, purchased: ownedIds.has(String(script._id)) })) });
+  res.json({ success: true, data: scripts.map((script) => ({ ...script, priceTzs: getScriptPriceTzs(script), purchased: ownedIds.has(String(script._id)) })) });
 });
 
 router.get('/categories', requireAuth, async (req, res) => {
@@ -75,21 +83,20 @@ router.post('/:id/purchase', requireAuth, async (req, res) => {
   if (existing) return res.json({ success: true, message: 'Script tayari imenunuliwa.', data: { downloadUrl: downloadLinkFor(req.user._id, script._id) } });
 
   const paymentMethod = String(req.body.paymentMethod || 'palmpesa').toLowerCase();
-  if (paymentMethod === 'wallet' || paymentMethod === 'coins') {
-    return purchaseWithWallet(req, res, script);
-  }
-  if (paymentMethod !== 'palmpesa') return res.status(400).json({ success: false, message: 'Chagua PalmPesa au Coins.' });
+  if (paymentMethod !== 'palmpesa') return res.status(400).json({ success: false, message: 'Bot script inalipiwa kwa PalmPesa pekee.' });
+  const priceTzs = getScriptPriceTzs(script);
+  if (!priceTzs) return res.status(400).json({ success: false, message: 'Bei ya script haijawekwa.' });
 
   const transaction = await new Transaction({
     userId: req.user._id,
     type: 'purchase',
-    amount: Math.max(1, Math.round(script.priceCoins * Number(process.env.COIN_TOPUP_RATE_TZS || 250))),
+    amount: priceTzs,
     currency: 'TZS',
     paymentMethod: 'palmpesa',
     paymentProvider: 'palmpesa',
     status: 'pending',
     description: `Bot script: ${script.title}`,
-    metadata: { kind: 'bot-script', botScriptId: script._id, title: script.title, coinsPrice: script.priceCoins, phone: req.body.phone || '', downloadUrl: downloadLinkFor(req.user._id, script._id) }
+    metadata: { kind: 'bot-script', botScriptId: script._id, title: script.title, priceTzs, phone: req.body.phone || '', downloadUrl: downloadLinkFor(req.user._id, script._id) }
   }).save();
   const paymentResult = await palmPesaService.createPayment({
     user_id: process.env.PALMPESA_USER_ID,
@@ -115,39 +122,6 @@ router.post('/:id/purchase', requireAuth, async (req, res) => {
   await transaction.save();
   res.json({ success: true, message: 'Malipo ya PalmPesa yameanzishwa.', data: { transactionId: transaction._id, paymentUrl: paymentResult.paymentUrl, paymentInitiated: true } });
 });
-
-async function purchaseWithWallet(req, res, script) {
-
-  const user = await User.findOneAndUpdate(
-    { _id: req.user._id, coins: { $gte: script.priceCoins } },
-    { $inc: { coins: -script.priceCoins } },
-    { new: true }
-  );
-  if (!user) return res.status(400).json({ success: false, message: 'Coins hazitoshi kununua script hii.' });
-
-  try {
-    await new Transaction({
-      userId: user._id,
-      type: 'purchase',
-      amount: script.priceCoins,
-      currency: 'coins',
-      paymentMethod: 'wallet',
-      paymentProvider: 'wallet',
-      status: 'completed',
-      description: `Bot script: ${script.title}`,
-      completedAt: new Date(),
-      metadata: { kind: 'bot-script', botScriptId: script._id, title: script.title }
-    }).save();
-  } catch (error) {
-    await User.updateOne({ _id: user._id }, { $inc: { coins: script.priceCoins } });
-    throw error;
-  }
-
-  await writeAuditLog(req, 'bot_script.purchased', { type: 'BotScript', id: script._id }, { priceCoins: script.priceCoins });
-  const downloadUrl = downloadLinkFor(user._id, script._id);
-  await sendEmail({ to: user.email, subject: `Bot script yako iko tayari: ${script.title}`, text: `Umenunua ${script.title}. Download link yako itaisha baada ya saa 24: ${downloadUrl}`, html: `<h1 style="margin:0 0 16px; color:#173638;">Bot script iko tayari</h1><p>Umenunua <strong>${script.title}</strong> kwa coins ${script.priceCoins}.</p><p><a href="${downloadUrl}" style="display:inline-block; padding:13px 20px; border-radius:9px; background:#0f766e; color:#fff; font-weight:700; text-decoration:none;">Download ZIP</a></p><p style="color:#718083; font-size:13px;">Link hii itaisha baada ya saa 24.</p>` });
-  res.json({ success: true, message: 'Script imenunuliwa.', data: { remainingCoins: user.coins, downloadUrl } });
-}
 
 async function streamDownload(req, res, scriptId, userId) {
   const script = await BotScript.findById(scriptId);
@@ -183,32 +157,32 @@ router.post('/:id/rating', requireAuth, async (req, res) => {
 });
 
 router.get('/admin/all', requireAdmin, async (req, res) => {
-  res.json({ success: true, data: await BotScript.find().sort({ createdAt: -1 }).lean() });
+  res.json({ success: true, data: await BotScript.find().select('+priceCoins').sort({ createdAt: -1 }).lean() });
 });
 
 router.get('/admin/analytics', requireAdmin, async (req, res) => {
   const [scripts, sales, revenue, categories] = await Promise.all([
     BotScript.countDocuments(),
     Transaction.countDocuments({ type: 'purchase', status: 'completed', 'metadata.kind': 'bot-script' }),
-    Transaction.aggregate([{ $match: { type: 'purchase', status: 'completed', 'metadata.kind': 'bot-script' } }, { $group: { _id: null, coins: { $sum: '$metadata.coinsPrice' }, tzs: { $sum: '$amount' } } }]),
+    Transaction.aggregate([{ $match: { type: 'purchase', status: 'completed', 'metadata.kind': 'bot-script' } }, { $group: { _id: null, tzs: { $sum: '$amount' } } }]),
     BotScript.aggregate([{ $group: { _id: '$category', scripts: { $sum: 1 }, sales: { $sum: 0 } } }, { $sort: { scripts: -1 } }])
   ]);
-  res.json({ success: true, data: { scripts, sales, revenue: revenue[0] || { coins: 0, tzs: 0 }, categories } });
+  res.json({ success: true, data: { scripts, sales, revenue: revenue[0] || { tzs: 0 }, categories } });
 });
 
 router.post('/admin', requireAdmin, async (req, res) => {
-  const { title, description, category = 'General', tags = [], previewImageUrl, zipUrl, priceCoins } = req.body;
-  if (!title || !description || !validUrl(zipUrl) || !Number.isInteger(Number(priceCoins)) || Number(priceCoins) < 1) {
-    return res.status(400).json({ success: false, message: 'Weka title, description, HTTPS ZIP URL na bei ya coins iliyo sahihi.' });
+  const { title, description, category = 'General', tags = [], previewImageUrl, zipUrl, priceTzs } = req.body;
+  if (!title || !description || !validUrl(zipUrl) || !Number.isInteger(Number(priceTzs)) || Number(priceTzs) < 1) {
+    return res.status(400).json({ success: false, message: 'Weka title, description, HTTPS ZIP URL na bei ya TZS iliyo sahihi.' });
   }
   if (previewImageUrl && !validUrl(previewImageUrl)) return res.status(400).json({ success: false, message: 'Preview URL lazima iwe HTTPS.' });
-  const script = await new BotScript({ title, description, category, tags, previewImageUrl, zipUrl, priceCoins: Number(priceCoins), createdBy: req.user._id }).save();
+  const script = await new BotScript({ title, description, category, tags, previewImageUrl, zipUrl, priceTzs: Number(priceTzs), createdBy: req.user._id }).save();
   await writeAuditLog(req, 'bot_script.created', { type: 'BotScript', id: script._id }, { title: script.title });
   res.status(201).json({ success: true, data: script });
 });
 
 router.put('/admin/:id', requireAdmin, async (req, res) => {
-  const { title, description, category, tags, previewImageUrl, zipUrl, priceCoins, isActive } = req.body;
+  const { title, description, category, tags, previewImageUrl, zipUrl, priceTzs, isActive } = req.body;
   const script = await BotScript.findById(req.params.id);
   if (!script) return res.status(404).json({ success: false, message: 'Bot script not found' });
   if (title) script.title = title;
@@ -217,9 +191,9 @@ router.put('/admin/:id', requireAdmin, async (req, res) => {
   if (Array.isArray(tags)) script.tags = tags;
   if (previewImageUrl !== undefined) script.previewImageUrl = previewImageUrl;
   if (zipUrl) script.zipUrl = zipUrl;
-  if (priceCoins !== undefined) script.priceCoins = Number(priceCoins);
+  if (priceTzs !== undefined) script.priceTzs = Number(priceTzs);
   if (typeof isActive === 'boolean') script.isActive = isActive;
-  if (!validUrl(script.zipUrl) || (script.previewImageUrl && !validUrl(script.previewImageUrl)) || !Number.isInteger(script.priceCoins) || script.priceCoins < 1) return res.status(400).json({ success: false, message: 'Script data si sahihi.' });
+  if (!validUrl(script.zipUrl) || (script.previewImageUrl && !validUrl(script.previewImageUrl)) || !Number.isInteger(script.priceTzs) || script.priceTzs < 1) return res.status(400).json({ success: false, message: 'Script data si sahihi.' });
   await script.save();
   res.json({ success: true, data: script });
 });

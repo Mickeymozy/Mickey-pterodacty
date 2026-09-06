@@ -397,7 +397,17 @@
       </div>
     </div>
 
-      <div id="bot-scripts" class="tab-content space-y-4"><div class="glass rounded-2xl p-6"><div class="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between"><div><p class="text-xs uppercase tracking-[0.2em] text-indigo-300">Marketplace</p><h2 class="mt-1 text-xl font-semibold text-white">🤖 Bot Scripts</h2><p class="text-xs text-slate-400">Preview scripts, lipia kwa PalmPesa au coins, kisha download ZIP yako.</p></div><button type="button" onclick="loadMyBotScripts()" class="rounded-xl border border-slate-700 px-3 py-2 text-xs text-slate-200">My Purchases</button></div><div class="mb-5 grid gap-3 sm:grid-cols-[1fr_180px]"><input id="botScriptSearch" oninput="loadBotScripts()" placeholder="Tafuta script au tag..." class="rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-sm text-white outline-none" /><select id="botScriptCategory" onchange="loadBotScripts()" class="rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-sm text-white outline-none"><option value="">Categories zote</option></select></div><div id="botScriptsGrid" class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3"><p class="text-sm text-slate-400">Inapakia scripts...</p></div></div></div>
+      <div id="bot-scripts" class="tab-content space-y-4"><div class="glass rounded-2xl p-6"><div class="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between"><div><p class="text-xs uppercase tracking-[0.2em] text-indigo-300">Marketplace</p><h2 class="mt-1 text-xl font-semibold text-white">🤖 Bot Scripts</h2><p class="text-xs text-slate-400">Preview scripts, lipia kwa PalmPesa kwa TZS, kisha download ZIP yako.</p></div><button type="button" onclick="loadMyBotScripts()" class="rounded-xl border border-slate-700 px-3 py-2 text-xs text-slate-200">My Purchases</button></div><div class="mb-5 grid gap-3 sm:grid-cols-[1fr_180px]"><input id="botScriptSearch" oninput="loadBotScripts()" placeholder="Tafuta script au tag..." class="rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-sm text-white outline-none" /><select id="botScriptCategory" onchange="loadBotScripts()" class="rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-sm text-white outline-none"><option value="">Categories zote</option></select></div><div id="botScriptsGrid" class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3"><p class="text-sm text-slate-400">Inapakia scripts...</p></div></div></div>
+
+      <div id="botScriptPaymentModal" class="fixed inset-0 z-[96] hidden items-center justify-center bg-slate-950/80 px-4 py-6 backdrop-blur-sm">
+        <div class="w-full max-w-md overflow-hidden rounded-3xl border border-emerald-400/25 bg-slate-900 shadow-2xl">
+          <div class="bg-[linear-gradient(135deg,#064e3b,#0f766e)] p-6 text-white">
+            <div class="flex items-center gap-3"><div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-2xl font-black text-emerald-700">P</div><div><p class="text-[10px] font-bold uppercase tracking-[0.22em] text-emerald-100">PalmPesa</p><h3 class="text-lg font-bold">Lipa kwa simu</h3></div></div>
+            <p id="botScriptPaymentTitle" class="mt-5 text-sm text-emerald-50">Bot Script</p><p id="botScriptPaymentAmount" class="mt-1 text-2xl font-black">Tsh 0</p>
+          </div>
+          <form id="botScriptPaymentForm" class="space-y-4 p-6"><label class="block text-sm font-semibold text-white" for="botScriptPaymentPhone">Namba ya PalmPesa</label><div class="flex items-center gap-3 rounded-2xl border border-slate-700 bg-slate-950/80 px-4 py-3"><span class="text-xl text-emerald-400">☎</span><input id="botScriptPaymentPhone" type="tel" inputmode="numeric" autocomplete="tel" required placeholder="255744000000" class="w-full bg-transparent text-sm text-white outline-none" /></div><p class="text-xs text-slate-400">Weka namba ya Tanzania itakayotumika kukamilisha malipo.</p><p id="botScriptPaymentMessage" class="text-xs"></p><div class="flex justify-end gap-2"><button id="botScriptPaymentCancel" type="button" class="rounded-xl border border-slate-700 px-4 py-2 text-sm text-slate-300">Ghairi</button><button type="submit" class="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-bold text-slate-950">Endelea na PalmPesa</button></div></form>
+        </div>
+      </div>
       <div id="support" class="tab-content space-y-4"><div class="glass rounded-2xl p-6"><h2 class="text-xl font-semibold text-white">🎧 Support</h2><p class="mt-1 text-xs text-slate-400">Tuma swali au tatizo lako kwa admin.</p><form id="supportForm" class="mt-4 space-y-3"><input id="supportSubject" required maxlength="160" placeholder="Subject" class="w-full rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-sm text-white outline-none" /><textarea id="supportMessage" required maxlength="4000" rows="5" placeholder="Eleza tatizo lako..." class="w-full rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-sm text-white outline-none"></textarea><button class="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white">Tuma ticket</button><p id="supportStatus" class="text-xs"></p></form><div id="supportTickets" class="mt-5 space-y-3"></div></div></div>
 
       <div id="transactions" class="tab-content space-y-4">
@@ -1524,7 +1534,7 @@
       const params = new URLSearchParams({ q: document.getElementById('botScriptSearch')?.value || '', category: document.getElementById('botScriptCategory')?.value || '' });
       const result = await (await fetch(`/api/bot-scripts?${params}`)).json();
       if (!result.success) { grid.innerHTML = '<p class="text-sm text-red-400">Imeshindikana kupakia scripts.</p>'; return; }
-      grid.innerHTML = result.data.length ? result.data.map((script) => `<article class="overflow-hidden rounded-2xl border border-slate-700/60 bg-slate-950/50">${script.previewImageUrl ? `<img src="${script.previewImageUrl}" alt="${script.title}" class="h-40 w-full object-cover">` : '<div class="flex h-40 items-center justify-center bg-slate-900 text-5xl">🤖</div>'}<div class="p-5"><div class="flex items-center justify-between gap-2"><h3 class="text-lg font-semibold text-white">${script.title}</h3><span class="text-[10px] text-indigo-300">${script.category || 'General'}</span></div><p class="mt-2 min-h-16 text-sm text-slate-400">${script.description}</p><p class="mt-2 text-xs text-amber-300">★ ${Number(script.ratingAverage || 0).toFixed(1)} (${script.ratingCount || 0})</p><div class="mt-4 flex items-center justify-between gap-3"><span class="font-bold text-amber-300">🪙 ${Number(script.priceCoins).toLocaleString()}</span>${script.purchased ? `<div class="flex gap-2"><a href="/api/bot-scripts/${script._id}/download" class="rounded-xl bg-emerald-500 px-3 py-2 text-xs font-bold text-slate-950">Download ZIP</a><button onclick="rateBotScript('${script._id}')" class="rounded-xl border border-slate-700 px-3 py-2 text-xs text-white">Rate</button></div>` : `<button onclick="buyBotScript('${script._id}')" class="rounded-xl bg-indigo-600 px-3 py-2 text-xs font-bold text-white">Lipa</button>`}</div></div></article>`).join('') : '<p class="text-sm text-slate-400">Hakuna script active kwa sasa.</p>';
+      grid.innerHTML = result.data.length ? result.data.map((script) => `<article class="overflow-hidden rounded-2xl border border-slate-700/60 bg-slate-950/50">${script.previewImageUrl ? `<img src="${script.previewImageUrl}" alt="${script.title}" class="h-40 w-full object-cover">` : '<div class="flex h-40 items-center justify-center bg-slate-900 text-5xl">🤖</div>'}<div class="p-5"><div class="flex items-center justify-between gap-2"><h3 class="text-lg font-semibold text-white">${script.title}</h3><span class="text-[10px] text-indigo-300">${script.category || 'General'}</span></div><p class="mt-2 min-h-16 text-sm text-slate-400">${script.description}</p><p class="mt-2 text-xs text-amber-300">★ ${Number(script.ratingAverage || 0).toFixed(1)} (${script.ratingCount || 0})</p><div class="mt-4 flex items-center justify-between gap-3"><span class="font-bold text-emerald-300">Tsh ${Number(script.priceTzs || 0).toLocaleString()}</span>${script.purchased ? `<div class="flex gap-2"><a href="/api/bot-scripts/${script._id}/download" class="rounded-xl bg-emerald-500 px-3 py-2 text-xs font-bold text-slate-950">Download ZIP</a><button onclick="rateBotScript('${script._id}')" class="rounded-xl border border-slate-700 px-3 py-2 text-xs text-white">Rate</button></div>` : `<button onclick="buyBotScript('${script._id}')" class="rounded-xl bg-indigo-600 px-3 py-2 text-xs font-bold text-white">Lipa</button>`}</div></div></article>`).join('') : '<p class="text-sm text-slate-400">Hakuna script active kwa sasa.</p>';
     }
 
     async function loadBotScriptCategories() { const result = await (await fetch('/api/bot-scripts/categories')).json(); const select = document.getElementById('botScriptCategory'); if (result.success && select) select.innerHTML = '<option value="">Categories zote</option>' + result.data.map((category) => `<option value="${category}">${category}</option>`).join(''); }
@@ -1532,15 +1542,45 @@
     async function rateBotScript(id) { const rating = Number(prompt('Weka rating 1 hadi 5')); if (!rating) return; const result = await (await fetch(`/api/bot-scripts/${id}/rating`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rating }) })).json(); showToast(result.message || (result.success ? 'Rating imehifadhiwa.' : 'Rating imeshindikana.'), result.success ? 'success' : 'error', true); if (result.success) loadBotScripts(); }
     async function loadSupportTickets() { const result = await (await fetch('/api/support/mine')).json(); const target = document.getElementById('supportTickets'); if (result.success && target) target.innerHTML = result.data.map((ticket) => `<div class="rounded-xl border border-slate-700 bg-slate-950/50 p-3 text-xs"><strong class="text-white">${ticket.subject}</strong><span class="ml-2 text-slate-500">${ticket.status}</span><p class="mt-1 text-slate-400">${ticket.message}</p>${ticket.adminReply ? `<p class="mt-2 text-emerald-300">Admin: ${ticket.adminReply}</p>` : ''}</div>`).join(''); }
 
+    let selectedBotScriptId = '';
+    function openBotScriptPaymentModal(id, script) {
+      selectedBotScriptId = id;
+      document.getElementById('botScriptPaymentTitle').textContent = script.title || 'Bot Script';
+      document.getElementById('botScriptPaymentAmount').textContent = `Tsh ${Number(script.priceTzs || 0).toLocaleString()}`;
+      document.getElementById('botScriptPaymentPhone').value = '';
+      document.getElementById('botScriptPaymentMessage').textContent = '';
+      document.getElementById('botScriptPaymentModal').classList.remove('hidden');
+      document.getElementById('botScriptPaymentModal').classList.add('flex');
+      document.getElementById('botScriptPaymentPhone').focus();
+    }
+
+    function closeBotScriptPaymentModal() {
+      document.getElementById('botScriptPaymentModal').classList.add('hidden');
+      document.getElementById('botScriptPaymentModal').classList.remove('flex');
+      selectedBotScriptId = '';
+    }
+
     async function buyBotScript(id) {
-      const paymentMethod = confirm('Bonyeza OK kulipa kwa PalmPesa, Cancel kutumia coins wallet.') ? 'palmpesa' : 'wallet';
-      const result = await (await fetch(`/api/bot-scripts/${id}/purchase`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ paymentMethod, phone: prompt('Namba ya simu ya PalmPesa (hiari)') || '' }) })).json();
+      const scriptsResult = await (await fetch(`/api/bot-scripts?q=`)).json();
+      const script = scriptsResult.data?.find((item) => String(item._id) === String(id));
+      if (!script) { showToast('Script haipatikani.', 'error', true); return; }
+      openBotScriptPaymentModal(id, script);
+    }
+
+    document.getElementById('botScriptPaymentCancel')?.addEventListener('click', closeBotScriptPaymentModal);
+    document.getElementById('botScriptPaymentForm')?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const phone = document.getElementById('botScriptPaymentPhone').value.trim();
+      const message = document.getElementById('botScriptPaymentMessage');
+      if (!/^(?:255|0)?[67]\d{8}$/.test(phone.replace(/\s+/g, ''))) { message.textContent = 'Ingiza namba sahihi ya Tanzania.'; message.className = 'text-xs text-red-400'; return; }
+      const result = await (await fetch(`/api/bot-scripts/${encodeURIComponent(selectedBotScriptId)}/purchase`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ paymentMethod: 'palmpesa', phone }) })).json();
+      closeBotScriptPaymentModal();
       if (!result.success) { showToast(result.message || 'Malipo yameshindikana', 'error', true); return; }
       if (result.data?.remainingCoins !== undefined) setUserCoins(result.data.remainingCoins);
+      if (result.data?.paymentUrl) { showToast('Malipo yameanzishwa. Kamilisha PalmPesa kwenye ukurasa uliofunguka.', 'success', true); window.open(result.data.paymentUrl, '_blank', 'noopener,noreferrer'); pollPaymentVerification(result.data.transactionId, document.getElementById('topupMessage') || document.body, { onComplete: () => { loadBotScripts(); } }); return; }
       showToast('Malipo yamekamilika. Download inaanza.', 'success', true);
-      if (result.data?.paymentUrl) { window.open(result.data.paymentUrl, '_blank', 'noopener,noreferrer'); pollPaymentVerification(result.data.transactionId, document.getElementById('topupMessage') || document.body, { onComplete: () => { loadBotScripts(); } }); return; }
       window.location.href = result.data.downloadUrl;
-    }
+    });
 
     document.getElementById('supportForm')?.addEventListener('submit', async (event) => { event.preventDefault(); const result = await (await fetch('/api/support', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subject: document.getElementById('supportSubject').value, message: document.getElementById('supportMessage').value }) })).json(); document.getElementById('supportStatus').textContent = result.message || (result.success ? 'Ticket imetumwa.' : 'Imeshindikana.'); if (result.success) { event.target.reset(); loadSupportTickets(); } });
 
