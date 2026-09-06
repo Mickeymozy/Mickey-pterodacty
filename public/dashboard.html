@@ -130,6 +130,7 @@
           </div>
           <div class="flex gap-2">
             <button id="modalOpenPanelBtn" class="hidden rounded-2xl open-panel-btn px-3 py-2 text-xs font-semibold text-white transition">🖥️ Fungua Panel</button>
+            <button id="modalDeleteServerBtn" type="button" class="hidden rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-300 transition hover:bg-red-500/20">Futa server</button>
             <button id="modalDeselectServerBtn" class="rounded-lg border border-slate-700/70 px-3 py-1 text-xs text-slate-200 hover:bg-slate-800 transition">Toka</button>
           </div>
         </div>
@@ -930,7 +931,7 @@
       document.getElementById('selectedServerLoginPassword').textContent = '-';
       document.getElementById('selectedServerLoginEmail').textContent = '-';
       document.getElementById('selectedServerPanelHint').textContent = 'Bonyeza Fungua Panel au tumia vitufe upande wa kulia.';
-      ['powerStartBtn', 'powerStopBtn', 'powerRestartBtn', 'openPanelBtn', 'deleteServerBtn', 'selectedServerNotice', 'loadServerLogsBtn', 'createBackupBtn', 'loadBackupsBtn'].forEach((id) => document.getElementById(id)?.classList.add('hidden'));
+      ['powerStartBtn', 'powerStopBtn', 'powerRestartBtn', 'openPanelBtn', 'deleteServerBtn', 'modalDeleteServerBtn', 'selectedServerNotice', 'loadServerLogsBtn', 'createBackupBtn', 'loadBackupsBtn'].forEach((id) => document.getElementById(id)?.classList.add('hidden'));
     }
 
     async function selectServer(serverId) {
@@ -965,7 +966,7 @@
       document.getElementById('selectedServerLoginEmail').textContent = '...';
 
       // show power/delete controls but keep openPanelBtn hidden until we confirm a panel URL
-      ['powerStartBtn', 'powerStopBtn', 'powerRestartBtn', 'deleteServerBtn', 'selectedServerNotice', 'loadServerLogsBtn', 'createBackupBtn', 'loadBackupsBtn'].forEach((id) => document.getElementById(id)?.classList.remove('hidden'));
+      ['powerStartBtn', 'powerStopBtn', 'powerRestartBtn', 'deleteServerBtn', 'modalDeleteServerBtn', 'selectedServerNotice', 'loadServerLogsBtn', 'createBackupBtn', 'loadBackupsBtn'].forEach((id) => document.getElementById(id)?.classList.remove('hidden'));
       document.getElementById('serverBackupList')?.classList.add('hidden');
       document.getElementById('openPanelBtn')?.classList.add('hidden');
       document.getElementById('openPanelBtn').textContent = '🖥️ Fungua Panel';
@@ -984,7 +985,7 @@
           document.getElementById('openPanelBtn').dataset.panelUrl = panelUrl;
           document.getElementById('openPanelBtn')?.classList.remove('hidden');
           document.getElementById('selectedServerLoginUser').textContent = access.username || access.email || access.sftpUser || server.sftpUser || 'N/A';
-          document.getElementById('selectedServerLoginPassword').textContent = 'Tumia password ya panel';
+          document.getElementById('selectedServerLoginPassword').textContent = 'Password haiwezi kuonyeshwa';
           document.getElementById('selectedServerLoginEmail').textContent = access.email || 'N/A';
           document.getElementById('selectedServerPanelHint').textContent = 'Panel na login details zimetolewa kutoka kwenye server access API.';
           // Mirror into modal
@@ -993,12 +994,12 @@
           document.getElementById('modalOpenPanelBtn')?.classList.remove('hidden');
           document.getElementById('modalOpenPanelBtn').dataset.panelUrl = panelUrl;
           document.getElementById('modalSelectedServerLoginUser').textContent = access.username || access.email || access.sftpUser || server.sftpUser || 'N/A';
-          document.getElementById('modalSelectedServerLoginPassword').textContent = 'Tumia password ya panel';
+          document.getElementById('modalSelectedServerLoginPassword').textContent = 'Password haiwezi kuonyeshwa';
           document.getElementById('modalSelectedServerLoginEmail').textContent = access.email || 'N/A';
         } else {
           const errorBody = await accessRes.json().catch(() => ({}));
           document.getElementById('selectedServerLoginUser').textContent = 'N/A';
-          document.getElementById('selectedServerLoginPassword').textContent = 'Tumia password ya panel';
+          document.getElementById('selectedServerLoginPassword').textContent = 'Password haiwezi kuonyeshwa';
           document.getElementById('selectedServerLoginEmail').textContent = 'N/A';
           const panelEl = document.getElementById('selectedServerPanel');
           if (panelEl) panelEl.textContent = 'Haipatikani';
@@ -1010,7 +1011,7 @@
           if (modalPanelEl2) modalPanelEl2.textContent = 'Haipatikani';
           document.getElementById('modalOpenPanelBtn')?.classList.add('hidden');
           document.getElementById('modalSelectedServerLoginUser').textContent = 'N/A';
-          document.getElementById('modalSelectedServerLoginPassword').textContent = 'Tumia password ya panel';
+          document.getElementById('modalSelectedServerLoginPassword').textContent = 'Password haiwezi kuonyeshwa';
           document.getElementById('modalSelectedServerLoginEmail').textContent = 'N/A';
           document.getElementById('serverDetailsModalOverlay')?.classList.remove('hidden');
         }
@@ -1048,6 +1049,8 @@
       const url = document.getElementById('modalOpenPanelBtn')?.dataset.panelUrl || selectedServer?.panelUrl || '';
       if (url) window.open(url, '_blank', 'noopener,noreferrer');
     });
+
+    document.getElementById('modalDeleteServerBtn')?.addEventListener('click', () => handleSelectedServerAction('delete'));
 
     async function handleSelectedServerAction(action) {
       if (!selectedServer) return;
