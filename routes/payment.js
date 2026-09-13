@@ -13,8 +13,8 @@ const sendEmail = require('../utils/email');
 const axios = require('axios');
 const { writeAuditLog } = require('../utils/auditLog');
 const { sendPaymentConfirmation } = require('../services/smsService');
-const PTERODACTYL_URL = process.env.PTERODACTYL_URL?.replace(/\/$/, '');
-const PTERODACTYL_APP_API_KEY = process.env.PTERODACTYL_APP_API_KEY;
+const PTERODACTYL_URL = (process.env.PANEL_URL || process.env.PTERODACTYL_URL)?.replace(/\/$/, '');
+const PTERODACTYL_APP_API_KEY = process.env.PANEL_API_KEY || process.env.PTERODACTYL_APP_API_KEY;
 const appApi = PTERODACTYL_URL && PTERODACTYL_APP_API_KEY ? axios.create({ baseURL: `${PTERODACTYL_URL}/api/application`, headers: { Authorization: `Bearer ${PTERODACTYL_APP_API_KEY}`, 'Content-Type': 'application/json', Accept: 'application/json' }, timeout: 10000 }) : null;
 const { requireAdmin, ADMIN_EMAILS } = require('../middleware/auth');
 
@@ -160,6 +160,7 @@ async function fulfillSuccessfulTransaction(transactionId) {
       const { calculateExpirationDate } = require('../utils/paymentHelper');
       user.servers.push({
         packageId: transaction.packageId._id,
+        serverId: transaction.serverId,
         purchasedAt: new Date(),
         expiresAt: calculateExpirationDate(transaction.packageId.pricing?.billingCycle || transaction.packageId.billingCycle)
       });

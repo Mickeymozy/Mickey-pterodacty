@@ -3,14 +3,16 @@ const router = express.Router();
 const axios = require('axios');
 const mongoose = require('mongoose');
 const User = require('../models/User');
+const Transaction = require('../models/Transaction');
+const BotScript = require('../models/BotScript');
 const sendEmail = require('../utils/email');
 const { requireAuth, requireAdmin, isAdminUser } = require('../middleware/auth');
 const { createServerFromPackage, isValidGitUrl, buildStartupCommand } = require('../utils/serverHelper');
 const { writeAuditLog } = require('../utils/auditLog');
 
-const PTERODACTYL_URL = process.env.PTERODACTYL_URL?.replace(/\/$/, '');
-const PTERODACTYL_APP_API_KEY = process.env.PTERODACTYL_APP_API_KEY;
-const PTERODACTYL_CLIENT_API_KEY = process.env.PTERODACTYL_CLIENT_API_KEY || process.env.PTERODACTYL_CLIENT_KEY || process.env.PTERODACTYL_API_KEY || process.env.PTERODACTYL_APP_API_KEY;
+const PTERODACTYL_URL = (process.env.PANEL_URL || process.env.PTERODACTYL_URL)?.replace(/\/$/, '');
+const PTERODACTYL_APP_API_KEY = process.env.PANEL_API_KEY || process.env.PTERODACTYL_APP_API_KEY;
+const PTERODACTYL_CLIENT_API_KEY = process.env.PANEL_CLIENT_API_KEY || process.env.PTERODACTYL_CLIENT_API_KEY || process.env.PTERODACTYL_CLIENT_KEY || process.env.PTERODACTYL_API_KEY || PTERODACTYL_APP_API_KEY;
 const hasPteroConfig = PTERODACTYL_URL && PTERODACTYL_APP_API_KEY;
 const hasClientConfig = PTERODACTYL_URL && PTERODACTYL_CLIENT_API_KEY;
 
@@ -675,6 +677,33 @@ router.get('/api/servers', requireAuth, async (req, res) => {
     res.json({ success: true, servers });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message || 'Failed to fetch servers.' });
+  }
+});
+
+router.get('/api/servers/:id/monitor', requireAuth, async (req, res) => {
+  if (!clientApiUsable || !clientApi) return res.status(503).json({ success: false, error: CLIENT_KEY_REQUIRED_MESSAGE });
+  try {
+    const ref = await resolveServerRef(req.params.id);
+    if (!(await requireOwnedServer(req.user, ref))) return res.status(403).json({ success: false, error: 'Huna ruhusa ya kuona server hii.' });
+    const response = await clientApi.get(`/servers/${encodeURIComponent(ref.identifier)}/resources`);
+    res.json({ success: true, data: response.data?.attributes || {} });
+  } catch (err) {
+    res.status(err.response?.status || 500).json({ success: false, error: err.response?.data?.errors?.[0]?.detail || err.message || 'Monitoring haipatikani.' });
+  }
+});
+
+router.get('/api/admin/analytics', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const [users, scripts, sales, revenue, payments] = await Promise.all([
+      User.countDocuments(),
+      BotScript.countDocuments({ isActive: true }),
+      Transaction.countDocuments({ type: 'purchase', status: 'completed' }),
+      Transaction.aggregate([{ $match: { status: 'completed', currency: { $in: ['TZS', 'USD'] } } }, { $group: { _id: '$currency', total: { $sum: '$amount' } } }]),
+      Transaction.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }])
+    ]);
+    res.json({ success: true, data: { users, activeScripts: scripts, completedSales: sales, revenue, payments } });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message || 'Analytics hazipatikani.' });
   }
 });
 

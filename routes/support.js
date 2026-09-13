@@ -13,12 +13,16 @@ router.post('/', requireAuth, async (req, res) => {
   const subject = String(req.body.subject || '').trim();
   const message = String(req.body.message || '').trim();
   if (!subject || !message) return res.status(400).json({ success: false, message: 'Subject na ujumbe vinahitajika.' });
-  const ticket = await new SupportTicket({ userId: req.user._id, subject, message }).save();
+  const categories = ['billing', 'server', 'bot-script', 'account', 'other'];
+  const priorities = ['low', 'normal', 'high', 'urgent'];
+  const category = categories.includes(req.body.category) ? req.body.category : 'other';
+  const priority = priorities.includes(req.body.priority) ? req.body.priority : 'normal';
+  const ticket = await new SupportTicket({ userId: req.user._id, subject, message, category, priority }).save();
   res.status(201).json({ success: true, data: ticket });
 });
 
 router.get('/admin/all', requireAdmin, async (req, res) => {
-  res.json({ success: true, data: await SupportTicket.find().populate('userId', 'username email').sort({ createdAt: -1 }).lean() });
+  res.json({ success: true, data: await SupportTicket.find().populate('userId', 'username email').sort({ priority: -1, createdAt: -1 }).lean() });
 });
 
 router.patch('/admin/:id', requireAdmin, async (req, res) => {

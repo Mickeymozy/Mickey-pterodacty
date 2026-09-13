@@ -7,6 +7,7 @@ const { validatePasswordComplexity } = require('../utils/passwordValidator');
 const { requireGuest, ADMIN_EMAILS } = require('../middleware/auth');
 const sendEmail = require('../utils/email');
 const axios = require('axios');
+const LoginActivity = require('../models/LoginActivity');
 
 const COMMON_PASSWORDS = new Set([
   'password', '123456', '123456789', 'qwerty', 'password123', 'admin', 'welcome',
@@ -69,8 +70,8 @@ async function findOrCreateGithubUser(profile) {
 }
 
 // Pterodactyl API helper
-const PTERODACTYL_URL = process.env.PTERODACTYL_URL?.replace(/\/$/, '');
-const PTERODACTYL_APP_API_KEY = process.env.PTERODACTYL_APP_API_KEY;
+const PTERODACTYL_URL = (process.env.PANEL_URL || process.env.PTERODACTYL_URL)?.replace(/\/$/, '');
+const PTERODACTYL_APP_API_KEY = process.env.PANEL_API_KEY || process.env.PTERODACTYL_APP_API_KEY;
 const hasPteroConfig = PTERODACTYL_URL && PTERODACTYL_APP_API_KEY;
 
 const appApi = hasPteroConfig
@@ -168,6 +169,7 @@ router.post('/auth/login', (req, res, next) => {
 
       user.lastLogin = new Date();
       await user.save().catch(() => {});
+      await LoginActivity.create({ userId: user._id, success: true, ip: req.ip, userAgent: req.get('user-agent') || '' }).catch(() => {});
 
       const loginEmailSent = await sendEmail({
         to: user.email,

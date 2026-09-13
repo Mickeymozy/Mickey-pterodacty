@@ -17,6 +17,7 @@ const botScriptsRouter = require('./routes/botScripts');
 const supportRouter = require('./routes/support');
 const userRouter = require('./routes/user');
 const { requireAuth, requireAdmin, getUserFromSession } = require('./middleware/auth');
+const { startBillingAutomation } = require('./services/billingAutomation');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -27,6 +28,7 @@ const PORT = process.env.PORT || 3000;
 connectDB().catch((err) => {
   console.error('❌ DB startup failed:', err);
 });
+startBillingAutomation();
 
 // ============================================
 // 2. PASSPORT CONFIG

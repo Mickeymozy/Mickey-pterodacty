@@ -8,6 +8,7 @@ const sendEmail = require('../utils/email');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
 const { writeAuditLog } = require('../utils/auditLog');
 const AuditLog = require('../models/AuditLog');
+const LoginActivity = require('../models/LoginActivity');
 
 const PTERODACTYL_URL = process.env.PTERODACTYL_URL?.replace(/\/$/, '');
 const PTERODACTYL_APP_API_KEY = process.env.PTERODACTYL_APP_API_KEY;
@@ -82,6 +83,11 @@ router.get('/profile', requireAuth, async (req, res) => {
     console.error('Error fetching profile:', error);
     res.status(500).json({ success: false, message: 'Error fetching profile' });
   }
+});
+
+router.get('/security/activity', requireAuth, async (req, res) => {
+  const activity = await LoginActivity.find({ userId: req.user._id }).sort({ createdAt: -1 }).limit(20).lean();
+  res.json({ success: true, data: activity });
 });
 
 // Admin: Get all users

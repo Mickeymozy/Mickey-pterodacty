@@ -383,6 +383,9 @@
                   <div class="grid gap-3 text-sm text-slate-300">
                             <div class="flex justify-between"><span>IP / Host</span><span id="selectedServerConnection" class="font-semibold text-slate-100">-</span></div>
                     <div class="flex justify-between"><span>User</span><span id="selectedServerUser" class="font-semibold text-slate-100">-</span></div>
+                    <div class="flex justify-between"><span>CPU</span><span id="selectedServerCpu" class="font-semibold text-cyan-300">-</span></div>
+                    <div class="flex justify-between"><span>Memory</span><span id="selectedServerMemory" class="font-semibold text-cyan-300">-</span></div>
+                    <div class="flex justify-between"><span>Disk</span><span id="selectedServerDisk" class="font-semibold text-cyan-300">-</span></div>
                   </div>
                 </div>
               </div>
@@ -408,7 +411,7 @@
           <form id="botScriptPaymentForm" class="space-y-4 p-6"><label class="block text-sm font-semibold text-white" for="botScriptPaymentPhone">Namba ya PalmPesa</label><div class="flex items-center gap-3 rounded-2xl border border-slate-700 bg-slate-950/80 px-4 py-3"><span class="text-xl text-emerald-400">☎</span><input id="botScriptPaymentPhone" type="tel" inputmode="numeric" autocomplete="tel" required placeholder="255744000000" class="w-full bg-transparent text-sm text-white outline-none" /></div><p class="text-xs text-slate-400">Weka namba ya Tanzania itakayotumika kukamilisha malipo.</p><p id="botScriptPaymentMessage" class="text-xs"></p><div class="flex justify-end gap-2"><button id="botScriptPaymentCancel" type="button" class="rounded-xl border border-slate-700 px-4 py-2 text-sm text-slate-300">Ghairi</button><button type="submit" class="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-bold text-slate-950">Endelea na PalmPesa</button></div></form>
         </div>
       </div>
-      <div id="support" class="tab-content space-y-4"><div class="glass rounded-2xl p-6"><h2 class="text-xl font-semibold text-white">🎧 Support</h2><p class="mt-1 text-xs text-slate-400">Tuma swali au tatizo lako kwa admin.</p><form id="supportForm" class="mt-4 space-y-3"><input id="supportSubject" required maxlength="160" placeholder="Subject" class="w-full rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-sm text-white outline-none" /><textarea id="supportMessage" required maxlength="4000" rows="5" placeholder="Eleza tatizo lako..." class="w-full rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-sm text-white outline-none"></textarea><button class="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white">Tuma ticket</button><p id="supportStatus" class="text-xs"></p></form><div id="supportTickets" class="mt-5 space-y-3"></div></div></div>
+      <div id="support" class="tab-content space-y-4"><div class="glass rounded-2xl p-6"><h2 class="text-xl font-semibold text-white">🎧 Support</h2><p class="mt-1 text-xs text-slate-400">Tuma swali au tatizo lako kwa admin.</p><form id="supportForm" class="mt-4 space-y-3"><div class="grid gap-3 sm:grid-cols-2"><select id="supportCategory" class="rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-sm text-white outline-none"><option value="other">Category: Other</option><option value="billing">Billing</option><option value="server">Server</option><option value="bot-script">Bot Script</option><option value="account">Account</option></select><select id="supportPriority" class="rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-sm text-white outline-none"><option value="normal">Priority: Normal</option><option value="low">Low</option><option value="high">High</option><option value="urgent">Urgent</option></select></div><input id="supportSubject" required maxlength="160" placeholder="Subject" class="w-full rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-sm text-white outline-none" /><textarea id="supportMessage" required maxlength="4000" rows="5" placeholder="Eleza tatizo lako..." class="w-full rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-sm text-white outline-none"></textarea><button class="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white">Tuma ticket</button><p id="supportStatus" class="text-xs"></p></form><div id="supportTickets" class="mt-5 space-y-3"></div></div></div>
 
       <div id="transactions" class="tab-content space-y-4">
         <div class="glass rounded-2xl p-6">
@@ -615,6 +618,7 @@
     let currentCoins = 0; // Salio halisi la coins kutoka mfumo (chanzo kimoja kwa kurasa zote)
     let allServers = [];
     let selectedServer = null;
+    let serverMonitorTimer = null;
 
     // Soma coins kwa namna sawa kila mahali (formatting moja)
     function formatCoins(value) {
@@ -930,11 +934,16 @@
 
     function clearSelectedServer() {
       selectedServer = null;
+      if (serverMonitorTimer) clearInterval(serverMonitorTimer);
+      serverMonitorTimer = null;
       const detailsSection = document.getElementById('server-details');
       detailsSection?.classList.add('hidden');
       document.getElementById('selectedServerName').textContent = 'Server husika';
       document.getElementById('selectedServerStatus').textContent = 'Chagua server ili kuona actions, panel access, na details za server.';
       document.getElementById('selectedServerConnection').textContent = '-';
+      document.getElementById('selectedServerCpu').textContent = '-';
+      document.getElementById('selectedServerMemory').textContent = '-';
+      document.getElementById('selectedServerDisk').textContent = '-';
       document.getElementById('selectedServerPanel').textContent = '-';
       document.getElementById('selectedServerUser').textContent = '-';
       document.getElementById('selectedServerLoginUser').textContent = '-';
@@ -948,6 +957,23 @@
       const server = allServers.find((s) => String(s.identifier || s.uuid || s.id) === String(serverId));
       if (!server) return;
       selectedServer = server;
+      if (serverMonitorTimer) clearInterval(serverMonitorTimer);
+      const refreshMonitor = async () => {
+        try {
+          const response = await fetch(`/api/servers/${encodeURIComponent(serverId)}/monitor`);
+          const result = await response.json();
+          const resources = result.data || {};
+          document.getElementById('selectedServerCpu').textContent = resources.cpu_absolute !== undefined ? `${Number(resources.cpu_absolute).toFixed(1)}%` : 'N/A';
+          document.getElementById('selectedServerMemory').textContent = resources.memory_bytes !== undefined ? `${(Number(resources.memory_bytes) / 1024 / 1024).toFixed(0)} MB` : 'N/A';
+          document.getElementById('selectedServerDisk').textContent = resources.disk_bytes !== undefined ? `${(Number(resources.disk_bytes) / 1024 / 1024 / 1024).toFixed(2)} GB` : 'N/A';
+        } catch (_) {
+          document.getElementById('selectedServerCpu').textContent = 'N/A';
+          document.getElementById('selectedServerMemory').textContent = 'N/A';
+          document.getElementById('selectedServerDisk').textContent = 'N/A';
+        }
+      };
+      refreshMonitor();
+      serverMonitorTimer = setInterval(refreshMonitor, 15000);
       document.getElementById('selectedServerName').textContent = server.name || 'Server bila jina';
       let displayStatus = String(server.status || 'Online').toUpperCase();
       if (displayStatus === 'UNKNOWN' || displayStatus === 'UNAVAILABLE' || displayStatus === 'HAIPATIKANI') {
@@ -1582,7 +1608,7 @@
       window.location.href = result.data.downloadUrl;
     });
 
-    document.getElementById('supportForm')?.addEventListener('submit', async (event) => { event.preventDefault(); const result = await (await fetch('/api/support', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subject: document.getElementById('supportSubject').value, message: document.getElementById('supportMessage').value }) })).json(); document.getElementById('supportStatus').textContent = result.message || (result.success ? 'Ticket imetumwa.' : 'Imeshindikana.'); if (result.success) { event.target.reset(); loadSupportTickets(); } });
+    document.getElementById('supportForm')?.addEventListener('submit', async (event) => { event.preventDefault(); const result = await (await fetch('/api/support', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subject: document.getElementById('supportSubject').value, message: document.getElementById('supportMessage').value, category: document.getElementById('supportCategory').value, priority: document.getElementById('supportPriority').value }) })).json(); document.getElementById('supportStatus').textContent = result.message || (result.success ? 'Ticket imetumwa.' : 'Imeshindikana.'); if (result.success) { event.target.reset(); loadSupportTickets(); } });
 
     document.addEventListener('contextmenu', (event) => event.preventDefault());
     document.addEventListener('keydown', (event) => {

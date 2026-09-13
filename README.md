@@ -190,6 +190,16 @@ JWT_SECRET=random-jwt-secret
 DOWNLOAD_LINK_SECRET=use-a-long-random-secret
 PALMPESA_WEBHOOK_SECRET=use-the-provider-webhook-secret
 
+# Panel provider (compatible Pterodactyl panels)
+PANEL_PROVIDER=pterodactyl
+PANEL_URL=https://panel.example.com
+PANEL_API_KEY=ptla_application_key
+PANEL_CLIENT_API_KEY=ptlc_client_key
+
+# Billing automation
+BILLING_AUTOMATION_ENABLED=true
+BILLING_AUTOMATION_INTERVAL_MS=900000
+
 # SMS confirmations (SMSTAPSA / sms-bulk-tz)
 TAPSA_API_KEY=your-smstapsa-api-key
 TAPSA_SENDER_ID=TAPSA
@@ -198,6 +208,9 @@ TAPSA_BASE_URL=https://api.smstapsa.site
 ```
 
 After a PalmPesa payment is confirmed by the provider API or webhook, the customer receives an SMS confirmation on the phone number used for the payment. Pending, failed, and admin/manual payments do not trigger this SMS.
+
+## Monitoring and Analytics
+The dashboard also exposes live server monitoring at `/api/servers/:id/monitor`, admin analytics at `/api/admin/analytics`, and login activity at `/api/user/security/activity`. `PANEL_*` settings let compatible Pterodactyl panels be changed without changing the application code. A different panel API requires an additional provider adapter implementing the same panel contract.
 
 See [QUICK_START.md](QUICK_START.md) for detailed SMTP/ZenoPay setup.
 
