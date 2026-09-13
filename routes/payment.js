@@ -12,6 +12,7 @@ const { createServerFromPackage } = require('../utils/serverHelper');
 const sendEmail = require('../utils/email');
 const axios = require('axios');
 const { writeAuditLog } = require('../utils/auditLog');
+const { sendPaymentConfirmation } = require('../services/smsService');
 const PTERODACTYL_URL = process.env.PTERODACTYL_URL?.replace(/\/$/, '');
 const PTERODACTYL_APP_API_KEY = process.env.PTERODACTYL_APP_API_KEY;
 const appApi = PTERODACTYL_URL && PTERODACTYL_APP_API_KEY ? axios.create({ baseURL: `${PTERODACTYL_URL}/api/application`, headers: { Authorization: `Bearer ${PTERODACTYL_APP_API_KEY}`, 'Content-Type': 'application/json', Accept: 'application/json' }, timeout: 10000 }) : null;
@@ -85,6 +86,27 @@ async function notifyUserAboutPendingPayment(user, transaction, packageDoc, requ
   });
 }
 
+async function notifyUserBySmsAfterApiPayment(user, transaction, productName) {
+  if (transaction.paymentProvider !== 'palmpesa') return;
+
+  try {
+    const smsResult = await sendPaymentConfirmation({
+      phone: transaction.metadata?.phone || user.phone,
+      amount: transaction.amount,
+      transactionId: transaction._id,
+      product: productName
+    });
+
+    if (smsResult.sent) {
+      transaction.metadata = { ...(transaction.metadata || {}), confirmationSmsSent: true, confirmationSmsPhone: smsResult.phone };
+    } else if (!smsResult.skipped) {
+      console.warn('Payment confirmation SMS was not sent:', smsResult.reason || 'Unknown error');
+    }
+  } catch (error) {
+    console.error('Payment confirmation SMS failed:', error.message);
+  }
+}
+
 async function fulfillSuccessfulTransaction(transactionId) {
   const transaction = await Transaction.findOneAndUpdate(
     { _id: transactionId, status: 'pending' },
@@ -117,10 +139,12 @@ async function fulfillSuccessfulTransaction(transactionId) {
       );
       userCoins = Number(updatedUser?.coins || 0);
       await notifyUserAboutPayment(updatedUser || user, transaction, { name: 'Coins Top-up' }, null);
+      await notifyUserBySmsAfterApiPayment(updatedUser || user, transaction, 'Coins top-up');
     } else if (isBotScript) {
       await notifyUserAboutPayment(user, transaction, { name: transaction.metadata?.title || 'Bot Script' }, {
         access: { downloadUrl: transaction.metadata?.downloadUrl }
       });
+      await notifyUserBySmsAfterApiPayment(user, transaction, transaction.metadata?.title || 'Bot Script');
     } else if (!isGeneric && transaction.packageId) {
       const serverName = transaction.metadata?.serverName || `${transaction.packageId.name}-${Date.now()}`;
       serverData = await createServerFromPackage(user, transaction.packageId._id, serverName, {
@@ -141,6 +165,7 @@ async function fulfillSuccessfulTransaction(transactionId) {
       });
       await user.save();
       await notifyUserAboutPayment(user, transaction, transaction.packageId, serverData);
+      await notifyUserBySmsAfterApiPayment(user, transaction, transaction.packageId?.name || 'Server');
     } else {
       await notifyUserAboutPendingPayment(user, transaction, { name: transaction.description }, 'generic payment');
     }
@@ -312,6 +337,7 @@ router.post('/checkout', authenticate, async (req, res) => {
           paymentUrl: paymentResult.paymentUrl,
           paymentMessage: paymentResult.paymentMessage || paymentResult.raw?.message || 'Please follow the prompt on your phone.',
           paymentInitiated: true,
+          autoFulfill: true,
           paymentEndpoint: paymentResult.endpoint || 'palmpesa',
           paymentDetails: paymentResult.details || null
         };
@@ -534,6 +560,7 @@ router.post('/topup', authenticate, async (req, res) => {
           palmpesaOrderId: paymentResult.orderId || paymentResult.transactionId,
           paymentUrl: paymentResult.paymentUrl,
           paymentInitiated: true,
+          autoFulfill: true,
           paymentEndpoint: paymentResult.endpoint || 'palmpesa'
         };
         await transaction.save();
@@ -765,6 +792,7 @@ router.post('/generic', authenticate, async (req, res) => {
           paymentUrl: paymentResult.paymentUrl,
           paymentMessage: paymentResult.paymentMessage || paymentResult.raw?.message || 'Please follow the prompt on your phone.',
           paymentInitiated: true,
+          autoFulfill: true,
           paymentEndpoint: paymentResult.endpoint || 'palmpesa'
         };
         await transaction.save();
@@ -855,7 +883,11 @@ router.post('/webhook', async (req, res) => {
     }
 
     const webhookData = req.body?.data && typeof req.body.data === 'object' ? req.body.data : {};
-    const reference = req.body?.reference || req.body?.order_id || req.body?.transaction_id || req.body?.transid || webhookData.reference || req.body?.orderId || webhookData.order_id || webhookData.orderId || webhookData.transaction_id || webhookData.transid;
+    const webhookResult = webhookData?.result && typeof webhookData.result === 'object' ? webhookData.result : {};
+    const reference = req.body?.reference || req.body?.order_id || req.body?.transaction_id || req.body?.transid
+      || req.body?.orderId || webhookData.reference || webhookData.order_id || webhookData.orderId
+      || webhookData.transaction_id || webhookData.transid || webhookResult.reference || webhookResult.order_id
+      || webhookResult.orderId || webhookResult.transaction_id || webhookResult.transid;
     const transaction = await Transaction.findById(reference).catch(() => null);
     const fallbackTransaction = reference
       ? await Transaction.findOne({
@@ -873,8 +905,10 @@ router.post('/webhook', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Transaction not found' });
     }
 
-    const status = String(req.body?.status || req.body?.payment_status || req.body?.paymentStatus || webhookData.status || webhookData.payment_status || webhookData.paymentStatus || '').toLowerCase();
-    const shouldCredit = status === 'success' || status === 'successful' || status === 'completed' || status === 'complete' || status === 'succeeded' || status === 'paid' || status === 'confirmed';
+    const status = String(req.body?.status || req.body?.payment_status || req.body?.paymentStatus
+      || req.body?.result || webhookData.status || webhookData.payment_status || webhookData.paymentStatus
+      || webhookData.result || webhookResult.status || webhookResult.payment_status || webhookResult.paymentStatus || '').toLowerCase().trim();
+    const shouldCredit = ['success', 'successful', 'completed', 'complete', 'succeeded', 'paid', 'confirmed', 'approved'].includes(status);
 
     if (shouldCredit) {
       await fulfillSuccessfulTransaction(targetTransaction._id);
@@ -1062,6 +1096,28 @@ router.post('/admin/:transactionId/approve', requireAdmin, async (req, res) => {
         return res.status(404).json({ success: false, message: 'Transaction not found' });
       }
       return res.status(409).json({ success: false, message: `Transaction is already ${existing.status}.` });
+    }
+
+    if (transaction.paymentProvider === 'palmpesa') {
+      const verificationResult = await palmPesaService.verifyPayment(transaction.zenopayTransactionId);
+      const verifiedStatus = String(verificationResult.paymentStatus || '').toLowerCase();
+      const isPaid = verificationResult.success && ['success', 'successful', 'completed', 'complete', 'succeeded', 'paid', 'confirmed', 'approved'].includes(verifiedStatus);
+
+      if (!isPaid) {
+        transaction.status = verifiedStatus === 'failed' || verifiedStatus === 'cancelled' ? 'failed' : 'pending';
+        transaction.notes = `PalmPesa haijathibitisha malipo: ${verifiedStatus || verificationResult.error || 'pending'}`;
+        await transaction.save();
+        return res.status(409).json({ success: false, message: 'PalmPesa bado haijathibitisha malipo. Admin hawezi ku-credit coins manually.' });
+      }
+
+      transaction.status = 'pending';
+      await transaction.save();
+      const result = await fulfillSuccessfulTransaction(transaction._id);
+      return res.json({
+        success: true,
+        message: 'Malipo ya PalmPesa yamethibitishwa na coins zimewekwa moja kwa moja.',
+        data: { transactionId: transaction._id, status: 'completed', userCoins: result.userCoins }
+      });
     }
 
     const user = await User.findById(transaction.userId);

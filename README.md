@@ -189,7 +189,15 @@ SESSION_SECRET=random-secret-string
 JWT_SECRET=random-jwt-secret
 DOWNLOAD_LINK_SECRET=use-a-long-random-secret
 PALMPESA_WEBHOOK_SECRET=use-the-provider-webhook-secret
+
+# SMS confirmations (SMSTAPSA / sms-bulk-tz)
+TAPSA_API_KEY=your-smstapsa-api-key
+TAPSA_SENDER_ID=TAPSA
+# Optional: defaults to https://api.smstapsa.site
+TAPSA_BASE_URL=https://api.smstapsa.site
 ```
+
+After a PalmPesa payment is confirmed by the provider API or webhook, the customer receives an SMS confirmation on the phone number used for the payment. Pending, failed, and admin/manual payments do not trigger this SMS.
 
 See [QUICK_START.md](QUICK_START.md) for detailed SMTP/ZenoPay setup.
 
