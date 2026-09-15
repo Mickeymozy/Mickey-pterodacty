@@ -1,5 +1,6 @@
 const express = require('express');
 const axios = require('axios');
+const crypto = require('crypto');
 const router = express.Router();
 const User = require('../models/User');
 const ServerPackage = require('../models/ServerPackage');
@@ -44,7 +45,9 @@ async function fetchPteroUsers() {
         results.push({
           id: attrs.id,
           username: attrs.username,
-          email: attrs.email
+          email: attrs.email,
+          firstName: attrs.first_name || '',
+          lastName: attrs.last_name || ''
         });
       }
     });
@@ -55,6 +58,91 @@ async function fetchPteroUsers() {
 
   return results;
 }
+
+function generateSyncPassword() {
+  return `${crypto.randomBytes(18).toString('base64url')}Aa1!`;
+}
+
+router.post('/users/sync', requireAuth, requireAdmin, async (req, res) => {
+  if (!appApi) return res.status(503).json({ success: false, message: 'Pterodactyl API is not configured.' });
+
+  const summary = { panelUsers: 0, websiteUsers: 0, linked: 0, createdOnPanel: 0, createdOnWebsite: 0, errors: [] };
+  try {
+    const [panelUsers, websiteUsers] = await Promise.all([
+      fetchPteroUsers(),
+      User.find().select('+password username email firstName lastName displayName pteroId role isAdmin').lean()
+    ]);
+    summary.panelUsers = panelUsers.length;
+    summary.websiteUsers = websiteUsers.length;
+
+    const byId = new Map(websiteUsers.filter((user) => user.pteroId).map((user) => [String(user.pteroId), user]));
+    const byEmail = new Map(websiteUsers.map((user) => [String(user.email || '').toLowerCase(), user]));
+    const byUsername = new Map(websiteUsers.map((user) => [String(user.username || '').toLowerCase(), user]));
+    const linkedWebsiteIds = new Set();
+
+    for (const panelUser of panelUsers) {
+      let local = byId.get(String(panelUser.id)) || byEmail.get(String(panelUser.email || '').toLowerCase()) || byUsername.get(String(panelUser.username || '').toLowerCase());
+      if (local) {
+        const update = {};
+        if (Number(local.pteroId) !== Number(panelUser.id)) update.pteroId = Number(panelUser.id);
+        if (!local.email && panelUser.email) update.email = panelUser.email.toLowerCase();
+        if (Object.keys(update).length) await User.updateOne({ _id: local._id }, { $set: update });
+        linkedWebsiteIds.add(String(local._id));
+        summary.linked += 1;
+        continue;
+      }
+
+      try {
+        const email = String(panelUser.email || `${panelUser.username}@panel.local`).toLowerCase();
+        const created = await new User({
+          pteroId: Number(panelUser.id),
+          username: String(panelUser.username || `paneluser${panelUser.id}`).toLowerCase(),
+          email,
+          password: generateSyncPassword(),
+          firstName: panelUser.firstName || 'Panel',
+          lastName: panelUser.lastName || 'User',
+          displayName: panelUser.username || email,
+          isEmailVerified: true
+        }).save();
+        linkedWebsiteIds.add(String(created._id));
+        summary.createdOnWebsite += 1;
+      } catch (error) {
+        summary.errors.push(`Panel user ${panelUser.username || panelUser.id}: ${error.message}`);
+      }
+    }
+
+    for (const local of websiteUsers) {
+      if (local.pteroId || linkedWebsiteIds.has(String(local._id))) continue;
+      const existingPanel = panelUsers.find((panelUser) => String(panelUser.email || '').toLowerCase() === String(local.email || '').toLowerCase() || String(panelUser.username || '').toLowerCase() === String(local.username || '').toLowerCase());
+      if (existingPanel) {
+        await User.updateOne({ _id: local._id }, { $set: { pteroId: Number(existingPanel.id) } });
+        summary.linked += 1;
+        continue;
+      }
+
+      try {
+        const response = await appApi.post('/users', {
+          username: local.username,
+          email: local.email,
+          first_name: local.firstName || local.displayName || local.username,
+          last_name: local.lastName || 'User',
+          password: generateSyncPassword(),
+          language: 'en'
+        });
+        const attrs = response.data?.attributes || {};
+        await User.updateOne({ _id: local._id }, { $set: { pteroId: Number(attrs.id) } });
+        summary.createdOnPanel += 1;
+      } catch (error) {
+        summary.errors.push(`Website user ${local.username || local.email}: ${error.response?.data?.errors?.[0]?.detail || error.message}`);
+      }
+    }
+
+    await writeAuditLog(req, 'users.synchronized', null, summary);
+    res.json({ success: true, message: 'Users wa panel na website wamesync.', data: summary });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message || 'User sync imeshindikana.', data: summary });
+  }
+});
 
 // Get user profile and stats
 router.get('/profile', requireAuth, async (req, res) => {

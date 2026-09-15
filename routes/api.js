@@ -1023,55 +1023,6 @@ router.get('/api/servers/:id/details', requireAuth, async (req, res) => {
   }
 });
 
-// Server backups and console websocket details use the Pterodactyl Client API.
-router.get('/api/servers/:id/backups', requireAuth, async (req, res) => {
-  if (!clientApiUsable || !clientApi) return res.status(503).json({ success: false, error: CLIENT_KEY_REQUIRED_MESSAGE });
-  try {
-    const ref = await resolveServerRef(req.params.id);
-    if (!(await requireOwnedServer(req.user, ref))) return res.status(403).json({ success: false, error: 'Huna ruhusa ya kuona backups za server hii.' });
-    const response = await clientApi.get(`/servers/${encodeURIComponent(ref.identifier)}/backups`);
-    res.json({ success: true, data: response.data?.data || [], meta: response.data?.meta || {} });
-  } catch (err) {
-    res.status(err.response?.status || 500).json({ success: false, error: err.response?.data?.errors?.[0]?.detail || err.message || 'Failed to load backups.' });
-  }
-});
-
-router.post('/api/servers/:id/backups', requireAuth, async (req, res) => {
-  if (!clientApiUsable || !clientApi) return res.status(503).json({ success: false, error: CLIENT_KEY_REQUIRED_MESSAGE });
-  try {
-    const ref = await resolveServerRef(req.params.id);
-    if (!(await requireOwnedServer(req.user, ref))) return res.status(403).json({ success: false, error: 'Huna ruhusa ya kuunda backup ya server hii.' });
-    const response = await clientApi.post(`/servers/${encodeURIComponent(ref.identifier)}/backups`, { name: String(req.body?.name || '').trim() || undefined });
-    res.status(201).json({ success: true, data: response.data?.attributes || response.data?.data || {} });
-  } catch (err) {
-    res.status(err.response?.status || 500).json({ success: false, error: err.response?.data?.errors?.[0]?.detail || err.message || 'Failed to create backup.' });
-  }
-});
-
-router.delete('/api/servers/:id/backups/:backupId', requireAuth, async (req, res) => {
-  if (!clientApiUsable || !clientApi) return res.status(503).json({ success: false, error: CLIENT_KEY_REQUIRED_MESSAGE });
-  try {
-    const ref = await resolveServerRef(req.params.id);
-    if (!(await requireOwnedServer(req.user, ref))) return res.status(403).json({ success: false, error: 'Huna ruhusa ya kufuta backup ya server hii.' });
-    await clientApi.delete(`/servers/${encodeURIComponent(ref.identifier)}/backups/${encodeURIComponent(req.params.backupId)}`);
-    res.json({ success: true });
-  } catch (err) {
-    res.status(err.response?.status || 500).json({ success: false, error: err.response?.data?.errors?.[0]?.detail || err.message || 'Failed to delete backup.' });
-  }
-});
-
-router.post('/api/servers/:id/backups/:backupId/restore', requireAuth, async (req, res) => {
-  if (!clientApiUsable || !clientApi) return res.status(503).json({ success: false, error: CLIENT_KEY_REQUIRED_MESSAGE });
-  try {
-    const ref = await resolveServerRef(req.params.id);
-    if (!(await requireOwnedServer(req.user, ref))) return res.status(403).json({ success: false, error: 'Huna ruhusa ya kurestore backup ya server hii.' });
-    const response = await clientApi.post(`/servers/${encodeURIComponent(ref.identifier)}/backups/${encodeURIComponent(req.params.backupId)}/restore`);
-    res.json({ success: true, data: response.data?.attributes || response.data?.data || {} });
-  } catch (err) {
-    res.status(err.response?.status || 500).json({ success: false, error: err.response?.data?.errors?.[0]?.detail || err.message || 'Failed to restore backup.' });
-  }
-});
-
 router.get('/api/servers/:id/console', requireAuth, async (req, res) => {
   if (!clientApiUsable || !clientApi) return res.status(503).json({ success: false, error: CLIENT_KEY_REQUIRED_MESSAGE });
   try {

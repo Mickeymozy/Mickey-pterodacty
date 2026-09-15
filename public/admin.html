@@ -55,6 +55,7 @@
   </div>
 
   <div id="uiToast" class="fixed right-5 top-5 z-[100] hidden max-w-sm overflow-hidden rounded-3xl border border-slate-700/60 bg-slate-950/95 p-4 shadow-2xl backdrop-blur-xl text-sm text-white">
+          <button type="button" onclick="syncPanelUsers()" class="inline-flex items-center justify-center rounded-2xl bg-cyan-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-cyan-500">Sync Panel ↔ Website</button>
     <div id="uiToastMessage" class="flex items-center gap-3"></div>
   </div>
   <div id="uiDialogOverlay" class="fixed inset-0 z-[90] hidden items-center justify-center bg-slate-950/70 px-4 py-8 backdrop-blur-sm">
@@ -299,10 +300,6 @@
           <div>
             <h2 class="text-xl font-semibold text-white mb-1">🖥️ Usimamizi wa Server</h2>
             <p class="text-sm text-slate-400">Angalia, uongeze taarifa na utume notisi kwa wenye server kwa urahisi.</p>
-          </div>
-          <div class="mt-4 rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-4">
-            <p class="text-sm font-semibold text-cyan-200">Backup na Access</p>
-            <p class="mt-1 text-xs text-slate-400">Buttons za Create Backup, Backups / Restore na Access zitaonekana kwenye kila server hapa chini. Backup inahitaji `PTERODACTYL_CLIENT_API_KEY` inayoanza na `ptlc_`.</p>
           </div>
           <button id="refreshServersBtn" onclick="loadAdminServers()" class="inline-flex items-center justify-center rounded-2xl bg-slate-800/80 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700">Refresh Servers</button>
         </div>
@@ -898,6 +895,16 @@
       } catch(e) { console.error(e); }
     }
 
+    async function syncPanelUsers() {
+      const confirmed = await confirmDialog('Users waliokosekana wataundwa upande mwingine. Password mpya itahitaji reset. Endelea?', { title: 'Sync users' });
+      if (!confirmed) return;
+      const result = await (await fetch(`${API_URL}/user/users/sync`, { method: 'POST', headers: { 'Content-Type': 'application/json' } })).json();
+      if (!result.success) { notify(result.message || 'User sync imeshindikana.', 'error'); return; }
+      const data = result.data || {};
+      notify(`Sync imekamilika: panel mpya ${data.createdOnPanel || 0}, website mpya ${data.createdOnWebsite || 0}, linked ${data.linked || 0}.`, 'success');
+      loadUsers();
+    }
+
     async function loadAuditLogs() {
       const tbody = document.getElementById('auditLogsList');
       if (!tbody) return;
@@ -952,8 +959,6 @@
             <td class="py-2 px-4">
               <div class="flex flex-wrap gap-2">
                 <button onclick="performServerAction('${server.id}', '${action}')" class="rounded-lg bg-indigo-600 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-indigo-500">${suspendLabel}</button>
-                <button onclick="createAdminBackup('${server.identifier || server.id}')" class="rounded-lg bg-cyan-500/20 px-3 py-1.5 text-[11px] font-semibold text-cyan-300 transition hover:bg-cyan-500/30">Create Backup</button>
-                <button onclick="listAdminBackups('${server.identifier || server.id}', '${String(server.name || '').replace(/'/g, '')}')" class="rounded-lg bg-emerald-500/20 px-3 py-1.5 text-[11px] font-semibold text-emerald-300 transition hover:bg-emerald-500/30">Backups / Restore</button>
                 <button onclick="showAdminServerAccess('${server.identifier || server.id}')" class="rounded-lg bg-violet-500/20 px-3 py-1.5 text-[11px] font-semibold text-violet-300 transition hover:bg-violet-500/30">Access</button>
                 <button onclick="prefillAdminEmail('${server.ownerEmail || ''}')" class="rounded-lg bg-sky-500/20 px-3 py-1.5 text-[11px] font-semibold text-sky-300 transition hover:bg-sky-500/30">Notify Owner</button>
               </div>
@@ -1005,34 +1010,6 @@
       } catch (err) {
         notify('Hitilafu wakati wa kubadilisha server.', 'error');
       }
-    }
-
-    async function createAdminBackup(serverId) {
-      const name = await promptDialog('Jina la backup (hiari):', { placeholder: 'Before restore' });
-      if (name === null) return;
-      const result = await (await fetch(`${API_URL}/admin/servers/${encodeURIComponent(serverId)}/backups`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name })
-      })).json();
-      notify(result.success ? 'Backup imeanzishwa.' : (result.error || 'Backup imeshindikana.'), result.success ? 'success' : 'error');
-    }
-
-    async function listAdminBackups(serverId, serverName) {
-      const result = await (await fetch(`${API_URL}/admin/servers/${encodeURIComponent(serverId)}/backups`)).json();
-      if (!result.success) { notify(result.error || 'Backups hazipatikani.', 'error'); return; }
-      const backups = result.data || [];
-      if (!backups.length) { notify('Server hii haina backup.', 'info'); return; }
-      const options = backups.map((backup, index) => `${index + 1}. ${backup.attributes?.name || backup.attributes?.uuid || backup.attributes?.id || 'Backup'}`).join('\n');
-      const selected = await promptDialog(`Backups za ${serverName || serverId}:\n${options}\n\nWeka namba ya backup ya kurestore:`, { placeholder: '1' });
-      if (selected === null) return;
-      const backup = backups[Number(selected) - 1];
-      const backupId = backup?.attributes?.uuid || backup?.attributes?.id;
-      if (!backupId) { notify('Backup haikutambulika.', 'error'); return; }
-      const confirmation = await promptDialog(`Andika server identifier "${serverId}" kuthibitisha restore:`, { placeholder: serverId, confirmText: 'Restore' });
-      if (confirmation !== serverId) { notify('Restore imeghairiwa.', 'error'); return; }
-      const restoreResult = await (await fetch(`${API_URL}/admin/servers/${encodeURIComponent(serverId)}/backups/${encodeURIComponent(backupId)}/restore`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ confirmServerId: confirmation })
-      })).json();
-      notify(restoreResult.success ? 'Restore imeanzishwa kwenye panel.' : (restoreResult.error || 'Restore imeshindikana.'), restoreResult.success ? 'success' : 'error');
     }
 
     async function showAdminServerAccess(serverId) {
@@ -1175,9 +1152,8 @@
     window.editBotScript = editBotScript;
     window.deleteBotScript = deleteBotScript;
     window.replySupport = replySupport;
-    window.createAdminBackup = createAdminBackup;
-    window.listAdminBackups = listAdminBackups;
     window.showAdminServerAccess = showAdminServerAccess;
+    window.syncPanelUsers = syncPanelUsers;
 
     document.getElementById('botScriptForm').addEventListener('submit', async (event) => {
       event.preventDefault();
