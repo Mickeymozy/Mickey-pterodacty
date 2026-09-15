@@ -20,6 +20,11 @@ test('converts package resources to Pterodactyl limits', () => {
   });
 });
 
+test('keeps package CPU percentages instead of multiplying them by 100', () => {
+  assert.equal(buildPteroLimitsFromPackage({ cpu: 25 }).cpu, 25);
+  assert.equal(buildPteroLimitsFromPackage({ cpu: 30 }).cpu, 30);
+});
+
 test('keeps the startup command unchanged when no repository is configured', () => {
   const startupCommand = 'npm start';
   assert.equal(buildStartupCommand(startupCommand), startupCommand);

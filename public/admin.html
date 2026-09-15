@@ -10,6 +10,15 @@
     * { font-family: 'DM Sans', sans-serif; }
     h1, h2, h3, h4 { font-family: 'Space Grotesk', sans-serif; }
     body { background: #101315; background-image: linear-gradient(rgba(148, 163, 184, .035) 1px, transparent 1px), linear-gradient(90deg, rgba(148, 163, 184, .035) 1px, transparent 1px); background-size: 36px 36px; }
+    body { animation: page-enter .5s ease both; }
+    @keyframes page-enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    body.light-mode { background: #f3f7f6; background-image: linear-gradient(rgba(15, 118, 110, .06) 1px, transparent 1px), linear-gradient(90deg, rgba(15, 118, 110, .06) 1px, transparent 1px); color: #16302f; }
+    body.light-mode .glass { background: rgba(255,255,255,.86); border-color: rgba(15,118,110,.16); box-shadow: 0 12px 30px rgba(15, 70, 65, .08); }
+    body.light-mode .bg-slate-950\/80, body.light-mode .bg-slate-950\/70, body.light-mode .bg-slate-900\/70 { background-color: rgba(255,255,255,.8); }
+    body.light-mode .text-white, body.light-mode .text-slate-100, body.light-mode .text-slate-200 { color: #183331; }
+    body.light-mode .text-slate-300, body.light-mode .text-slate-400 { color: #46625f; }
+    body.light-mode .text-slate-500 { color: #64807c; }
+    body.light-mode .border-slate-700, body.light-mode .border-slate-800 { border-color: rgba(15,118,110,.18); }
     .glass {
       background: rgba(24, 29, 31, 0.92);
       backdrop-filter: blur(12px);
@@ -89,6 +98,7 @@
           <p class="mt-1 text-sm text-slate-400">Usimamizi wa Package & Mifumo</p>
         </div>
         <div class="flex items-center gap-3">
+          <button type="button" id="themeModeBtn" onclick="toggleThemeMode()" class="px-4 py-2.5 rounded-xl bg-slate-800/50 text-sm font-medium text-slate-300 hover:bg-slate-700/50 transition border border-slate-700/50" title="Badilisha light/dark mode">☀️ Light</button>
           <a href="/dashboard.html" class="px-4 py-2.5 rounded-xl bg-slate-800/50 text-sm font-medium text-slate-300 hover:bg-slate-700/50 transition border border-slate-700/50">📊 Dashboard</a>
           <a href="/logout" class="px-4 py-2.5 rounded-xl bg-red-500/10 text-sm font-medium text-red-400 hover:bg-red-500/20 transition border border-red-500/20">Ondoka</a>
         </div>
@@ -729,6 +739,19 @@
     document.getElementById('toggleEmailComposerBtn')?.addEventListener('click', toggleEmailComposer);
     document.getElementById('adminEmailSelectUser')?.addEventListener('change', handleAdminEmailUserChange);
     document.getElementById('sendAdminEmailBtn')?.addEventListener('click', sendAdminEmail);
+
+    function setThemeMode(mode) {
+      document.body.classList.toggle('light-mode', mode === 'light');
+      const button = document.getElementById('themeModeBtn');
+      if (button) button.textContent = mode === 'light' ? '🌙 Dark' : '☀️ Light';
+      try { localStorage.setItem('uiMode', mode); } catch (e) {}
+    }
+
+    function toggleThemeMode() {
+      setThemeMode(document.body.classList.contains('light-mode') ? 'dark' : 'light');
+    }
+
+    try { setThemeMode(localStorage.getItem('uiMode') || 'dark'); } catch (e) { setThemeMode('dark'); }
 
     async function loadStats() {
       try {

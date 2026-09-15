@@ -322,7 +322,7 @@ function buildPteroLimitsFromPackage(specifications = {}) {
   const diskValue = Number(specifications?.disk ?? specifications?.storage ?? 0);
 
   const cpu = Number.isFinite(cpuValue) && cpuValue > 0
-    ? Math.round(cpuValue * 100)
+    ? Math.round(cpuValue <= 10 ? cpuValue * 100 : cpuValue)
     : 100;
 
   const memory = Number.isFinite(ramValue) && ramValue > 0

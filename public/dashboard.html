@@ -10,6 +10,15 @@
     * { font-family: 'DM Sans', sans-serif; }
     h1, h2, h3 { font-family: 'Space Grotesk', sans-serif; }
     body { background: #101315; background-image: linear-gradient(rgba(148, 163, 184, .035) 1px, transparent 1px), linear-gradient(90deg, rgba(148, 163, 184, .035) 1px, transparent 1px); background-size: 36px 36px; }
+    body { animation: page-enter .5s ease both; }
+    @keyframes page-enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    body.light-mode { background: #f3f7f6; background-image: linear-gradient(rgba(15, 118, 110, .06) 1px, transparent 1px), linear-gradient(90deg, rgba(15, 118, 110, .06) 1px, transparent 1px); color: #16302f; }
+    body.light-mode .glass { background: rgba(255,255,255,.84); border-color: rgba(15,118,110,.16); box-shadow: 0 12px 30px rgba(15, 70, 65, .08); }
+    body.light-mode .bg-slate-950\/80, body.light-mode .bg-slate-950\/70, body.light-mode .bg-slate-900\/70 { background-color: rgba(255,255,255,.8); }
+    body.light-mode .text-white, body.light-mode .text-slate-100, body.light-mode .text-slate-200 { color: #183331; }
+    body.light-mode .text-slate-300, body.light-mode .text-slate-400 { color: #46625f; }
+    body.light-mode .text-slate-500 { color: #64807c; }
+    body.light-mode .border-slate-700, body.light-mode .border-slate-800 { border-color: rgba(15,118,110,.18); }
     .glass {
       background: rgba(24, 29, 31, 0.92);
       backdrop-filter: blur(12px);
@@ -196,6 +205,7 @@
             <span>Admin</span>
           </a>
           <div class="flex items-center gap-2">
+            <button type="button" id="themeModeBtn" onclick="toggleThemeMode()" class="rounded-xl border border-slate-700/60 bg-slate-900/60 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:-translate-y-0.5" title="Badilisha light/dark mode">☀️ Light</button>
             <button class="rounded-full w-7 h-7 transition" title="Theme Indigo" onclick="setTheme('indigo')" style="background:#6366f1;border:1px solid rgba(255,255,255,0.04)"></button>
             <button class="rounded-full w-7 h-7 transition" title="Theme Amber" onclick="setTheme('amber')" style="background:#f59e0b;border:1px solid rgba(255,255,255,0.04)"></button>
             <button class="rounded-full w-7 h-7 transition" title="Theme Cyan" onclick="setTheme('cyan')" style="background:#06b6d4;border:1px solid rgba(255,255,255,0.04)"></button>
@@ -1181,9 +1191,17 @@
       if (name === 'cyan') root.classList.add('theme-cyan');
       try { localStorage.setItem('uiTheme', name); } catch(e){}
     }
+    function setThemeMode(mode) {
+      document.body.classList.toggle('light-mode', mode === 'light');
+      const button = document.getElementById('themeModeBtn');
+      if (button) button.textContent = mode === 'light' ? '🌙 Dark' : '☀️ Light';
+      try { localStorage.setItem('uiMode', mode); } catch (e) {}
+    }
+    function toggleThemeMode() { setThemeMode(document.body.classList.contains('light-mode') ? 'dark' : 'light'); }
     // load theme
     (function(){
       try { const t = localStorage.getItem('uiTheme') || 'indigo'; setTheme(t); } catch(e){ setTheme('indigo'); }
+      try { setThemeMode(localStorage.getItem('uiMode') || 'dark'); } catch(e){ setThemeMode('dark'); }
     })();
 
     async function handleServerListAction(serverId, action) {
