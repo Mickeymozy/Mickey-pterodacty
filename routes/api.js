@@ -596,17 +596,6 @@ router.post(['/admin/servers/:id/:action', '/api/admin/servers/:id/:action'], re
   }
 });
 
-router.get(['/admin/servers/:id/backups', '/api/admin/servers/:id/backups'], requireAuth, requireAdmin, async (req, res) => {
-  if (!clientApiUsable || !clientApi) return res.status(503).json({ success: false, error: CLIENT_KEY_REQUIRED_MESSAGE });
-  try {
-    const ref = await resolveServerRef(req.params.id);
-    const response = await clientApi.get(`/servers/${encodeURIComponent(ref.identifier)}/backups`);
-    res.json({ success: true, data: response.data?.data || [], meta: response.data?.meta || {} });
-  } catch (err) {
-    res.status(err.response?.status || 500).json({ success: false, error: err.response?.data?.errors?.[0]?.detail || err.message || 'Backups hazipatikani.' });
-  }
-});
-
 router.get(['/admin/servers/:id/access', '/api/admin/servers/:id/access'], requireAuth, requireAdmin, async (req, res) => {
   if (!appApi) return res.status(503).json({ success: false, error: 'Pterodactyl API is not configured.' });
   try {
@@ -625,31 +614,6 @@ router.get(['/admin/servers/:id/access', '/api/admin/servers/:id/access'], requi
     } });
   } catch (err) {
     res.status(err.response?.status || 500).json({ success: false, error: err.response?.data?.message || err.message || 'Access details hazipatikani.' });
-  }
-});
-
-router.post(['/admin/servers/:id/backups', '/api/admin/servers/:id/backups'], requireAuth, requireAdmin, async (req, res) => {
-  if (!clientApiUsable || !clientApi) return res.status(503).json({ success: false, error: CLIENT_KEY_REQUIRED_MESSAGE });
-  try {
-    const ref = await resolveServerRef(req.params.id);
-    const response = await clientApi.post(`/servers/${encodeURIComponent(ref.identifier)}/backups`, { name: String(req.body?.name || '').trim() || undefined });
-    res.status(201).json({ success: true, data: response.data?.attributes || response.data?.data || {} });
-  } catch (err) {
-    res.status(err.response?.status || 500).json({ success: false, error: err.response?.data?.errors?.[0]?.detail || err.message || 'Backup haikuundwa.' });
-  }
-});
-
-router.post(['/admin/servers/:id/backups/:backupId/restore', '/api/admin/servers/:id/backups/:backupId/restore'], requireAuth, requireAdmin, async (req, res) => {
-  if (!clientApiUsable || !clientApi) return res.status(503).json({ success: false, error: CLIENT_KEY_REQUIRED_MESSAGE });
-  try {
-    const ref = await resolveServerRef(req.params.id);
-    if (String(req.body?.confirmServerId || '') !== String(ref.identifier)) {
-      return res.status(400).json({ success: false, error: 'Andika server identifier kwa usahihi kuthibitisha restore.' });
-    }
-    const response = await clientApi.post(`/servers/${encodeURIComponent(ref.identifier)}/backups/${encodeURIComponent(req.params.backupId)}/restore`);
-    res.json({ success: true, data: response.data?.attributes || response.data?.data || {} });
-  } catch (err) {
-    res.status(err.response?.status || 500).json({ success: false, error: err.response?.data?.errors?.[0]?.detail || err.message || 'Restore imeshindikana.' });
   }
 });
 

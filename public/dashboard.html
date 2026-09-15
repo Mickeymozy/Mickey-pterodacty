@@ -353,11 +353,8 @@
                 <button id="powerRestartBtn" type="button" class="hidden rounded-xl bg-cyan-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-cyan-500">↻ Restart</button>
                 <button id="deleteServerBtn" type="button" class="hidden rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-300 transition hover:bg-red-500/20">Delete</button>
                 <button id="loadServerLogsBtn" type="button" class="rounded-xl border border-slate-700 bg-slate-800/80 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:bg-slate-700">Console token</button>
-                <button id="createBackupBtn" type="button" class="rounded-xl bg-cyan-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-cyan-500">Create backup</button>
-                <button id="loadBackupsBtn" type="button" class="rounded-xl border border-slate-700 bg-slate-800/80 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:bg-slate-700">Backups</button>
               </div>
               <p id="selectedServerNotice" class="hidden rounded-xl border border-cyan-500/20 bg-cyan-500/10 px-3 py-2 text-xs text-cyan-200">Server imechaguliwa. Tumia actions hapo juu kuisimamia.</p>
-              <div id="serverBackupList" class="hidden rounded-3xl border border-slate-800/70 bg-slate-900/70 p-4 text-xs text-slate-400"></div>
 
               <div class="grid gap-4 lg:grid-cols-2">
                 <div class="space-y-4">
@@ -950,7 +947,7 @@
       document.getElementById('selectedServerLoginPassword').textContent = '-';
       document.getElementById('selectedServerLoginEmail').textContent = '-';
       document.getElementById('selectedServerPanelHint').textContent = 'Bonyeza Fungua Panel au tumia vitufe upande wa kulia.';
-      ['powerStartBtn', 'powerStopBtn', 'powerRestartBtn', 'openPanelBtn', 'deleteServerBtn', 'modalDeleteServerBtn', 'selectedServerNotice', 'loadServerLogsBtn', 'createBackupBtn', 'loadBackupsBtn'].forEach((id) => document.getElementById(id)?.classList.add('hidden'));
+      ['powerStartBtn', 'powerStopBtn', 'powerRestartBtn', 'openPanelBtn', 'deleteServerBtn', 'modalDeleteServerBtn', 'selectedServerNotice', 'loadServerLogsBtn'].forEach((id) => document.getElementById(id)?.classList.add('hidden'));
     }
 
     async function selectServer(serverId) {
@@ -1002,8 +999,7 @@
       document.getElementById('selectedServerLoginEmail').textContent = '...';
 
       // show power/delete controls but keep openPanelBtn hidden until we confirm a panel URL
-      ['powerStartBtn', 'powerStopBtn', 'powerRestartBtn', 'deleteServerBtn', 'modalDeleteServerBtn', 'selectedServerNotice', 'loadServerLogsBtn', 'createBackupBtn', 'loadBackupsBtn'].forEach((id) => document.getElementById(id)?.classList.remove('hidden'));
-      document.getElementById('serverBackupList')?.classList.add('hidden');
+      ['powerStartBtn', 'powerStopBtn', 'powerRestartBtn', 'deleteServerBtn', 'modalDeleteServerBtn', 'selectedServerNotice', 'loadServerLogsBtn'].forEach((id) => document.getElementById(id)?.classList.remove('hidden'));
       document.getElementById('openPanelBtn')?.classList.add('hidden');
       document.getElementById('openPanelBtn').textContent = '🖥️ Fungua Panel';
       document.getElementById('openPanelBtn').dataset.panelUrl = '';
@@ -1150,40 +1146,6 @@
     document.getElementById('openPanelBtn')?.addEventListener('click', () => handleSelectedServerAction('openPanel'));
     document.getElementById('deleteServerBtn')?.addEventListener('click', () => handleSelectedServerAction('delete'));
 
-    async function loadServerBackups() {
-      if (!selectedServer) return;
-      const id = selectedServer.identifier || selectedServer.uuid || selectedServer.id;
-      const list = document.getElementById('serverBackupList');
-      if (!list) return;
-      list.classList.remove('hidden');
-      list.textContent = 'Inapakia backups...';
-      const response = await fetch(`/api/servers/${encodeURIComponent(id)}/backups`);
-      const data = await response.json();
-      if (!data.success) { list.textContent = data.error || 'Backups hazipatikani.'; return; }
-      const backups = data.data || [];
-      list.innerHTML = backups.length ? backups.map((item) => {
-        const backup = item.attributes || item;
-        return `<div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 py-2"><span>${backup.name || backup.uuid || 'Backup'} <small class="text-slate-500">${backup.completed_at || backup.created_at || ''}</small></span><button type="button" class="restore-backup-btn rounded-lg bg-amber-500/20 px-2 py-1 text-amber-300" data-backup-id="${backup.uuid || backup.id}">Restore</button></div>`;
-      }).join('') : 'Hakuna backup bado.';
-    }
-
-    document.getElementById('loadBackupsBtn')?.addEventListener('click', loadServerBackups);
-    document.getElementById('createBackupBtn')?.addEventListener('click', async () => {
-      if (!selectedServer) return;
-      const id = selectedServer.identifier || selectedServer.uuid || selectedServer.id;
-      const response = await fetch(`/api/servers/${encodeURIComponent(id)}/backups`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
-      const data = await response.json();
-      showToast(data.success ? 'Backup imeanzishwa.' : (data.error || 'Backup imeshindikana.'), data.success ? 'success' : 'error', true);
-      if (data.success) loadServerBackups();
-    });
-    document.getElementById('serverBackupList')?.addEventListener('click', async (event) => {
-      const button = event.target.closest('.restore-backup-btn');
-      if (!button || !selectedServer) return;
-      const id = selectedServer.identifier || selectedServer.uuid || selectedServer.id;
-      const response = await fetch(`/api/servers/${encodeURIComponent(id)}/backups/${encodeURIComponent(button.dataset.backupId)}/restore`, { method: 'POST' });
-      const data = await response.json();
-      showToast(data.success ? 'Restore imeanzishwa.' : (data.error || 'Restore imeshindikana.'), data.success ? 'success' : 'error', true);
-    });
     document.getElementById('loadServerLogsBtn')?.addEventListener('click', async () => {
       if (!selectedServer) return;
       const id = selectedServer.identifier || selectedServer.uuid || selectedServer.id;
