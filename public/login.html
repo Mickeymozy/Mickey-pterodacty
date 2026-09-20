@@ -29,6 +29,20 @@
     body.light-mode .github-btn { background: rgba(15,118,110,.06); border-color: rgba(15,118,110,.2); color: #183331; }
     .theme-toggle { transition: transform .2s ease, background .2s ease; }
     .theme-toggle:hover { transform: translateY(-2px); }
+    :root { --ink: #e7f5ef; --muted: #8da9a0; --line: rgba(157, 255, 202, .16); --lime: #c8ff4d; --cyan: #55e6d2; }
+    body { position: relative; overflow-x: hidden; background: #081412; color: var(--ink); background-image: linear-gradient(rgba(200,255,77,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(200,255,77,.035) 1px, transparent 1px), radial-gradient(circle at 12% 12%, rgba(85,230,210,.14), transparent 30%), radial-gradient(circle at 88% 82%, rgba(200,255,77,.09), transparent 28%); background-size: 32px 32px, 32px 32px, auto, auto; }
+    body::before { content: 'MICKEYPANEL / CONTROL YOUR SPACE'; position: fixed; left: 1.25rem; bottom: 1rem; color: rgba(200,255,77,.5); font: 700 10px/1 'DM Sans', sans-serif; letter-spacing: .22em; writing-mode: vertical-rl; pointer-events: none; }
+    .glass { border: 1px solid var(--line); border-radius: 24px; background: linear-gradient(145deg, rgba(18, 35, 31, .94), rgba(8, 20, 18, .9)); box-shadow: 0 28px 80px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.05); }
+    .gradient-text { background: linear-gradient(100deg, var(--lime), var(--cyan)); -webkit-background-clip: text; background-clip: text; }
+    .tab-btn.active { background: var(--lime); color: #102013; box-shadow: 0 10px 28px rgba(200,255,77,.2); }
+    .input-field { border-color: rgba(157,255,202,.14); border-radius: 14px; background: rgba(0,0,0,.28); }
+    .input-field:focus { border-color: var(--cyan); box-shadow: 0 0 0 4px rgba(85,230,210,.12), 0 8px 28px rgba(0,0,0,.18); }
+    .submit-btn { background: linear-gradient(100deg, var(--lime), #83e65d); color: #102013; box-shadow: 0 12px 28px rgba(200,255,77,.16); }
+    .submit-btn:hover { box-shadow: 0 16px 34px rgba(200,255,77,.3); }
+    .github-btn { border-color: rgba(157,255,202,.15); background: rgba(255,255,255,.045); }
+    .github-btn:hover { border-color: rgba(200,255,77,.35); background: rgba(200,255,77,.08); }
+    body.light-mode { background: #eef7ef; background-image: linear-gradient(rgba(19,92,66,.06) 1px, transparent 1px), linear-gradient(90deg, rgba(19,92,66,.06) 1px, transparent 1px); background-size: 32px 32px; }
+    body.light-mode .glass { background: rgba(255,255,255,.88); border-color: rgba(19,92,66,.18); }
   </style>
 </head>
 <body class="min-h-screen bg-[#07111f] flex items-center justify-center p-4">

@@ -89,6 +89,16 @@
       border-radius: 1rem;
       padding: 0.85rem 0.95rem;
     }
+    :root { --accent: #c8ff4d; --accent-rgba: rgba(200,255,77,.34); --ink: #e7f5ef; }
+    body { background-color: #081412; background-image: linear-gradient(rgba(200,255,77,.032) 1px, transparent 1px), linear-gradient(90deg, rgba(200,255,77,.032) 1px, transparent 1px), radial-gradient(circle at 92% 4%, rgba(85,230,210,.13), transparent 25%); background-size: 32px 32px, 32px 32px, auto; }
+    .glass, .hero-panel { border-color: rgba(157,255,202,.15); background: linear-gradient(145deg, rgba(18,35,31,.94), rgba(8,20,18,.9)); box-shadow: 0 22px 60px rgba(0,0,0,.26), inset 0 1px 0 rgba(255,255,255,.04); }
+    .hero-panel { background: linear-gradient(120deg, rgba(18,35,31,.98), rgba(8,20,18,.88) 58%, rgba(200,255,77,.1)); }
+    .tab-button.active, .open-panel-btn { background: var(--accent); border-color: var(--accent); color: #102013; box-shadow: 0 10px 28px rgba(200,255,77,.18); }
+    .quick-action-card, .mini-metric { border-color: rgba(157,255,202,.14); background: rgba(0,0,0,.22); }
+    .quick-action-card:hover { border-color: rgba(200,255,77,.44); background: rgba(200,255,77,.07); }
+    .copy-btn:hover { background: rgba(200,255,77,.1); color: var(--accent); }
+    body.light-mode { background-color: #eef7ef; background-image: linear-gradient(rgba(19,92,66,.06) 1px, transparent 1px), linear-gradient(90deg, rgba(19,92,66,.06) 1px, transparent 1px); background-size: 32px 32px; }
+    body.light-mode .glass, body.light-mode .hero-panel { background: rgba(255,255,255,.88); border-color: rgba(19,92,66,.18); }
   </style>
 </head>
 <body class="min-h-screen bg-[#101315] text-slate-50">
