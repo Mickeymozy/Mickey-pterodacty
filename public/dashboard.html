@@ -369,6 +369,8 @@
               </div>
 
               <div class="flex flex-wrap gap-2">
+                <span class="inline-flex items-center rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.16em] text-cyan-200">Manage Console</span>
+                <button id="refreshManageBtn" type="button" class="rounded-xl border border-slate-700 bg-slate-800/80 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:bg-slate-700">↻ Refresh</button>
                 <button id="powerStartBtn" type="button" class="hidden rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-500">▶ Start</button>
                 <button id="powerStopBtn" type="button" class="hidden rounded-xl bg-amber-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-amber-500">■ Stop</button>
                 <button id="powerRestartBtn" type="button" class="hidden rounded-xl bg-cyan-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-cyan-500">↻ Restart</button>
@@ -380,18 +382,18 @@
               <div class="grid gap-4 lg:grid-cols-2">
                 <div class="space-y-4">
                   <div class="rounded-3xl border border-slate-800/70 bg-slate-900/70 p-4">
-                    <p class="text-xs uppercase tracking-[0.2em] text-slate-400 mb-3">Panel Access</p>
+                    <div class="mb-3 flex items-center justify-between gap-3"><p class="text-xs uppercase tracking-[0.2em] text-slate-400">Panel Access</p><span id="selectedServerCredentialStatus" class="rounded-full border border-amber-400/20 bg-amber-400/10 px-2 py-1 text-[10px] font-semibold text-amber-200">Account password</span></div>
                     <div class="space-y-3 text-sm text-slate-300">
                       <div class="flex justify-between"><span>Panel URL</span><span id="selectedServerPanel" class="font-semibold text-slate-100">-</span></div>
                       <div class="flex justify-between"><span>Username</span><span class="flex items-center gap-2"><span id="selectedServerLoginUser" class="font-semibold text-slate-100">-</span><button class="copy-btn" type="button" onclick="copyField('selectedServerLoginUser')" title="Nakili">📋</button></span></div>
-                      <div class="flex justify-between"><span>Password</span><span class="flex items-center gap-2"><span id="selectedServerLoginPassword" class="font-semibold text-slate-100">-</span><button class="copy-btn" type="button" onclick="copyField('selectedServerLoginPassword')" title="Nakili">📋</button></span></div>
+                      <div class="flex justify-between gap-4"><span>Password</span><span class="flex items-center gap-2 text-right"><span id="selectedServerLoginPassword" class="font-semibold text-amber-200">-</span><button class="copy-btn" type="button" onclick="copyField('selectedServerLoginPassword')" title="Nakili">📋</button></span></div>
                       <div class="flex justify-between"><span>Email</span><span class="flex items-center gap-2"><span id="selectedServerLoginEmail" class="font-semibold text-slate-100">-</span><button class="copy-btn" type="button" onclick="copyField('selectedServerLoginEmail')" title="Nakili">📋</button></span></div>
                     </div>
                   </div>
 
                   <div class="rounded-3xl border border-slate-800/70 bg-slate-900/70 p-4">
                     <p class="text-xs uppercase tracking-[0.2em] text-slate-400 mb-3">Login Details</p>
-                    <p class="text-sm text-slate-300">Tumia login hizi ikiwa zinapatikana kwenye server access API.</p>
+                    <p class="text-sm text-slate-300">Server hii hutumia account yako ya Pterodactyl. Password yake ni tofauti na ya website tu kama uli-set password tofauti kwenye Panel.</p>
                     <p id="selectedServerPanelHint" class="mt-2 text-xs text-slate-500">Chagua server ili kuona panel access.</p>
                   </div>
                 </div>
@@ -966,6 +968,7 @@
       document.getElementById('selectedServerUser').textContent = '-';
       document.getElementById('selectedServerLoginUser').textContent = '-';
       document.getElementById('selectedServerLoginPassword').textContent = '-';
+      document.getElementById('selectedServerCredentialStatus').textContent = 'Account password';
       document.getElementById('selectedServerLoginEmail').textContent = '-';
       document.getElementById('selectedServerPanelHint').textContent = 'Bonyeza Fungua Panel au tumia vitufe upande wa kulia.';
       ['powerStartBtn', 'powerStopBtn', 'powerRestartBtn', 'openPanelBtn', 'deleteServerBtn', 'modalDeleteServerBtn', 'selectedServerNotice', 'loadServerLogsBtn'].forEach((id) => document.getElementById(id)?.classList.add('hidden'));
@@ -1016,7 +1019,7 @@
       document.getElementById('selectedServerUser').textContent = server.sftpUser || 'N/A';
       document.getElementById('selectedServerPanelHint').textContent = 'Bonyeza Fungua Panel au tumia vitufe upande wa kulia.';
       document.getElementById('selectedServerLoginUser').textContent = '...';
-      document.getElementById('selectedServerLoginPassword').textContent = '...';
+      document.getElementById('selectedServerLoginPassword').textContent = 'Inatafuta...';
       document.getElementById('selectedServerLoginEmail').textContent = '...';
 
       // show power/delete controls but keep openPanelBtn hidden until we confirm a panel URL
@@ -1038,7 +1041,8 @@
           document.getElementById('openPanelBtn').dataset.panelUrl = panelUrl;
           document.getElementById('openPanelBtn')?.classList.remove('hidden');
           document.getElementById('selectedServerLoginUser').textContent = access.username || access.email || access.sftpUser || server.sftpUser || 'N/A';
-          document.getElementById('selectedServerLoginPassword').textContent = 'Password haiwezi kuonyeshwa';
+          document.getElementById('selectedServerLoginPassword').textContent = access.password || 'Haijahifadhiwa tofauti';
+          document.getElementById('selectedServerCredentialStatus').textContent = access.password ? 'Tofauti na website' : 'Panel account password';
           document.getElementById('selectedServerLoginEmail').textContent = access.email || 'N/A';
           document.getElementById('selectedServerPanelHint').textContent = 'Panel na login details zimetolewa kutoka kwenye server access API.';
           // Mirror into modal
@@ -1047,12 +1051,12 @@
           document.getElementById('modalOpenPanelBtn')?.classList.remove('hidden');
           document.getElementById('modalOpenPanelBtn').dataset.panelUrl = panelUrl;
           document.getElementById('modalSelectedServerLoginUser').textContent = access.username || access.email || access.sftpUser || server.sftpUser || 'N/A';
-          document.getElementById('modalSelectedServerLoginPassword').textContent = 'Password haiwezi kuonyeshwa';
+          document.getElementById('modalSelectedServerLoginPassword').textContent = access.password || 'Haijahifadhiwa tofauti';
           document.getElementById('modalSelectedServerLoginEmail').textContent = access.email || 'N/A';
         } else {
           const errorBody = await accessRes.json().catch(() => ({}));
           document.getElementById('selectedServerLoginUser').textContent = 'N/A';
-          document.getElementById('selectedServerLoginPassword').textContent = 'Password haiwezi kuonyeshwa';
+          document.getElementById('selectedServerLoginPassword').textContent = 'Haijahifadhiwa tofauti';
           document.getElementById('selectedServerLoginEmail').textContent = 'N/A';
           const panelEl = document.getElementById('selectedServerPanel');
           if (panelEl) panelEl.textContent = 'Haipatikani';
@@ -1064,13 +1068,13 @@
           if (modalPanelEl2) modalPanelEl2.textContent = 'Haipatikani';
           document.getElementById('modalOpenPanelBtn')?.classList.add('hidden');
           document.getElementById('modalSelectedServerLoginUser').textContent = 'N/A';
-          document.getElementById('modalSelectedServerLoginPassword').textContent = 'Password haiwezi kuonyeshwa';
+          document.getElementById('modalSelectedServerLoginPassword').textContent = 'Haijahifadhiwa tofauti';
           document.getElementById('modalSelectedServerLoginEmail').textContent = 'N/A';
           document.getElementById('serverDetailsModalOverlay')?.classList.remove('hidden');
         }
       } catch (err) {
         document.getElementById('selectedServerLoginUser').textContent = 'N/A';
-        document.getElementById('selectedServerLoginPassword').textContent = 'N/A';
+        document.getElementById('selectedServerLoginPassword').textContent = 'Haijahifadhiwa tofauti';
         document.getElementById('selectedServerLoginEmail').textContent = 'N/A';
         document.getElementById('selectedServerPanel').textContent = 'N/A';
         document.getElementById('openPanelBtn')?.classList.add('hidden');
@@ -1166,6 +1170,12 @@
     document.getElementById('powerRestartBtn')?.addEventListener('click', () => handleSelectedServerAction('restart'));
     document.getElementById('openPanelBtn')?.addEventListener('click', () => handleSelectedServerAction('openPanel'));
     document.getElementById('deleteServerBtn')?.addEventListener('click', () => handleSelectedServerAction('delete'));
+    document.getElementById('refreshManageBtn')?.addEventListener('click', () => {
+      if (!selectedServer) return;
+      loadServers();
+      selectServer(selectedServer.identifier || selectedServer.uuid || selectedServer.id);
+      showToast('Manage details zime-refresh.', 'success', true);
+    });
 
     document.getElementById('loadServerLogsBtn')?.addEventListener('click', async () => {
       if (!selectedServer) return;
