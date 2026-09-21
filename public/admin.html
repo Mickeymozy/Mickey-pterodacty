@@ -177,20 +177,6 @@
       </div>
     </section>
 
-    <!-- Navigation Tabs -->
-        <div class="admin-section glass rounded-2xl p-3 mb-6 sm:p-4">
-          <div class="admin-nav">
-        <button class="tab-button active px-4 py-2 rounded-lg border border-slate-700/50 text-sm font-medium transition" onclick="switchTab(event, 'overview')">📊 Overview</button>
-        <button class="tab-button px-4 py-2 rounded-lg border border-slate-700/50 text-sm font-medium transition" onclick="switchTab(event, 'packages')">📦 Packages</button>
-        <button class="tab-button px-4 py-2 rounded-lg border border-slate-700/50 text-sm font-medium transition" onclick="switchTab(event, 'botScripts')">🤖 Bot Scripts</button>
-        <button class="tab-button px-4 py-2 rounded-lg border border-slate-700/50 text-sm font-medium transition" onclick="switchTab(event, 'payments')">💳 Malipo</button>
-        <button class="tab-button px-4 py-2 rounded-lg border border-slate-700/50 text-sm font-medium transition" onclick="switchTab(event, 'adminServers')">🖥️ Servers</button>
-        <button class="tab-button px-4 py-2 rounded-lg border border-slate-700/50 text-sm font-medium transition" onclick="switchTab(event, 'users')">👥 Watumiaji</button>
-        <button class="tab-button px-4 py-2 rounded-lg border border-slate-700/50 text-sm font-medium transition" onclick="switchTab(event, 'activity')">🧾 Activity</button>
-        <button class="tab-button px-4 py-2 rounded-lg border border-slate-700/50 text-sm font-medium transition" onclick="switchTab(event, 'supportAdminTab')">🎧 Support</button>
-      </div>
-    </div>
-
     <!-- Overview Tab -->
     <div id="overview" class="tab-content active admin-section">
       <div class="grid gap-6 lg:grid-cols-2">
@@ -634,7 +620,7 @@
         input.value = email || '';
         input.focus();
       }
-      const usersTabButton = Array.from(document.querySelectorAll('.tab-button')).find(b => b.textContent.toLowerCase().includes('watumiaji'));
+      const usersTabButton = document.querySelector('[data-admin-tab="users"]');
       if (usersTabButton) usersTabButton.click();
       showEmailComposer();
     }
