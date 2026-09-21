@@ -59,6 +59,13 @@
     button.bg-indigo-600, button.bg-cyan-600 { background: var(--accent) !important; color: #102013 !important; }
     body.light-mode { background-color: #eef7ef; background-image: linear-gradient(rgba(19,92,66,.06) 1px, transparent 1px), linear-gradient(90deg, rgba(19,92,66,.06) 1px, transparent 1px); background-size: 32px 32px; }
     body.light-mode .glass { background: rgba(255,255,255,.88); border-color: rgba(19,92,66,.18); }
+    .admin-shell { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 1.25rem; max-width: 1440px; }
+    .admin-side-nav { position: sticky; top: 1.5rem; height: calc(100vh - 3rem); align-self: start; }
+    .admin-side-link { display: flex; align-items: center; gap: .65rem; width: 100%; padding: .7rem .8rem; border: 1px solid transparent; border-radius: .85rem; color: #9bb6ad; text-align: left; transition: .2s ease; }
+    .admin-side-link:hover, .admin-side-link.active { color: #102013; background: var(--accent); border-color: var(--accent); box-shadow: 0 8px 22px rgba(200,255,77,.16); }
+    .admin-menu-toggle, .admin-side-backdrop { display: none; }
+    @media (max-width: 1024px) { .admin-shell { display: block; } .admin-side-nav { position: fixed; inset: 0 auto 0 0; z-index: 100; width: min(280px, 86vw); height: 100vh; transform: translateX(-105%); transition: transform .25s ease; border-radius: 0 1.5rem 1.5rem 0; } .admin-side-nav.open { transform: translateX(0); } .admin-menu-toggle { display: inline-flex; } .admin-side-backdrop { position: fixed; inset: 0; z-index: 90; background: rgba(3,10,9,.68); backdrop-filter: blur(4px); } .admin-side-backdrop.open { display: block; } }
+    @media (min-width: 1025px) { .admin-nav { display: none; } }
   </style>
 </head>
 <body class="min-h-screen bg-[#101315] text-slate-50">
@@ -90,6 +97,7 @@
       </div>
     </div>
   </div>
+  <div id="adminSideBackdrop" class="admin-side-backdrop" aria-hidden="true"></div>
 
   <div class="fixed inset-0 overflow-hidden pointer-events-none">
     <div class="absolute -top-40 -right-40 h-96 w-96 rounded-full bg-purple-500/10 blur-3xl"></div>
@@ -97,12 +105,26 @@
     <div class="absolute bottom-0 right-1/3 h-72 w-72 rounded-full bg-cyan-500/5 blur-3xl"></div>
   </div>
 
-  <div class="relative mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+  <div class="admin-shell relative mx-auto px-4 py-6 sm:px-6 lg:px-8">
+    <aside id="adminSideNav" class="admin-side-nav glass rounded-3xl p-4" aria-label="Admin navigation">
+      <div class="mb-6 flex items-center justify-between"><div><p class="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300">MickeyPanel</p><p class="mt-1 text-sm font-semibold text-white">Admin workspace</p></div><button id="closeAdminSideNav" type="button" class="rounded-lg border border-slate-700 px-2 py-1 text-slate-300 lg:hidden" aria-label="Funga menu">×</button></div>
+      <nav class="space-y-2">
+        <button class="admin-side-link active" data-admin-tab="overview"><span>◈</span><span>Overview</span></button>
+        <button class="admin-side-link" data-admin-tab="packages"><span>▦</span><span>Packages</span></button>
+        <button class="admin-side-link" data-admin-tab="botScripts"><span>⌘</span><span>Bot scripts</span></button>
+        <button class="admin-side-link" data-admin-tab="payments"><span>◉</span><span>Malipo</span></button>
+        <button class="admin-side-link" data-admin-tab="adminServers"><span>◇</span><span>Servers</span></button>
+        <button class="admin-side-link" data-admin-tab="users"><span>◎</span><span>Watumiaji</span></button>
+        <button class="admin-side-link" data-admin-tab="activity"><span>≡</span><span>Activity</span></button>
+        <button class="admin-side-link" data-admin-tab="supportAdminTab"><span>?</span><span>Support</span></button>
+      </nav>
+    </aside>
+    <main class="min-w-0">
     <!-- Header -->
     <header class="glass rounded-2xl p-6 mb-6 sm:p-7">
       <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p class="text-sm text-slate-400 font-medium">Sehemu ya Admin</p>
+          <div class="flex items-center gap-2"><button id="adminMenuToggle" type="button" class="admin-menu-toggle rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2 text-lg text-slate-200" aria-label="Fungua admin menu" aria-controls="adminSideNav" aria-expanded="false">☰</button><p class="text-sm text-slate-400 font-medium">Sehemu ya Admin</p></div>
           <h1 class="mt-1 text-2xl font-bold gradient-text">Control Panel</h1>
           <p class="mt-1 text-sm text-slate-400">Usimamizi wa Package & Mifumo</p>
         </div>
@@ -452,6 +474,7 @@
         </div>
       </div>
     </div>
+    </main>
   </div>
 
   <script>
@@ -592,8 +615,9 @@
     function switchTab(event, tabName) {
       document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
       document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
-      document.getElementById(tabName).classList.add('active');
-      event.currentTarget.classList.add('active');
+      document.getElementById(tabName)?.classList.add('active');
+      if (event?.currentTarget) event.currentTarget.classList.add('active');
+      document.querySelector(`[data-admin-tab="${tabName}"]`)?.classList.add('active');
       if(tabName === 'payments') loadPayments();
       if(tabName === 'adminServers') loadAdminServers();
       if(tabName === 'users') loadUsers();
@@ -1212,6 +1236,26 @@
       if (result.success) { document.getElementById('botScriptForm').reset(); document.getElementById('botScriptId').value = ''; loadBotScripts(); }
     });
     document.getElementById('botScriptReset').addEventListener('click', () => { document.getElementById('botScriptForm').reset(); document.getElementById('botScriptId').value = ''; });
+
+    const adminSideNav = document.getElementById('adminSideNav');
+    const adminSideBackdrop = document.getElementById('adminSideBackdrop');
+    const adminMenuToggle = document.getElementById('adminMenuToggle');
+    const closeAdminSideNav = document.getElementById('closeAdminSideNav');
+    function setAdminSideNavOpen(open) {
+      adminSideNav?.classList.toggle('open', open);
+      adminSideBackdrop?.classList.toggle('open', open);
+      adminMenuToggle?.setAttribute('aria-expanded', String(open));
+    }
+    adminMenuToggle?.addEventListener('click', () => setAdminSideNavOpen(true));
+    closeAdminSideNav?.addEventListener('click', () => setAdminSideNavOpen(false));
+    adminSideBackdrop?.addEventListener('click', () => setAdminSideNavOpen(false));
+    document.querySelectorAll('[data-admin-tab]').forEach((button) => {
+      button.addEventListener('click', () => {
+        document.querySelectorAll('[data-admin-tab]').forEach((item) => item.classList.toggle('active', item === button));
+        switchTab(null, button.dataset.adminTab);
+        setAdminSideNavOpen(false);
+      });
+    });
 
     document.getElementById('packageForm').addEventListener('submit', async (e) => {
       e.preventDefault();
