@@ -576,67 +576,116 @@
       </div>
 
       <div id="buy-coins" class="tab-content space-y-4">
-        <div class="glass rounded-2xl p-6">
-          <h2 class="text-xl font-semibold text-white mb-2">🧮 Nunua Coins kwa PalmPesa</h2>
-          <div class="glass rounded-xl p-5 max-w-xl bg-slate-950/30 border border-slate-800">
-            <div class="rounded-xl border border-slate-800/70 bg-slate-950/40 p-4 mb-4 text-[11px] text-slate-400">
-              <p class="font-semibold text-slate-200 mb-2">⭐ Chagua njia ya malipo:</p>
-              <div class="space-y-2">
-                <label class="flex items-center gap-2 cursor-pointer hover:text-slate-200">
-                  <input type="radio" name="coinPaymentMode" value="palmpesa" checked onchange="toggleCoinMode()" class="w-4 h-4" />
-                  <span>Lipa kwa PalmPesa (kwa link)</span>
-                </label>
-                <label class="flex items-center gap-2 cursor-pointer hover:text-slate-200">
-                  <input type="radio" name="coinPaymentMode" value="review" onchange="toggleCoinMode()" class="w-4 h-4" />
-                  <span>Manual: nimelipia tayari (admin)</span>
-                </label>
-              </div>
-            </div>
-            <div class="flex flex-col sm:flex-row items-center gap-4">
-              <div class="w-full">
-                <label class="block text-xs font-medium text-slate-400 mb-1">Ingiza Coins:</label>
-                <input id="palmpesaCoinsInput" type="number" min="1" value="10" oninput="calculatePrice()" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none" />
-              </div>
-              <div class="w-full">
-                <span class="block text-xs font-medium text-slate-400 mb-1">Gharama (Tsh):</span>
-                <div id="calculatedTsh" class="text-xl font-black text-cyan-400 font-mono">Tsh 2,500</div>
-              </div>
-            </div>
-            <div id="palmPesaSection" class="mt-4 space-y-3">
+        <div class="glass rounded-3xl border border-slate-800/80 bg-gradient-to-br from-slate-950/80 via-slate-900/80 to-indigo-950/50 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.45)]">
+          <div class="flex flex-col gap-4 border-b border-slate-800 pb-5 md:flex-row md:items-center md:justify-between">
+            <div class="flex items-center gap-3">
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-cyan-400 text-xl shadow-lg shadow-emerald-500/30">💰</div>
               <div>
-                <label class="block text-xs font-medium text-slate-400 mb-1">Namba ya simu (hiari):</label>
-                <input id="topupPhone" type="tel" placeholder="255744000000" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none" />
-              </div>
-              <p class="text-[11px] text-slate-300">✅ Utapokea link ya PalmPesa ya pay-by-link au USSD push.</p>
-            </div>
-            <div id="reviewSection" class="hidden mt-4 space-y-3">
-              <div>
-                <label class="block text-xs font-medium text-slate-400 mb-1">Namba ya simu:</label>
-                <input id="reviewPhone" type="tel" placeholder="255744000000" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none" />
-              </div>
-              <div>
-                <label class="block text-xs font-medium text-slate-400 mb-1">Uthibitisho (screenshot/SMS/reference):</label>
-                <textarea id="reviewProof" rows="3" placeholder="Pasta link ya screenshot, namba, au reference" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none"></textarea>
+                <p class="text-[10px] font-bold uppercase tracking-[0.22em] text-emerald-300/80">Payment</p>
+                <h2 class="text-2xl font-bold text-white">Nunua Coins kwa PalmPesa</h2>
               </div>
             </div>
-            <button onclick="payProcessor()" class="w-full mt-4 bg-indigo-600 text-white font-bold py-2 rounded-lg text-xs transition uppercase">Wasilisha Maombi</button>
-            <p id="topupMessage" class="mt-3 text-xs text-slate-400"></p>
-            <div id="paymentReceipt" class="payment-success hidden mt-4 rounded-2xl border border-emerald-400/25 bg-emerald-400/10 p-4">
-              <div class="flex items-center gap-3">
-                <div class="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-400 text-lg text-slate-950">✓</div>
-                <div>
-                  <p class="text-sm font-bold text-emerald-300">Malipo yamekamilika</p>
-                  <p class="text-[11px] text-slate-300">Risiti ya transaction yako</p>
+            <div class="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-[11px] font-semibold text-emerald-300">
+              <span class="h-2 w-2 rounded-full bg-emerald-400"></span>
+              Malipo ya haraka
+            </div>
+          </div>
+
+          <div class="mt-6 grid gap-5 xl:grid-cols-[1.3fr_0.7fr]">
+            <div class="rounded-2xl border border-slate-800 bg-slate-950/40 p-5">
+              <div class="rounded-2xl border border-slate-800/80 bg-slate-900/80 p-4 text-[12px] text-slate-300">
+                <p class="mb-3 text-sm font-semibold text-slate-100">Chagua njia ya malipo</p>
+                <div class="space-y-3">
+                  <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-700/80 bg-slate-950/70 px-3 py-2.5 transition hover:border-emerald-500/40 hover:bg-slate-900">
+                    <input type="radio" name="coinPaymentMode" value="palmpesa" checked onchange="toggleCoinMode()" class="h-4 w-4 accent-emerald-400" />
+                    <span class="font-medium text-slate-200">Lipa kwa PalmPesa (kwa link)</span>
+                  </label>
+                  <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-700/80 bg-slate-950/70 px-3 py-2.5 transition hover:border-amber-500/40 hover:bg-slate-900">
+                    <input type="radio" name="coinPaymentMode" value="review" onchange="toggleCoinMode()" class="h-4 w-4 accent-amber-400" />
+                    <span class="font-medium text-slate-200">Manual: nimelipia tayari (admin)</span>
+                  </label>
                 </div>
               </div>
-              <div class="mt-3 grid gap-2 text-xs text-slate-300 sm:grid-cols-2">
-                <p>Transaction: <strong id="receiptTransaction" class="text-white">-</strong></p>
-                <p>Kiasi: <strong id="receiptAmount" class="text-white">-</strong></p>
-                <p>Coins: <strong id="receiptCoins" class="text-amber-300">-</strong></p>
-                <p>Service: <strong id="receiptService" class="text-cyan-300">-</strong></p>
+
+              <div class="mt-5 grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label class="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Ingiza Coins</label>
+                  <input id="palmpesaCoinsInput" type="number" min="1" value="10" oninput="calculatePrice()" class="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-3 text-base font-semibold text-white outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/20" />
+                </div>
+                <div>
+                  <span class="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Gharama (Tsh)</span>
+                  <div id="calculatedTsh" class="flex h-[52px] items-center rounded-xl border border-cyan-500/20 bg-cyan-500/10 px-3 text-xl font-black text-cyan-300 font-mono">Tsh 2,500</div>
+                </div>
               </div>
-              <p id="receiptDate" class="mt-3 text-[11px] text-slate-400"></p>
+
+              <div id="palmPesaSection" class="mt-5 space-y-3">
+                <div>
+                  <label class="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Namba ya simu (hiari)</label>
+                  <input id="topupPhone" type="tel" placeholder="255744000000" class="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-3 text-sm text-white outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/20" />
+                </div>
+                <p class="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-[11px] text-emerald-200">
+                  ✅ Utapokea link ya PalmPesa ya pay-by-link au USSD push baada ya kuthibitisha ombi lako.
+                </p>
+              </div>
+
+              <div id="reviewSection" class="hidden mt-5 space-y-3">
+                <div>
+                  <label class="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Namba ya simu</label>
+                  <input id="reviewPhone" type="tel" placeholder="255744000000" class="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-3 text-sm text-white outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20" />
+                </div>
+                <div>
+                  <label class="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Uthibitisho</label>
+                  <textarea id="reviewProof" rows="3" placeholder="Pasta link ya screenshot, namba, au reference" class="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-3 text-sm text-white outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20"></textarea>
+                </div>
+              </div>
+
+              <button onclick="payProcessor()" class="mt-5 w-full rounded-xl bg-gradient-to-r from-indigo-500 via-violet-500 to-cyan-500 px-4 py-3 text-sm font-black uppercase tracking-[0.18em] text-white shadow-lg shadow-indigo-600/30 transition hover:brightness-110">Wasilisha Maombi</button>
+              <p id="topupMessage" class="mt-3 min-h-[20px] text-xs text-slate-400"></p>
+
+              <div id="paymentReceipt" class="payment-success hidden mt-5 rounded-2xl border border-emerald-400/25 bg-emerald-500/10 p-4">
+                <div class="flex items-center gap-3">
+                  <div class="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-400 text-lg font-black text-slate-950">✓</div>
+                  <div>
+                    <p class="text-sm font-bold text-emerald-300">Malipo yamekamilika</p>
+                    <p class="text-[11px] text-slate-300">Risiti ya transaction yako</p>
+                  </div>
+                </div>
+                <div class="mt-3 grid gap-2 text-xs text-slate-300 sm:grid-cols-2">
+                  <p>Transaction: <strong id="receiptTransaction" class="text-white">-</strong></p>
+                  <p>Kiasi: <strong id="receiptAmount" class="text-white">-</strong></p>
+                  <p>Coins: <strong id="receiptCoins" class="text-amber-300">-</strong></p>
+                  <p>Service: <strong id="receiptService" class="text-cyan-300">-</strong></p>
+                </div>
+                <p id="receiptDate" class="mt-3 text-[11px] text-slate-400"></p>
+              </div>
             </div>
+
+            <aside class="rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900/90 to-slate-950/80 p-5">
+              <p class="text-[10px] font-bold uppercase tracking-[0.22em] text-indigo-300">Quick info</p>
+              <h3 class="mt-2 text-xl font-bold text-white">Jinsi inavyofanya kazi</h3>
+              <ul class="mt-4 space-y-3 text-sm text-slate-300">
+                <li class="flex gap-3 rounded-xl border border-slate-800 bg-slate-950/40 p-3">
+                  <span class="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-500/15 text-[11px] font-black text-indigo-300">1</span>
+                  <span>Chagua idadi cha Coins unachotaka kununua.</span>
+                </li>
+                <li class="flex gap-3 rounded-xl border border-slate-800 bg-slate-950/40 p-3">
+                  <span class="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/15 text-[11px] font-black text-emerald-300">2</span>
+                  <span>Tuma ombi lako kupitia PalmPesa au njia ya review.</span>
+                </li>
+                <li class="flex gap-3 rounded-xl border border-slate-800 bg-slate-950/40 p-3">
+                  <span class="flex h-6 w-6 items-center justify-center rounded-full bg-cyan-500/15 text-[11px] font-black text-cyan-300">3</span>
+                  <span>Coins zitaongezwa kwenye akaunti yako baada ya uthibitisho.</span>
+                </li>
+              </ul>
+
+              <div class="mt-5 rounded-2xl border border-slate-800 bg-slate-950/50 p-4">
+                <p class="text-xs text-slate-400">Salio la sasa</p>
+                <div class="mt-2 flex items-end justify-between">
+                  <span class="text-3xl font-black text-amber-300" id="dashboardCoinsBalance">0</span>
+                  <span class="text-xs font-medium text-slate-400">Coins</span>
+                </div>
+              </div>
+            </aside>
           </div>
         </div>
       </div>
