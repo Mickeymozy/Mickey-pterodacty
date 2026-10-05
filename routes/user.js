@@ -392,57 +392,72 @@ router.get('/admin/stats', requireAuth, requireAdmin, async (req, res) => {
   try {
     const totalUsers = await User.countDocuments();
     const totalAdmins = await User.countDocuments({ $or: [{ role: 'admin' }, { isAdmin: true }] });
-    const totalCoinsDistributed = await User.aggregate([{ $group: { _id: null, total: { $sum: '$coins' } } }]);
     const totalTransactions = await Transaction.countDocuments();
     const totalPackages = await ServerPackage.countDocuments();
     const activePackages = await ServerPackage.countDocuments({ isActive: true });
 
-    const coinRateTzs = Number(process.env.COIN_TOPUP_RATE_TZS || 250);
     const now = new Date();
-    const monthAgo = new Date(now);
-    monthAgo.setDate(monthAgo.getDate() - 30);
-
-    const revenueData = await Transaction.aggregate([
-      { $match: { status: 'completed' } },
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const externalPaymentMatch = {
+      status: 'completed',
+      paymentProvider: { $in: ['palmpesa', 'zenopay', 'admin'] },
+      type: { $ne: 'admin_adjustment' }
+    };
+    const revenueReport = await Transaction.aggregate([
+      { $match: externalPaymentMatch },
       {
-        $group: {
-          _id: null,
-          totalUsd: { $sum: { $cond: [{ $eq: ['$currency', 'USD'] }, '$amount', 0] } },
-          totalCoins: { $sum: { $cond: [{ $eq: ['$currency', 'coins'] }, '$amount', 0] } }
+        $facet: {
+          packageRevenue: [
+            { $match: { type: 'purchase', packageId: { $exists: true } } },
+            { $group: { _id: null, total: { $sum: { $ifNull: ['$metadata.amountTzs', '$amount'] } } } }
+          ],
+          monthlyRevenue: [
+            { $match: { $expr: { $gte: [{ $ifNull: ['$completedAt', '$createdAt'] }, monthStart] } } },
+            {
+              $group: {
+                _id: null,
+                total: {
+                  $sum: {
+                    $cond: [
+                      { $eq: ['$metadata.type', 'topup'] },
+                      { $ifNull: ['$metadata.amountTzs', 0] },
+                      { $ifNull: ['$metadata.amountTzs', '$amount'] }
+                    ]
+                  }
+                }
+              }
+            }
+          ],
+          coinTopups: [
+            { $match: { 'metadata.type': 'topup' } },
+            {
+              $group: {
+                _id: null,
+                coins: { $sum: { $ifNull: ['$metadata.coinsAmount', '$amount'] } },
+                revenueTzs: { $sum: { $ifNull: ['$metadata.amountTzs', 0] } }
+              }
+            }
+          ]
         }
       }
     ]);
 
-    const monthlyRevenueData = await Transaction.aggregate([
-      { $match: { status: 'completed', createdAt: { $gte: monthAgo } } },
-      {
-        $group: {
-          _id: null,
-          totalUsd: { $sum: { $cond: [{ $eq: ['$currency', 'USD'] }, '$amount', 0] } },
-          totalCoins: { $sum: { $cond: [{ $eq: ['$currency', 'coins'] }, '$amount', 0] } }
-        }
-      }
-    ]);
-
-    const totalCoins = revenueData[0]?.totalCoins || 0;
-    const totalUsd = revenueData[0]?.totalUsd || 0;
-    const totalRevenueFromCoinsTzs = totalCoins * coinRateTzs;
-    const monthlyCoins = monthlyRevenueData[0]?.totalCoins || 0;
-    const monthlyUsd = monthlyRevenueData[0]?.totalUsd || 0;
-    const monthlyRevenueTzs = monthlyCoins * coinRateTzs;
+    const report = revenueReport[0] || {};
+    const packageRevenueTzs = report.packageRevenue?.[0]?.total || 0;
+    const monthlyRevenueTzs = report.monthlyRevenue?.[0]?.total || 0;
+    const coinTopups = report.coinTopups?.[0] || {};
 
     res.json({
       success: true,
       data: {
         totalUsers,
         totalAdmins,
-        totalCoinsDistributed: totalCoinsDistributed[0]?.total || 0,
+        totalCoinsDistributed: coinTopups.coins || 0,
         totalTransactions,
         totalPackages,
         activePackages,
-        totalRevenueUsd: totalUsd,
-        totalRevenueFromCoinsTzs,
-        monthlyRevenueUsd: monthlyUsd,
+        packageRevenueTzs,
+        totalRevenueFromCoinsTzs: coinTopups.revenueTzs || 0,
         monthlyRevenueTzs,
         smtpConfigured: Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS)
       }

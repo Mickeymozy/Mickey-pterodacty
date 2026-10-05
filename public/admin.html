@@ -147,8 +147,8 @@
         <h2 id="statActive" class="mt-2 text-2xl sm:text-3xl font-bold text-emerald-400">0</h2>
       </div>
       <div class="glass glass-hover rounded-2xl p-5">
-        <p class="text-xs sm:text-sm text-slate-400 font-medium">Mapato ya USD</p>
-        <h2 id="statRevenue" class="mt-2 text-2xl sm:text-3xl font-bold text-indigo-400">USD 0</h2>
+        <p class="text-xs sm:text-sm text-slate-400 font-medium">Mapato ya Packages (Tsh)</p>
+        <h2 id="statRevenue" class="mt-2 text-2xl sm:text-3xl font-bold text-indigo-400">Tsh 0</h2>
       </div>
       <div class="glass glass-hover rounded-2xl p-5">
         <p class="text-xs sm:text-sm text-slate-400 font-medium">Mapato ya Mwezi (Tsh)</p>
@@ -795,7 +795,7 @@
           document.getElementById('statActive').textContent = pData.data.activePackages || 0;
         }
         if(uData.success) {
-          document.getElementById('statRevenue').textContent = 'USD ' + Number(uData.data.totalRevenueUsd || 0).toLocaleString();
+          document.getElementById('statRevenue').textContent = 'Tsh ' + Number(uData.data.packageRevenueTzs || 0).toLocaleString();
           document.getElementById('adminCount').textContent = uData.data.totalAdmins || 0;
           document.getElementById('totalUsers').textContent = uData.data.totalUsers || 0;
           document.getElementById('statCoins').textContent = '🪙 ' + Number(uData.data.totalCoinsDistributed || 0).toLocaleString();

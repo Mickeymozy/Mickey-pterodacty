@@ -169,17 +169,35 @@ router.post('/auth/login', (req, res, next) => {
 
       user.lastLogin = new Date();
       await user.save().catch(() => {});
-      await LoginActivity.create({ userId: user._id, success: true, ip: req.ip, userAgent: req.get('user-agent') || '' }).catch(() => {});
+      const loginIp = req.ip || '';
+      const loginUserAgent = req.get('user-agent') || '';
+      const previousLogin = await LoginActivity.findOne({ userId: user._id, success: true })
+        .sort({ createdAt: -1 })
+        .select('ip userAgent')
+        .lean()
+        .catch(() => null);
+      await LoginActivity.create({ userId: user._id, success: true, ip: loginIp, userAgent: loginUserAgent }).catch(() => {});
 
-      const loginEmailSent = await sendEmail({
-        to: user.email,
-        subject: 'Taarifa ya kuingia kwenye akaunti',
-        text: `Hello ${user.displayName || user.username}, you signed in to your account at ${new Date().toLocaleString()}. If this was not you, please contact support immediately.`,
-        html: `<p style="margin:0 0 8px; color:#506466;">Usalama wa akaunti</p><h1 style="margin:0 0 18px; color:#173638; font-size:26px;">Umeingia kwenye akaunti</h1><p style="margin:0 0 12px;">Habari <strong>${user.displayName || user.username}</strong>, akaunti yako iliingiliwa kwa mafanikio.</p><div style="padding:14px 16px; border-left:4px solid #0f766e; background:#f2f8f7; color:#506466;"><strong>Muda:</strong> ${new Date().toLocaleString()}</div><p style="margin:18px 0 0; color:#506466;">Kama si wewe, badilisha password mara moja na wasiliana na support.</p>`
-      });
+      const suspiciousLogin = previousLogin && (
+        (previousLogin.ip && loginIp && previousLogin.ip !== loginIp) ||
+        (previousLogin.userAgent && loginUserAgent && previousLogin.userAgent !== loginUserAgent)
+      );
 
-      if (!loginEmailSent) {
-        console.warn(`⚠️ Login email could not be sent to ${user.email}`);
+      if (suspiciousLogin) {
+        const loginTime = new Date().toLocaleString();
+        const loginEmailSent = await sendEmail({
+          to: user.email,
+          subject: 'Tahadhari: kuingia kusiko kwa kawaida kwenye akaunti yako',
+          text: `Tumegundua login kutoka kifaa au mtandao tofauti saa ${loginTime}. Kama hukuwa wewe, badilisha password mara moja na wasiliana na support.`,
+          html: `<p style="margin:0 0 8px; color:#506466;">Usalama wa akaunti</p><h1 style="margin:0 0 18px; color:#173638; font-size:26px;">Login mpya imegunduliwa</h1><p style="margin:0 0 12px;">Tumegundua kuingia kwenye akaunti yako kutoka kifaa au mtandao tofauti.</p><div style="padding:14px 16px; border-left:4px solid #0f766e; background:#f2f8f7; color:#506466;"><strong>Muda:</strong> ${loginTime}</div><p style="margin:18px 0 0; color:#506466;">Kama si wewe, badilisha password mara moja na wasiliana na support.</p>`
+        }).catch((error) => {
+          console.error('Suspicious login email failed:', error.message);
+          return false;
+        });
+
+        if (!loginEmailSent) {
+          console.warn(`⚠️ Suspicious login email could not be sent to ${user.email}`);
+        }
       }
 
       if (!user.isEmailVerified) {

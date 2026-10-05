@@ -86,19 +86,18 @@ async function notifyUserAboutPendingPayment(user, transaction, packageDoc, requ
   });
 }
 
-async function notifyUserBySmsAfterApiPayment(user, transaction, productName) {
-  if (transaction.paymentProvider !== 'palmpesa') return;
-
+async function notifyUserBySmsAfterPayment(user, transaction, productName) {
   try {
     const smsResult = await sendPaymentConfirmation({
       phone: transaction.metadata?.phone || user.phone,
-      amount: transaction.amount,
+      amount: transaction.metadata?.amountTzs ?? transaction.amount,
       transactionId: transaction._id,
       product: productName
     });
 
     if (smsResult.sent) {
       transaction.metadata = { ...(transaction.metadata || {}), confirmationSmsSent: true, confirmationSmsPhone: smsResult.phone };
+      await transaction.save();
     } else if (!smsResult.skipped) {
       console.warn('Payment confirmation SMS was not sent:', smsResult.reason || 'Unknown error');
     }
@@ -139,12 +138,12 @@ async function fulfillSuccessfulTransaction(transactionId) {
       );
       userCoins = Number(updatedUser?.coins || 0);
       await notifyUserAboutPayment(updatedUser || user, transaction, { name: 'Coins Top-up' }, null);
-      await notifyUserBySmsAfterApiPayment(updatedUser || user, transaction, 'Coins top-up');
+      await notifyUserBySmsAfterPayment(updatedUser || user, transaction, 'Coins top-up');
     } else if (isBotScript) {
       await notifyUserAboutPayment(user, transaction, { name: transaction.metadata?.title || 'Bot Script' }, {
         access: { downloadUrl: transaction.metadata?.downloadUrl }
       });
-      await notifyUserBySmsAfterApiPayment(user, transaction, transaction.metadata?.title || 'Bot Script');
+      await notifyUserBySmsAfterPayment(user, transaction, transaction.metadata?.title || 'Bot Script');
     } else if (!isGeneric && transaction.packageId) {
       const serverName = transaction.metadata?.serverName || `${transaction.packageId.name}-${Date.now()}`;
       serverData = await createServerFromPackage(user, transaction.packageId._id, serverName, {
@@ -166,9 +165,10 @@ async function fulfillSuccessfulTransaction(transactionId) {
       });
       await user.save();
       await notifyUserAboutPayment(user, transaction, transaction.packageId, serverData);
-      await notifyUserBySmsAfterApiPayment(user, transaction, transaction.packageId?.name || 'Server');
+      await notifyUserBySmsAfterPayment(user, transaction, transaction.packageId?.name || 'Server');
     } else {
-      await notifyUserAboutPendingPayment(user, transaction, { name: transaction.description }, 'generic payment');
+      await notifyUserAboutPayment(user, transaction, { name: transaction.description }, null);
+      await notifyUserBySmsAfterPayment(user, transaction, transaction.description || 'Payment');
     }
 
     transaction.status = 'completed';
@@ -216,6 +216,7 @@ router.post('/checkout', authenticate, async (req, res) => {
     const pricing = pkg?.pricing || {};
     const coinsCost = Number(pricing.coinsCost ?? pkg?.coinsCost ?? 0);
     const usdCost = Number(pricing.usdCost ?? pkg?.usdCost ?? 0);
+    const paymentAmountTzs = Math.max(1, Math.round(usdCost));
 
     // Reserve coins before provisioning so an insufficient balance cannot create an orphan server.
     if (useWalletPayment) {
@@ -244,11 +245,13 @@ router.post('/checkout', authenticate, async (req, res) => {
           status: 'completed',
           description: `Purchase of ${pkg.name} package`,
           completedAt: new Date(),
-          serverId: serverData?.server?.identifier || serverData?.server?.id
+          serverId: serverData?.server?.identifier || serverData?.server?.id,
+          metadata: { phone: phone || '' }
         });
         await transaction.save();
 
         await notifyUserAboutPayment(user, transaction, pkg, serverData);
+        await notifyUserBySmsAfterPayment(user, transaction, pkg.name);
 
         res.json({
           success: true,
@@ -276,8 +279,8 @@ router.post('/checkout', authenticate, async (req, res) => {
       const transaction = new Transaction({
         userId,
         type: 'purchase',
-        amount: usdCost || coinsCost,
-        currency: 'USD',
+        amount: paymentAmountTzs,
+        currency: 'TZS',
         packageId,
         paymentMethod: 'palmpesa',
         paymentProvider: 'palmpesa',
@@ -291,14 +294,15 @@ router.post('/checkout', authenticate, async (req, res) => {
           startupCommand: startupCommand,
           botRepoUrl: botRepoUrl,
           phone: phone,
-          proofText: proofText
+          proofText: proofText,
+          amountTzs: paymentAmountTzs
         }
       });
 
       await transaction.save();
 
       const paymentData = {
-        amount: Math.max(1, Math.round(usdCost)),
+        amount: paymentAmountTzs,
         currency: 'TZS',
         reference: transaction._id.toString(),
         description: `${pkg.name} Package - ${user.email}`,
@@ -382,18 +386,20 @@ router.post('/checkout', authenticate, async (req, res) => {
       const transaction = new Transaction({
         userId,
         type: 'purchase',
-        amount: usdCost || coinsCost,
-        currency: 'USD',
+        amount: paymentAmountTzs,
+        currency: 'TZS',
         packageId,
-        paymentMethod: normalizedPaymentMethod || 'palmpesa',
+        paymentMethod: 'palmpesa',
+        paymentProvider: 'palmpesa',
         status: 'pending',
-        description: `Purchase of ${pkg.name} package`
+        description: `Purchase of ${pkg.name} package`,
+        metadata: { phone: phone || '', amountTzs: paymentAmountTzs }
       });
 
       await transaction.save();
 
       const paymentData = {
-        amount: Math.max(1, Math.round(usdCost)),
+        amount: paymentAmountTzs,
         currency: 'TZS',
         reference: transaction._id.toString(),
         description: `${pkg.name} Package - ${user.email}`,
@@ -1052,32 +1058,46 @@ router.get('/admin/all', requireAdmin, async (req, res) => {
 // Summary of payments grouped by provider and external total
 router.get('/admin/summary', requireAdmin, async (req, res) => {
   try {
+    const actualAmountTzs = {
+      $cond: [
+        { $eq: ['$metadata.type', 'topup'] },
+        { $ifNull: ['$metadata.amountTzs', 0] },
+        { $ifNull: ['$metadata.amountTzs', '$amount'] }
+      ]
+    };
     const pipeline = [
-      { $match: { status: { $in: ['completed', 'pending', 'failed'] } } },
-      { $group: { _id: '$paymentProvider', totalAmount: { $sum: '$amount' }, count: { $sum: 1 } } }
+      {
+        $match: {
+          status: 'completed',
+          paymentProvider: { $in: ['palmpesa', 'zenopay', 'admin'] },
+          type: { $ne: 'admin_adjustment' }
+        }
+      },
+      {
+        $group: {
+          _id: '$paymentProvider',
+          totalAmount: { $sum: actualAmountTzs },
+          count: { $sum: 1 }
+        }
+      }
     ];
 
     const byProvider = await Transaction.aggregate(pipeline).exec();
 
-    // Separate count for generic payments
-    const genericCount = await Transaction.countDocuments({ type: 'generic', status: { $in: ['completed', 'pending', 'failed'] } });
+    const externalPaymentFilter = {
+      type: 'generic',
+      status: 'completed',
+      paymentProvider: { $in: ['palmpesa', 'zenopay', 'admin'] }
+    };
+    const genericCount = await Transaction.countDocuments(externalPaymentFilter);
     const genericTotal = await Transaction.aggregate([
-      { $match: { type: 'generic', status: { $in: ['completed', 'pending', 'failed'] } } },
-      { $group: { _id: null, total: { $sum: '$amount' } } }
+      { $match: externalPaymentFilter },
+      { $group: { _id: null, total: { $sum: { $ifNull: ['$metadata.amountTzs', '$amount'] } } } }
     ]).then(result => result[0]?.total || 0);
 
-    let externalTotal = 0;
-    byProvider.forEach((p) => {
-      const provider = p._id || 'unknown';
-      if (provider !== 'admin') {
-        externalTotal += Number(p.totalAmount || 0);
-      }
-    });
+    const externalTotal = byProvider.reduce((sum, provider) => sum + Number(provider.totalAmount || 0), 0);
 
-    // Add generic payments to external total if they're from external providers
-    externalTotal += Number(genericTotal || 0);
-
-    res.json({ success: true, data: { byProvider, externalTotal, genericCount, genericTotal } });
+    res.json({ success: true, data: { byProvider, externalTotal, externalCount: byProvider.reduce((sum, provider) => sum + provider.count, 0), genericCount, genericTotal } });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -1141,6 +1161,7 @@ router.post('/admin/:transactionId/approve', requireAdmin, async (req, res) => {
         html: `<p>Your payment for "${transaction.description}" (Tsh ${transaction.amount}) has been approved and completed by admin.</p><p>Transaction ID: ${transaction._id}</p>`,
         text: `Your payment for "${transaction.description}" has been approved.`
       }).catch(err => console.error('Failed to send approval email:', err));
+      await notifyUserBySmsAfterPayment(user, transaction, transaction.description || 'Payment');
 
       return res.json({
         success: true,
@@ -1169,6 +1190,7 @@ router.post('/admin/:transactionId/approve', requireAdmin, async (req, res) => {
       await transaction.save();
       await writeAuditLog(req, 'payment.approved_server_created', { type: 'Transaction', id: transaction._id }, { serverId: transaction.serverId });
       await notifyUserAboutPayment(user, transaction, pkg, serverData);
+      await notifyUserBySmsAfterPayment(user, transaction, pkg?.name || 'Server');
 
       return res.json({ success: true, message: 'Payment approved and server created', data: { server: serverData?.server } });
     }
@@ -1186,6 +1208,7 @@ router.post('/admin/:transactionId/approve', requireAdmin, async (req, res) => {
     await writeAuditLog(req, 'payment.approved_coins_credited', { type: 'Transaction', id: transaction._id }, { coins: coinsToAdd, userId: user._id });
 
     await notifyUserAboutPayment(user, transaction, { name: 'Coins Top-up' }, null);
+    await notifyUserBySmsAfterPayment(user, transaction, 'Coins top-up');
 
     res.json({ success: true, message: 'Payment approved and coins credited', data: { coins: user.coins } });
   } catch (error) {
