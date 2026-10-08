@@ -1,6 +1,16 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { buildPteroLimitsFromPackage, isValidGitUrl, buildStartupCommand } = require('../utils/serverHelper');
+const { validatePasswordComplexity } = require('../utils/passwordValidator');
+
+test('accepts simple passwords with at least 8 characters', () => {
+  assert.equal(validatePasswordComplexity('abcdefgh').isValid, true);
+  assert.equal(validatePasswordComplexity('password').isValid, true);
+});
+
+test('rejects passwords shorter than 8 characters', () => {
+  assert.equal(validatePasswordComplexity('abc123!').isValid, false);
+});
 
 test('validates public git repository URLs', () => {
   assert.equal(isValidGitUrl('https://github.com/example/bot.git'), true);

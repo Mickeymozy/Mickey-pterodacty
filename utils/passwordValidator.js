@@ -1,6 +1,6 @@
 /**
  * Password Validator Utility
- * Enforces strong password complexity requirements
+ * Enforces the minimum password length.
  */
 
 const validatePasswordComplexity = (password) => {
@@ -8,22 +8,6 @@ const validatePasswordComplexity = (password) => {
 
   if (!password || password.length < 8) {
     errors.push("Password must be at least 8 characters long");
-  }
-
-  if (!/[A-Z]/.test(password)) {
-    errors.push("Password must contain at least one uppercase letter (A-Z)");
-  }
-
-  if (!/[a-z]/.test(password)) {
-    errors.push("Password must contain at least one lowercase letter (a-z)");
-  }
-
-  if (!/\d/.test(password)) {
-    errors.push("Password must contain at least one numeric character (0-9)");
-  }
-
-  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
-    errors.push("Password must contain at least one special character (!@#$%^&* etc.)");
   }
 
   return {

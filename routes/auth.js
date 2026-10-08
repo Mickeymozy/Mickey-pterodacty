@@ -9,14 +9,8 @@ const sendEmail = require('../utils/email');
 const axios = require('axios');
 const LoginActivity = require('../models/LoginActivity');
 
-const COMMON_PASSWORDS = new Set([
-  'password', '123456', '123456789', 'qwerty', 'password123', 'admin', 'welcome',
-  'changeme', 'letmein', 'secret', 'test1234', 'iloveyou', 'sunshine', 'monkey'
-]);
-
 function isAcceptablePassword(password) {
-  const trimmed = String(password || '').trim();
-  return validatePasswordComplexity(trimmed).isValid && !COMMON_PASSWORDS.has(trimmed.toLowerCase());
+  return validatePasswordComplexity(String(password || '')).isValid;
 }
 
 function generateRandomPassword(length = 24) {
@@ -221,7 +215,7 @@ router.post('/auth/register', async (req, res) => {
   }
 
   if (!isAcceptablePassword(password)) {
-    req.flash('error_msg', '❌ Password lazima iwe na angalau herufi 4 na isiwe ya kawaida.');
+    req.flash('error_msg', '❌ Password lazima iwe na angalau herufi 8.');
     return res.redirect('/login.html?tab=register');
   }
 
@@ -344,7 +338,7 @@ router.post('/auth/reset-password/confirm', async (req, res) => {
   const { token, password } = req.body;
 
   if (!token || !password || !isAcceptablePassword(password)) {
-    req.flash('error_msg', '❌ Token au password si sahihi. lazima iwe na angalau herufi 4 na isiwe ya kawaida.');
+    req.flash('error_msg', '❌ Token au password si sahihi. Password lazima iwe na angalau herufi 8.');
     return res.redirect('/login.html?tab=reset');
   }
 

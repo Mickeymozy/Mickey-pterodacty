@@ -63,11 +63,7 @@ const getPasswordRequirements = (req, res) => {
   res.json({
     success: true,
     requirements: [
-      { rule: 'At least 8 characters long', code: 'LENGTH' },
-      { rule: 'Contains uppercase letter (A-Z)', code: 'UPPERCASE' },
-      { rule: 'Contains lowercase letter (a-z)', code: 'LOWERCASE' },
-      { rule: 'Contains numeric character (0-9)', code: 'NUMERIC' },
-      { rule: 'Contains special character (!@#$%^&* etc.)', code: 'SPECIAL' }
+      { rule: 'At least 8 characters long', code: 'LENGTH' }
     ]
   });
 };
