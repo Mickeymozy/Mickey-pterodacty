@@ -1497,7 +1497,7 @@
       receipt.classList.add('payment-success');
     }
 
-    async function pollPaymentVerification(transactionId, messageBox, { onComplete } = {}) {
+    async function pollPaymentVerification(transactionId, messageBox, { onComplete, showReceipt = true } = {}) {
       if (!transactionId) return;
 
       let attempts = 0;
@@ -1515,7 +1515,7 @@
             messageBox.innerHTML = `<span class="text-emerald-400 animate-pulse">${completedMessage}</span>`;
             showToast('✅ Malipo yamepokewa na umepokea coin kadhaa', 'success', true);
             if (verifyData.data?.userCoins !== undefined) setUserCoins(verifyData.data.userCoins);
-            showPaymentReceipt(verifyData.data, verifyData.data.server ? 'server' : 'coins');
+            if (showReceipt) showPaymentReceipt(verifyData.data, verifyData.data.server ? 'server' : 'coins');
             if (typeof onComplete === 'function') onComplete(verifyData);
             return;
           }
@@ -1669,7 +1669,13 @@
       if (result.data?.transactionId) {
         if (result.data.paymentUrl) window.open(result.data.paymentUrl, '_blank', 'noopener,noreferrer');
         showToast(result.data.paymentMessage || 'Ombi la malipo limetumwa kwenye simu. Thibitisha PalmPesa kisha subiri.', 'success', true);
-        pollPaymentVerification(result.data.transactionId, document.getElementById('topupMessage') || document.body, { onComplete: () => { loadBotScripts(); } });
+        pollPaymentVerification(result.data.transactionId, document.getElementById('topupMessage') || document.body, {
+          showReceipt: false,
+          onComplete: () => {
+            loadBotScripts();
+            showToast('Malipo ya script yamethibitishwa. Pakua script kwenye orodha.', 'success', true);
+          }
+        });
         return;
       }
       if (result.data?.downloadUrl) {

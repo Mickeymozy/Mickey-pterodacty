@@ -119,7 +119,14 @@ router.post('/:id/purchase', requireAuth, async (req, res) => {
   transaction.zenopayTransactionId = paymentResult.orderId || paymentResult.transactionId;
   transaction.zenopayReference = paymentResult.reference;
   const paymentUrl = validUrl(paymentResult.paymentUrl) ? paymentResult.paymentUrl : null;
-  transaction.metadata = { ...transaction.metadata, paymentUrl, palmpesaOrderId: transaction.zenopayTransactionId };
+  transaction.metadata = {
+    ...transaction.metadata,
+    paymentUrl,
+    paymentInitiated: true,
+    autoFulfill: true,
+    paymentEndpoint: paymentResult.endpoint || 'palmpesa',
+    palmpesaOrderId: transaction.zenopayTransactionId
+  };
   await transaction.save();
   res.json({
     success: true,
