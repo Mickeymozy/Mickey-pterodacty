@@ -95,15 +95,48 @@ async function notifyUserBySmsAfterPayment(user, transaction, productName) {
       product: productName
     });
 
-    if (smsResult.sent) {
-      transaction.metadata = { ...(transaction.metadata || {}), confirmationSmsSent: true, confirmationSmsPhone: smsResult.phone };
-      await transaction.save();
-    } else if (!smsResult.skipped) {
+    const status = smsResult.sent ? 'sent' : smsResult.skipped ? 'skipped' : 'failed';
+    transaction.metadata = {
+      ...(transaction.metadata || {}),
+      confirmationSmsSent: Boolean(smsResult.sent),
+      confirmationSmsStatus: status,
+      confirmationSmsPhone: smsResult.phone || null,
+      confirmationSmsReason: smsResult.reason || null
+    };
+    await transaction.save();
+
+    if (!smsResult.sent && !smsResult.skipped) {
       console.warn('Payment confirmation SMS was not sent:', smsResult.reason || 'Unknown error');
     }
+    return { sent: Boolean(smsResult.sent), status, reason: smsResult.reason || null };
   } catch (error) {
     console.error('Payment confirmation SMS failed:', error.message);
+    transaction.metadata = {
+      ...(transaction.metadata || {}),
+      confirmationSmsSent: false,
+      confirmationSmsStatus: 'failed',
+      confirmationSmsReason: error.message
+    };
+    await transaction.save().catch(() => {});
+    return { sent: false, status: 'failed', reason: error.message };
   }
+}
+
+function getPaymentDeliveryDetails(transaction) {
+  const isBotScript = transaction.metadata?.kind === 'bot-script';
+  const smsSent = transaction.metadata?.confirmationSmsSent === true;
+  const scriptId = transaction.metadata?.botScriptId;
+
+  return {
+    smsConfirmation: {
+      sent: smsSent,
+      status: transaction.metadata?.confirmationSmsStatus || (smsSent ? 'sent' : 'unknown'),
+      reason: transaction.metadata?.confirmationSmsReason || null
+    },
+    downloadUrl: isBotScript && scriptId
+      ? `/api/bot-scripts/${encodeURIComponent(String(scriptId))}/download`
+      : null
+  };
 }
 
 async function fulfillSuccessfulTransaction(transactionId) {
@@ -655,7 +688,21 @@ router.get('/verify/:transactionId', authenticate, async (req, res) => {
       return res.status(403).json({ success: false, message: 'Huna ruhusa ya transaction hii.' });
     }
     if (transaction.status === 'completed') {
-      return res.json({ success: true, message: 'Payment already verified', data: { status: 'completed', transactionId } });
+      const isTopup = transaction.metadata?.type === 'topup';
+      const currentUser = isTopup
+        ? await User.findById(transaction.userId).select('coins').lean()
+        : null;
+      return res.json({
+        success: true,
+        message: 'Payment already verified',
+        data: {
+          status: 'completed',
+          transactionId,
+          coinsAdded: isTopup ? Number(transaction.metadata?.coinsAmount ?? transaction.amount ?? 0) : 0,
+          userCoins: currentUser?.coins,
+          ...getPaymentDeliveryDetails(transaction)
+        }
+      });
     }
 
     const verificationResult = await palmPesaService.verifyPayment(
@@ -677,7 +724,8 @@ router.get('/verify/:transactionId', authenticate, async (req, res) => {
             coinsAdded: isTopup ? Number(completedTransaction.metadata?.coinsAmount ?? completedTransaction.amount ?? 0) : 0,
             userCoins: result.userCoins,
             package: isGeneric ? 'Generic Payment' : completedTransaction.packageId?.name || 'Coins Top-up',
-            server: result.serverData?.server || null
+            server: result.serverData?.server || null,
+            ...getPaymentDeliveryDetails(completedTransaction)
           }
         });
       } else if (verificationResult.paymentStatus === 'pending') {

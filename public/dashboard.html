@@ -1497,7 +1497,7 @@
       receipt.classList.add('payment-success');
     }
 
-    async function pollPaymentVerification(transactionId, messageBox, { onComplete, showReceipt = true } = {}) {
+    async function pollPaymentVerification(transactionId, messageBox, { onComplete, showReceipt = true, showSmsConfirmation = true } = {}) {
       if (!transactionId) return;
 
       let attempts = 0;
@@ -1516,6 +1516,13 @@
             showToast('✅ Malipo yamepokewa na umepokea coin kadhaa', 'success', true);
             if (verifyData.data?.userCoins !== undefined) setUserCoins(verifyData.data.userCoins);
             if (showReceipt) showPaymentReceipt(verifyData.data, verifyData.data.server ? 'server' : 'coins');
+            const smsConfirmation = verifyData.data?.smsConfirmation;
+            if (showSmsConfirmation && smsConfirmation?.status && smsConfirmation.status !== 'unknown') {
+              const smsMessage = smsConfirmation.sent
+                ? 'SMS ya uthibitisho wa malipo imetumwa.'
+                : `Malipo yamepokelewa, lakini SMS haikutumwa${smsConfirmation.reason ? `: ${smsConfirmation.reason}` : '.'}`;
+              showToast(smsMessage, smsConfirmation.sent ? 'success' : 'warning', true);
+            }
             if (typeof onComplete === 'function') onComplete(verifyData);
             return;
           }
@@ -1671,9 +1678,22 @@
         showToast(result.data.paymentMessage || 'Ombi la malipo limetumwa kwenye simu. Thibitisha PalmPesa kisha subiri.', 'success', true);
         pollPaymentVerification(result.data.transactionId, document.getElementById('topupMessage') || document.body, {
           showReceipt: false,
-          onComplete: () => {
+          showSmsConfirmation: false,
+          onComplete: (verifiedData) => {
+            const paymentData = verifiedData?.data || {};
+            const smsConfirmation = paymentData.smsConfirmation || {};
+            if (smsConfirmation.status !== 'unknown') {
+              const smsMessage = smsConfirmation.sent
+                ? 'SMS ya uthibitisho imetumwa.'
+                : `Malipo yamethibitishwa, lakini SMS haikutumwa${smsConfirmation.reason ? `: ${smsConfirmation.reason}` : '.'}`;
+              showToast(smsMessage, smsConfirmation.sent ? 'success' : 'warning', true);
+            }
+            if (paymentData.downloadUrl) {
+              window.location.href = paymentData.downloadUrl;
+              return;
+            }
             loadBotScripts();
-            showToast('Malipo ya script yamethibitishwa. Pakua script kwenye orodha.', 'success', true);
+            showToast('Malipo yamekamilika. Script yako ipo kwenye orodha ya zilizonunuliwa.', 'success', true);
           }
         });
         return;
