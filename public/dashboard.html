@@ -1666,9 +1666,17 @@
       closeBotScriptPaymentModal();
       if (!result.success) { showToast(result.message || 'Malipo yameshindikana', 'error', true); return; }
       if (result.data?.remainingCoins !== undefined) setUserCoins(result.data.remainingCoins);
-      if (result.data?.paymentUrl) { showToast('Malipo yameanzishwa. Kamilisha PalmPesa kwenye ukurasa uliofunguka.', 'success', true); window.open(result.data.paymentUrl, '_blank', 'noopener,noreferrer'); pollPaymentVerification(result.data.transactionId, document.getElementById('topupMessage') || document.body, { onComplete: () => { loadBotScripts(); } }); return; }
-      showToast('Malipo yamekamilika. Download inaanza.', 'success', true);
-      window.location.href = result.data.downloadUrl;
+      if (result.data?.transactionId) {
+        if (result.data.paymentUrl) window.open(result.data.paymentUrl, '_blank', 'noopener,noreferrer');
+        showToast(result.data.paymentMessage || 'Ombi la malipo limetumwa kwenye simu. Thibitisha PalmPesa kisha subiri.', 'success', true);
+        pollPaymentVerification(result.data.transactionId, document.getElementById('topupMessage') || document.body, { onComplete: () => { loadBotScripts(); } });
+        return;
+      }
+      if (result.data?.downloadUrl) {
+        window.location.href = result.data.downloadUrl;
+        return;
+      }
+      showToast('Malipo yameanzishwa lakini taarifa ya kuendelea haijarudi. Refresh ukurasa au wasiliana na support.', 'error', true);
     });
 
     document.getElementById('supportForm')?.addEventListener('submit', async (event) => { event.preventDefault(); const result = await (await fetch('/api/support', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subject: document.getElementById('supportSubject').value, message: document.getElementById('supportMessage').value, category: document.getElementById('supportCategory').value, priority: document.getElementById('supportPriority').value }) })).json(); document.getElementById('supportStatus').textContent = result.message || (result.success ? 'Ticket imetumwa.' : 'Imeshindikana.'); if (result.success) { event.target.reset(); loadSupportTickets(); } });

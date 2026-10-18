@@ -118,9 +118,19 @@ router.post('/:id/purchase', requireAuth, async (req, res) => {
   }
   transaction.zenopayTransactionId = paymentResult.orderId || paymentResult.transactionId;
   transaction.zenopayReference = paymentResult.reference;
-  transaction.metadata = { ...transaction.metadata, paymentUrl: paymentResult.paymentUrl, palmpesaOrderId: transaction.zenopayTransactionId };
+  const paymentUrl = validUrl(paymentResult.paymentUrl) ? paymentResult.paymentUrl : null;
+  transaction.metadata = { ...transaction.metadata, paymentUrl, palmpesaOrderId: transaction.zenopayTransactionId };
   await transaction.save();
-  res.json({ success: true, message: 'Malipo ya PalmPesa yameanzishwa.', data: { transactionId: transaction._id, paymentUrl: paymentResult.paymentUrl, paymentInitiated: true } });
+  res.json({
+    success: true,
+    message: 'Malipo ya PalmPesa yameanzishwa.',
+    data: {
+      transactionId: transaction._id,
+      paymentUrl,
+      paymentMessage: paymentResult.paymentMessage,
+      paymentInitiated: true
+    }
+  });
 });
 
 async function streamDownload(req, res, scriptId, userId) {

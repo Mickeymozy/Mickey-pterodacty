@@ -91,13 +91,14 @@ class PalmPesaService {
     if (!payload) return null;
     const result = payload?.raw || payload;
     const keys = ['payment_gateway_url', 'payment_url', 'paymentUrl', 'payment_link', 'url', 'link', 'redirect_url', 'redirectUrl'];
-    for (const key of keys) {
-      if (result?.[key]) return result[key];
-    }
-    const nested = result?.data || result;
-    if (nested && typeof nested === 'object') {
+    const containers = [result, result?.data, result?.response, payload, payload?.data, payload?.response];
+    for (const container of containers) {
+      if (!container || typeof container !== 'object') continue;
       for (const key of keys) {
-        if (nested?.[key]) return nested[key];
+        const candidate = container[key];
+        if (typeof candidate === 'string' && this.isValidHttpsUrl(candidate.trim())) {
+          return candidate.trim();
+        }
       }
     }
     return null;
