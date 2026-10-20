@@ -13,6 +13,7 @@ const sendEmail = require('../utils/email');
 const axios = require('axios');
 const { writeAuditLog } = require('../utils/auditLog');
 const { sendPaymentConfirmation } = require('../services/smsService');
+const ExternalPayment = require('../models/ExternalPayment');
 const PTERODACTYL_URL = (process.env.PANEL_URL || process.env.PTERODACTYL_URL)?.replace(/\/$/, '');
 const PTERODACTYL_APP_API_KEY = process.env.PANEL_API_KEY || process.env.PTERODACTYL_APP_API_KEY;
 const appApi = PTERODACTYL_URL && PTERODACTYL_APP_API_KEY ? axios.create({ baseURL: `${PTERODACTYL_URL}/api/application`, headers: { Authorization: `Bearer ${PTERODACTYL_APP_API_KEY}`, 'Content-Type': 'application/json', Accept: 'application/json' }, timeout: 10000 }) : null;
@@ -955,19 +956,75 @@ router.post('/webhook', async (req, res) => {
       : null;
     const targetTransaction = transaction || fallbackTransaction;
 
-    if (!targetTransaction) {
-      console.warn(`Transaction ${reference} not found`);
-      return res.status(404).json({ success: false, message: 'Transaction not found' });
-    }
-
     const status = String(req.body?.status || req.body?.payment_status || req.body?.paymentStatus
       || req.body?.result || webhookData.status || webhookData.payment_status || webhookData.paymentStatus
       || webhookData.result || webhookResult.status || webhookResult.payment_status || webhookResult.paymentStatus || '').toLowerCase().trim();
     const shouldCredit = ['success', 'successful', 'completed', 'complete', 'succeeded', 'paid', 'confirmed', 'approved'].includes(status);
+    const shouldFail = ['failed', 'cancelled', 'rejected', 'usercancelled'].includes(status);
+
+    if (!targetTransaction) {
+      const externalPayment = reference
+        ? await ExternalPayment.findOne({ $or: [{ providerOrderId: reference }, { merchantOrderId: reference }] })
+        : null;
+
+      if (!externalPayment) {
+        console.warn(`Transaction ${reference} not found`);
+        return res.status(404).json({ success: false, message: 'Transaction not found' });
+      }
+
+      const webhookAmount = Number(req.body?.amount ?? webhookData.amount ?? webhookResult.amount);
+      if (shouldCredit && Number.isFinite(webhookAmount) && webhookAmount > 0 && webhookAmount !== externalPayment.amount) {
+        return res.status(400).json({ success: false, message: 'Payment amount does not match order.' });
+      }
+
+      if (shouldCredit && externalPayment.status !== 'completed') {
+        externalPayment.status = 'completed';
+        externalPayment.completedAt = new Date();
+        await externalPayment.save();
+      } else if (shouldFail && externalPayment.status === 'pending') {
+        externalPayment.status = 'failed';
+        externalPayment.notes = JSON.stringify(req.body).slice(0, 2000);
+        await externalPayment.save();
+      }
+
+      if ((shouldCredit || shouldFail) && !externalPayment.webhookSentAt && process.env.EXTERNAL_PAYMENT_WEBHOOK_URL) {
+        const callbackUrl = process.env.EXTERNAL_PAYMENT_WEBHOOK_URL;
+        if (!/^https:\/\//i.test(callbackUrl)) {
+          throw new Error('EXTERNAL_PAYMENT_WEBHOOK_URL must use HTTPS.');
+        }
+        const callbackBody = {
+          event: shouldCredit ? 'payment.completed' : 'payment.failed',
+          data: {
+            orderId: externalPayment.merchantOrderId,
+            paymentId: externalPayment._id,
+            amount: externalPayment.amount,
+            currency: externalPayment.currency,
+            status: externalPayment.status,
+            completedAt: externalPayment.completedAt || null
+          }
+        };
+        const callbackPayload = JSON.stringify(callbackBody);
+        const callbackSecret = process.env.EXTERNAL_PAYMENT_WEBHOOK_SECRET || '';
+        if (!callbackSecret) throw new Error('EXTERNAL_PAYMENT_WEBHOOK_SECRET is not configured.');
+        const callbackSignature = require('crypto').createHmac('sha256', callbackSecret).update(callbackPayload).digest('hex');
+        await axios.post(callbackUrl, callbackBody, {
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Payment-Signature': `sha256=${callbackSignature}`,
+            'X-Payment-Event-Id': `${externalPayment.merchantOrderId}:${externalPayment.status}`
+          },
+          timeout: 10000
+        });
+        externalPayment.webhookSentAt = new Date();
+        await externalPayment.save();
+      }
+
+      return res.json({ success: true, message: 'External payment webhook processed.' });
+    }
 
     if (shouldCredit) {
       await fulfillSuccessfulTransaction(targetTransaction._id);
-    } else if (status === 'failed' || status === 'cancelled' || status === 'rejected' || status === 'usercancelled') {
+    } else if (shouldFail) {
       targetTransaction.status = 'failed';
       targetTransaction.notes = targetTransaction.notes || JSON.stringify(req.body);
       await targetTransaction.save();
