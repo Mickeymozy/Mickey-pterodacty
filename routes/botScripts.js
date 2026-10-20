@@ -40,8 +40,7 @@ const readDownloadToken = (token) => {
 };
 
 const downloadLinkFor = (userId, scriptId) => {
-  const expiresAt = Date.now() + 24 * 60 * 60 * 1000;
-  return `${process.env.APP_URL || ''}/api/bot-scripts/download/${createDownloadToken(userId, scriptId, expiresAt)}`;
+  return `${process.env.APP_URL || ''}/api/bot-scripts/${encodeURIComponent(String(scriptId))}/download`;
 };
 
 const getScriptPriceTzs = (script) => {
@@ -154,7 +153,13 @@ async function streamDownload(req, res, scriptId, userId) {
   upstream.data.pipe(res);
 }
 
-router.get('/:id/download', requireAuth, async (req, res) => res.redirect(downloadLinkFor(req.user._id, req.params.id)));
+router.get('/:id/download', async (req, res) => {
+  if (!req.isAuthenticated()) {
+    req.flash('success_msg', 'Ingia kwenye akaunti iliyonunua script ili kupakua ZIP.');
+    return res.redirect(`/login.html?tab=login&returnTo=${encodeURIComponent(req.originalUrl)}`);
+  }
+  return streamDownload(req, res, req.params.id, req.user._id);
+});
 router.get('/download/:token', async (req, res) => {
   const tokenData = readDownloadToken(req.params.token);
   if (!tokenData) return res.status(403).json({ success: false, message: 'Download link imeisha au si sahihi.' });

@@ -12,7 +12,7 @@ const { createServerFromPackage } = require('../utils/serverHelper');
 const sendEmail = require('../utils/email');
 const axios = require('axios');
 const { writeAuditLog } = require('../utils/auditLog');
-const { sendPaymentConfirmation } = require('../services/smsService');
+const { normalizePhone, sendPaymentConfirmation } = require('../services/smsService');
 const ExternalPayment = require('../models/ExternalPayment');
 const PTERODACTYL_URL = (process.env.PANEL_URL || process.env.PTERODACTYL_URL)?.replace(/\/$/, '');
 const PTERODACTYL_APP_API_KEY = process.env.PANEL_API_KEY || process.env.PTERODACTYL_APP_API_KEY;
@@ -89,6 +89,12 @@ async function notifyUserAboutPendingPayment(user, transaction, packageDoc, requ
 
 async function notifyUserBySmsAfterPayment(user, transaction, productName) {
   try {
+    const suppliedPhone = normalizePhone(transaction.metadata?.phone);
+    if (!user.phone && /^255[67]\d{8}$/.test(suppliedPhone)) {
+      user.phone = suppliedPhone;
+      await user.save().catch(() => {});
+    }
+
     const smsResult = await sendPaymentConfirmation({
       phone: transaction.metadata?.phone || user.phone,
       amount: transaction.metadata?.amountTzs ?? transaction.amount,
@@ -134,6 +140,8 @@ function getPaymentDeliveryDetails(transaction) {
       status: transaction.metadata?.confirmationSmsStatus || (smsSent ? 'sent' : 'unknown'),
       reason: transaction.metadata?.confirmationSmsReason || null
     },
+    productName: isBotScript ? transaction.metadata?.title || 'Bot Script' : null,
+    amountTzs: isBotScript ? Number(transaction.metadata?.priceTzs ?? transaction.amount) : null,
     downloadUrl: isBotScript && scriptId
       ? `/api/bot-scripts/${encodeURIComponent(String(scriptId))}/download`
       : null

@@ -71,6 +71,7 @@
 
     <div id="login-tab" class="tab-content">
       <form action="/auth/login" method="POST" class="space-y-4">
+        <input id="loginReturnTo" type="hidden" name="returnTo" value="" />
         <div>
           <label class="block text-slate-300 text-sm font-medium mb-1.5">Username au Email</label>
           <input type="text" name="username" required autocomplete="username" placeholder="Ingiza username au email"
@@ -206,6 +207,10 @@
     const tab = urlParams.get('tab');
     const token = urlParams.get('token');
     if (tab) switchTab(tab);
+    const returnTo = urlParams.get('returnTo') || '';
+    if (/^\/api\/bot-scripts\/[a-f\d]{24}\/download$/i.test(returnTo)) {
+      document.getElementById('loginReturnTo').value = returnTo;
+    }
 
     if (token) {
       const tokenInput = document.getElementById('resetTokenInput');

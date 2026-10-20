@@ -8,6 +8,7 @@ const { requireGuest, ADMIN_EMAILS } = require('../middleware/auth');
 const sendEmail = require('../utils/email');
 const axios = require('axios');
 const LoginActivity = require('../models/LoginActivity');
+const { isIP } = require('net');
 
 function isAcceptablePassword(password) {
   return validatePasswordComplexity(String(password || '')).isValid;
@@ -15,6 +16,34 @@ function isAcceptablePassword(password) {
 
 function generateRandomPassword(length = 24) {
   return crypto.randomBytes(length).toString('base64').replace(/[^A-Za-z0-9]/g, '').slice(0, length);
+}
+
+async function inspectLoginIp(ip) {
+  const token = process.env.IPINFO_TOKEN;
+  const address = String(ip || '').replace(/^::ffff:/, '');
+  if (!token || !address || isIP(address) === 0 || address === '::1' || address === '127.0.0.1') return null;
+  if (/^(10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.|100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.)/.test(address)) return null;
+  if (/^(fc|fd|fe80:)/i.test(address)) return null;
+
+  try {
+    const response = await axios.get(`https://ipinfo.io/${encodeURIComponent(address)}/json`, {
+      headers: { Authorization: `Bearer ${token}` },
+      timeout: 2500
+    });
+    const details = response.data || {};
+    const privacy = details.privacy || {};
+    const homeCountry = String(process.env.LOGIN_HOME_COUNTRY || 'TZ').toUpperCase();
+    const country = String(details.country || '').toUpperCase();
+    const vpnOrProxy = Boolean(privacy.vpn || privacy.proxy || privacy.tor || privacy.relay || privacy.hosting);
+    return {
+      country: country || null,
+      foreign: Boolean(country && country !== homeCountry),
+      vpnOrProxy
+    };
+  } catch (error) {
+    console.warn('Login IP intelligence lookup failed:', error.message);
+    return null;
+  }
 }
 
 async function findOrCreateGithubUser(profile) {
@@ -151,6 +180,20 @@ router.post('/auth/login', (req, res, next) => {
     }
 
     if (!user) {
+      const attemptedLogin = String(req.body.username || '').trim().toLowerCase();
+      if (attemptedLogin) {
+        const knownUser = await User.findOne({
+          $or: [{ username: attemptedLogin }, { email: attemptedLogin }]
+        }).select('_id').lean().catch(() => null);
+        if (knownUser) {
+          await LoginActivity.create({
+            userId: knownUser._id,
+            success: false,
+            ip: req.ip || '',
+            userAgent: req.get('user-agent') || ''
+          }).catch(() => {});
+        }
+      }
       req.flash('error_msg', info?.message || '❌ Login failed.');
       return res.redirect('/login.html?error=1');
     }
@@ -165,37 +208,59 @@ router.post('/auth/login', (req, res, next) => {
       await user.save().catch(() => {});
       const loginIp = req.ip || '';
       const loginUserAgent = req.get('user-agent') || '';
-      const previousLogin = await LoginActivity.findOne({ userId: user._id, success: true })
-        .sort({ createdAt: -1 })
-        .select('ip userAgent')
-        .lean()
-        .catch(() => null);
+      const failedLoginFilter = {
+        userId: user._id,
+        success: false,
+        alerted: { $ne: true },
+        createdAt: { $gte: new Date(Date.now() - 15 * 60 * 1000) }
+      };
+      const recentFailedLogins = await LoginActivity.find(failedLoginFilter).select('_id').lean().catch(() => []);
+      const ipRisk = await inspectLoginIp(loginIp);
       await LoginActivity.create({ userId: user._id, success: true, ip: loginIp, userAgent: loginUserAgent }).catch(() => {});
 
-      const suspiciousLogin = previousLogin && (
-        (previousLogin.ip && loginIp && previousLogin.ip !== loginIp) ||
-        (previousLogin.userAgent && loginUserAgent && previousLogin.userAgent !== loginUserAgent)
-      );
+      const repeatedFailures = recentFailedLogins.length >= 3;
+      const suspiciousIp = Boolean(ipRisk?.foreign || ipRisk?.vpnOrProxy);
+      const suspiciousLogin = repeatedFailures || suspiciousIp;
 
       if (suspiciousLogin) {
         const loginTime = new Date().toLocaleString();
+        const reasons = [];
+        if (repeatedFailures) reasons.push(`${recentFailedLogins.length} failed login attempts in the last 15 minutes`);
+        if (ipRisk?.foreign) reasons.push(`login from country ${ipRisk.country}`);
+        if (ipRisk?.vpnOrProxy) reasons.push('VPN, proxy, Tor, or hosting IP detected');
         const loginEmailSent = await sendEmail({
           to: user.email,
           subject: 'Tahadhari: kuingia kusiko kwa kawaida kwenye akaunti yako',
-          text: `Tumegundua login kutoka kifaa au mtandao tofauti saa ${loginTime}. Kama hukuwa wewe, badilisha password mara moja na wasiliana na support.`,
-          html: `<p style="margin:0 0 8px; color:#506466;">Usalama wa akaunti</p><h1 style="margin:0 0 18px; color:#173638; font-size:26px;">Login mpya imegunduliwa</h1><p style="margin:0 0 12px;">Tumegundua kuingia kwenye akaunti yako kutoka kifaa au mtandao tofauti.</p><div style="padding:14px 16px; border-left:4px solid #0f766e; background:#f2f8f7; color:#506466;"><strong>Muda:</strong> ${loginTime}</div><p style="margin:18px 0 0; color:#506466;">Kama si wewe, badilisha password mara moja na wasiliana na support.</p>`
+          text: `Tumegundua login inayotia shaka saa ${loginTime}. Sababu: ${reasons.join('; ')}. IP: ${loginIp}. Kama hukuwa wewe, badilisha password na wasiliana na support.`,
+          html: `<p style="margin:0 0 8px; color:#506466;">Usalama wa akaunti</p><h1 style="margin:0 0 18px; color:#173638; font-size:26px;">Login inayotia shaka imegunduliwa</h1><p style="margin:0 0 12px;">Tumegundua shughuli isiyo ya kawaida kwenye akaunti yako.</p><div style="padding:14px 16px; border-left:4px solid #0f766e; background:#f2f8f7; color:#506466;"><strong>Muda:</strong> ${loginTime}<br><strong>Sababu:</strong> ${reasons.join('; ')}<br><strong>IP:</strong> ${loginIp || 'Haijulikani'}${ipRisk?.country ? `<br><strong>Nchi:</strong> ${ipRisk.country}` : ''}</div><p style="margin:18px 0 0; color:#506466;">Kama si wewe, badilisha password mara moja na wasiliana na support.</p>`
         }).catch((error) => {
           console.error('Suspicious login email failed:', error.message);
           return false;
         });
 
-        if (!loginEmailSent) {
+        if (loginEmailSent && recentFailedLogins.length) {
+          await LoginActivity.updateMany(
+            { _id: { $in: recentFailedLogins.map((activity) => activity._id) } },
+            { $set: { alerted: true } }
+          ).catch(() => {});
+        }
+        const requestedReturnTo = String(req.body.returnTo || '');
+        const returnToMatch = requestedReturnTo.match(/^\/api\/bot-scripts\/[a-f\d]{24}\/download$/i);
+        const returnToQuery = returnToMatch ? `&returnTo=${encodeURIComponent(returnToMatch[0])}` : '';
+
+        return res.redirect(`/login.html?error=1${returnToQuery}`);
           console.warn(`⚠️ Suspicious login email could not be sent to ${user.email}`);
         }
       }
 
       if (!user.isEmailVerified) {
         req.flash('success_msg', '✅ Ingia; unaweza kuendelea kutumia akaunti yako.');
+      }
+
+      const returnTo = String(req.body.returnTo || '');
+      const scriptDownloadMatch = returnTo.match(/^\/api\/bot-scripts\/([a-f\d]{24})\/download$/i);
+      if (scriptDownloadMatch) {
+        return res.redirect(`/api/bot-scripts/${scriptDownloadMatch[1]}/download`);
       }
 
       return res.redirect('/dashboard.html');

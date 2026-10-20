@@ -190,6 +190,9 @@ SESSION_SECRET=random-secret-string
 JWT_SECRET=random-jwt-secret
 DOWNLOAD_LINK_SECRET=use-a-long-random-secret
 PALMPESA_WEBHOOK_SECRET=use-the-provider-webhook-secret
+LOGIN_HOME_COUNTRY=TZ
+# Optional: enables country and VPN/proxy login risk checks through IPinfo
+IPINFO_TOKEN=your-ipinfo-token
 
 # Panel provider (compatible Pterodactyl panels)
 PANEL_PROVIDER=pterodactyl
@@ -208,7 +211,9 @@ TAPSA_SENDER_ID=TAPSA
 TAPSA_BASE_URL=https://api.smstapsa.site
 ```
 
-After a PalmPesa payment is confirmed by the provider API or webhook, the customer receives an SMS confirmation on the phone number used for the payment. Pending, failed, and admin/manual payments do not trigger this SMS.
+After payment is confirmed by the provider API, webhook, or admin approval, the customer receives an SMS confirmation on the phone number used for that payment. Pending and failed payments do not trigger this SMS. Admins can also choose Email or SMS in the admin message composer; SMS requires `TAPSA_API_KEY` and a valid saved phone number.
+
+Login alerts are sent only after at least three failed attempts in 15 minutes or when the optional IPinfo lookup flags a foreign-country, VPN, proxy, Tor, or hosting IP. Set `IPINFO_TOKEN` to enable those IP checks; without it, repeated failed attempts still trigger alerts.
 
 ## Monitoring and Analytics
 The dashboard also exposes live server monitoring at `/api/servers/:id/monitor`, admin analytics at `/api/admin/analytics`, and login activity at `/api/user/security/activity`. `PANEL_*` settings let compatible Pterodactyl panels be changed without changing the application code. A different panel API requires an additional provider adapter implementing the same panel contract.

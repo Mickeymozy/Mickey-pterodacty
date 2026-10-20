@@ -403,12 +403,19 @@
       <div class="glass rounded-2xl p-6 mb-6">
         <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 class="text-xl font-semibold text-white mb-1">✉️ Tuma Email kwa Mtumiaji</h2>
-            <p class="text-sm text-slate-400">Tuma ujumbe kwa mtumiaji mmoja, email ya nje, au kwa watumiaji wote kwa haraka.</p>
+            <h2 class="text-xl font-semibold text-white mb-1">✉️ Tuma Ujumbe</h2>
+            <p class="text-sm text-slate-400">Chagua kutuma kwa email au SMS.</p>
           </div>
-          <button id="toggleEmailComposerBtn" class="inline-flex items-center justify-center rounded-2xl bg-slate-800/80 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700">Andika Email</button>
+          <button id="toggleEmailComposerBtn" class="inline-flex items-center justify-center rounded-2xl bg-slate-800/80 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700">Andika Ujumbe</button>
         </div>
         <div id="adminEmailPanel" class="mt-6 hidden rounded-3xl border border-slate-700/60 bg-slate-950/70 p-6 shadow-xl shadow-black/20">
+          <fieldset class="mb-4">
+            <legend class="mb-2 block text-xs text-slate-400">Njia ya kutuma</legend>
+            <div class="inline-flex rounded-xl border border-slate-700 bg-slate-900 p-1">
+              <label class="cursor-pointer rounded-lg px-4 py-2 text-sm text-slate-300 has-[:checked]:bg-indigo-600 has-[:checked]:text-white"><input type="radio" name="adminMessageChannel" value="email" checked class="sr-only" />Email</label>
+              <label class="cursor-pointer rounded-lg px-4 py-2 text-sm text-slate-300 has-[:checked]:bg-emerald-600 has-[:checked]:text-white"><input type="radio" name="adminMessageChannel" value="sms" class="sr-only" />SMS</label>
+            </div>
+          </fieldset>
           <div class="grid gap-4 md:grid-cols-2">
             <div>
               <label class="block text-xs text-slate-400 mb-2">Chagua mtumiaji wa Mickey au Pterodactyl / send kwa wote</label>
@@ -420,26 +427,26 @@
               <p class="text-[11px] text-slate-500 mt-2">Chagua mtumiaji wa ndani, au chagua aina ya Pterodactyl, au tumia email ya nje.</p>
             </div>
             <div>
-              <label class="block text-xs text-slate-400 mb-2">Email ya Kupokea (kwa nje)</label>
-              <input id="adminEmailTo" type="email" placeholder="mfano@domain.com" class="w-full rounded-xl bg-slate-950/50 border border-slate-700/50 px-3 py-2 text-white outline-none focus:border-indigo-500" />
-              <p class="text-[11px] text-slate-500 mt-2">Tuma kwa email maalum ikiwa si mtumiaji wa mfumo.</p>
+              <label id="adminEmailToLabel" class="block text-xs text-slate-400 mb-2">Email ya kupokea (au namba ya simu kwa SMS)</label>
+              <input id="adminEmailTo" type="text" placeholder="mfano@domain.com" class="w-full rounded-xl bg-slate-950/50 border border-slate-700/50 px-3 py-2 text-white outline-none focus:border-indigo-500" />
+              <p id="adminEmailToHelp" class="text-[11px] text-slate-500 mt-2">Unaweza kuweka email au namba moja au nyingi zilizotenganishwa kwa koma.</p>
             </div>
           </div>
 
           <div class="mt-4 grid gap-4 md:grid-cols-2">
-            <div>
+            <div id="adminEmailSubjectWrap">
               <label class="block text-xs text-slate-400 mb-2">Subject</label>
               <input id="adminEmailSubject" type="text" placeholder="Subject ya email" class="w-full rounded-xl bg-slate-950/50 border border-slate-700/50 px-3 py-2 text-white outline-none focus:border-indigo-500" />
             </div>
-            <div>
-              <label class="block text-xs text-slate-400 mb-2">Akitaka, weka BCC / Email nyingine</label>
+            <div id="adminEmailExtraWrap">
+              <label id="adminEmailExtraLabel" class="block text-xs text-slate-400 mb-2">BCC / Email nyingine</label>
               <input id="adminEmailExtra" type="text" placeholder="mfano1@domain.com, mfano2@domain.com" class="w-full rounded-xl bg-slate-950/50 border border-slate-700/50 px-3 py-2 text-white outline-none focus:border-indigo-500" />
             </div>
           </div>
 
           <div class="mt-4">
             <label class="block text-xs text-slate-400 mb-2">Ujumbe</label>
-            <textarea id="adminEmailMessage" rows="4" placeholder="Andika ujumbe wa email hapa..." class="w-full rounded-2xl bg-slate-950/50 border border-slate-700/50 px-3 py-3 text-white outline-none focus:border-indigo-500"></textarea>
+            <textarea id="adminEmailMessage" rows="4" placeholder="Andika ujumbe hapa..." class="w-full rounded-2xl bg-slate-950/50 border border-slate-700/50 px-3 py-3 text-white outline-none focus:border-indigo-500"></textarea>
           </div>
 
           <div class="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -774,39 +781,62 @@
       const toInput = document.getElementById('adminEmailTo');
       const extraInput = document.getElementById('adminEmailExtra');
       if (!select || !toInput) return;
+      const channel = document.querySelector('input[name="adminMessageChannel"]:checked')?.value || 'email';
       if (select.value === 'all') {
         toInput.value = '';
-        toInput.placeholder = 'Tuma kwa wote watumiaji wa Mickey; email hii itapuuzwa.';
+        toInput.placeholder = channel === 'sms' ? 'SMS itatumwa kwa watumiaji wenye namba zilizohifadhiwa.' : 'Email itatumwa kwa watumiaji wote wa Mickey.';
       } else if (select.value === 'ptero_all') {
         toInput.value = '';
-        toInput.placeholder = 'Tuma kwa wote watumiaji wa Pterodactyl; email hii itapuuzwa.';
+        toInput.placeholder = channel === 'sms' ? 'Pterodactyl haina namba za SMS.' : 'Email itatumwa kwa watumiaji wote wa Pterodactyl.';
       } else if (select.value) {
         toInput.value = select.value;
-        toInput.placeholder = 'Email ya mtumiaji imejazwa';
+        toInput.placeholder = channel === 'sms' ? 'Namba ya akaunti itatafutwa kwa email hii.' : 'Email ya mtumiaji imejazwa';
       } else {
         toInput.value = '';
-        toInput.placeholder = 'mfano@domain.com';
+        toInput.placeholder = channel === 'sms' ? '2557..., au email ya akaunti yenye namba' : 'mfano@domain.com';
       }
       if (extraInput) {
         extraInput.value = '';
       }
     }
 
+    function handleAdminMessageChannelChange() {
+      const channel = document.querySelector('input[name="adminMessageChannel"]:checked')?.value || 'email';
+      const isSms = channel === 'sms';
+      const subjectWrap = document.getElementById('adminEmailSubjectWrap');
+      const toLabel = document.getElementById('adminEmailToLabel');
+      const toHelp = document.getElementById('adminEmailToHelp');
+      const extraLabel = document.getElementById('adminEmailExtraLabel');
+      const message = document.getElementById('adminEmailMessage');
+      const button = document.getElementById('sendAdminEmailBtn');
+
+      subjectWrap?.classList.toggle('hidden', isSms);
+      if (toLabel) toLabel.textContent = isSms ? 'Namba za kupokea SMS (au email ya akaunti)' : 'Email ya kupokea (au namba ya simu kwa SMS)';
+      if (toHelp) toHelp.textContent = isSms
+        ? 'Weka namba za Tanzania au email za akaunti zenye namba, zikitenganishwa kwa koma.'
+        : 'Unaweza kuweka email moja au nyingi zilizotenganishwa kwa koma.';
+      if (extraLabel) extraLabel.textContent = isSms ? 'Namba nyingine' : 'BCC / Email nyingine';
+      if (message) message.placeholder = isSms ? 'Ujumbe wa SMS (usizidi herufi 480)...' : 'Andika ujumbe wa email hapa...';
+      if (button) button.textContent = isSms ? 'Tuma SMS' : 'Tuma Email';
+      handleAdminEmailUserChange();
+    }
+
     async function sendAdminEmail(event) {
       event.preventDefault();
       const select = document.getElementById('adminEmailSelectUser');
+      const channel = document.querySelector('input[name="adminMessageChannel"]:checked')?.value || 'email';
       const to = document.getElementById('adminEmailTo')?.value?.trim();
       const subject = document.getElementById('adminEmailSubject')?.value?.trim();
       const message = document.getElementById('adminEmailMessage')?.value?.trim();
       const extra = document.getElementById('adminEmailExtra')?.value?.trim();
       const statusEl = document.getElementById('adminEmailStatus');
 
-      if (!subject || !message) {
-        if (statusEl) statusEl.textContent = 'Subject na message vinahitajika.';
+      if (!message || (channel === 'email' && !subject)) {
+        if (statusEl) statusEl.textContent = channel === 'sms' ? 'Ujumbe unahitajika.' : 'Subject na message vinahitajika.';
         return;
       }
 
-      const payload = { subject, message };
+      const payload = { channel, subject, message };
       if (select?.value === 'all') {
         payload.allUsers = true;
       } else if (select?.value === 'ptero_all') {
@@ -824,7 +854,8 @@
         return;
       }
 
-      if (statusEl) statusEl.textContent = 'Inatuma email...';
+      const channelLabel = channel === 'sms' ? 'SMS' : 'email';
+      if (statusEl) statusEl.textContent = `Inatuma ${channelLabel}...`;
       try {
         const res = await fetch(`${API_URL}/user/admin/send-email`, {
           method: 'POST',
@@ -833,25 +864,26 @@
         });
         const data = await res.json();
         if (data.success) {
-          notify('Email imetumwa kwa mafanikio.', 'success');
-          if (statusEl) statusEl.textContent = 'Email imetumwa.';
+          notify(data.message || `${channelLabel} imetumwa kwa mafanikio.`, 'success');
+          if (statusEl) statusEl.textContent = data.message || `${channelLabel} imetumwa.`;
           document.getElementById('adminEmailSubject').value = '';
           document.getElementById('adminEmailMessage').value = '';
           document.getElementById('adminEmailTo').value = '';
           document.getElementById('adminEmailExtra').value = '';
           if (select) select.value = '';
         } else {
-          notify(data.message || 'Haikuweza kutuma email.', 'error');
-          if (statusEl) statusEl.textContent = data.message || 'Haikuweza kutuma email.';
+          notify(data.message || `Haikuweza kutuma ${channelLabel}.`, 'error');
+          if (statusEl) statusEl.textContent = data.message || `Haikuweza kutuma ${channelLabel}.`;
         }
       } catch (err) {
-        notify('Hitilafu wakati wa kutuma email.', 'error');
-        if (statusEl) statusEl.textContent = 'Hitilafu wakati wa kutuma email.';
+        notify(`Hitilafu wakati wa kutuma ${channelLabel}.`, 'error');
+        if (statusEl) statusEl.textContent = `Hitilafu wakati wa kutuma ${channelLabel}.`;
       }
     }
 
     document.getElementById('toggleEmailComposerBtn')?.addEventListener('click', toggleEmailComposer);
     document.getElementById('adminEmailSelectUser')?.addEventListener('change', handleAdminEmailUserChange);
+    document.querySelectorAll('input[name="adminMessageChannel"]').forEach((input) => input.addEventListener('change', handleAdminMessageChannelChange));
     document.getElementById('sendAdminEmailBtn')?.addEventListener('click', sendAdminEmail);
 
     function setThemeMode(mode) {

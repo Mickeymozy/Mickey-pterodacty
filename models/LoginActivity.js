@@ -5,6 +5,7 @@ const loginActivitySchema = new mongoose.Schema({
   success: { type: Boolean, required: true },
   ip: String,
   userAgent: String,
+  alerted: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now, index: true }
 });
 

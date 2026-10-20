@@ -1497,6 +1497,63 @@
       receipt.classList.add('payment-success');
     }
 
+    let paymentSuccessTimer;
+    function showPaymentSuccess({ title, message, detail, smsMessage, downloadUrl } = {}) {
+      let overlay = document.getElementById('paymentSuccessOverlay');
+      if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'paymentSuccessOverlay';
+        overlay.className = 'fixed inset-0 z-[120] hidden items-center justify-center bg-slate-950/85 px-4 py-6 backdrop-blur-sm';
+        overlay.innerHTML = `<section role="dialog" aria-modal="true" aria-labelledby="paymentSuccessTitle" class="payment-success w-full max-w-md rounded-3xl border border-emerald-400/30 bg-slate-900 p-7 text-center shadow-2xl shadow-emerald-950/40"><div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-400 text-3xl font-black text-slate-950">✓</div><h2 id="paymentSuccessTitle" class="mt-5 text-2xl font-black text-white"></h2><p id="paymentSuccessMessage" class="mt-2 text-sm text-slate-300"></p><p id="paymentSuccessDetail" class="mt-4 rounded-xl bg-slate-950/70 px-4 py-3 text-sm font-semibold text-emerald-300"></p><p id="paymentSuccessSms" class="mt-3 text-xs text-slate-400"></p><div class="mt-6 flex flex-wrap justify-center gap-3"><button id="paymentSuccessDownload" type="button" class="hidden rounded-xl bg-emerald-400 px-5 py-3 text-sm font-bold text-slate-950">Pakua ZIP</button><button id="paymentSuccessClose" type="button" class="rounded-xl border border-slate-700 px-5 py-3 text-sm font-semibold text-white">Endelea</button></div></section>`;
+        document.body.appendChild(overlay);
+        overlay.querySelector('#paymentSuccessClose').addEventListener('click', () => {
+          overlay.dataset.autoDownload = 'false';
+          overlay.classList.add('hidden');
+          overlay.classList.remove('flex');
+        });
+        overlay.querySelector('#paymentSuccessDownload').addEventListener('click', () => {
+          const url = overlay.dataset.downloadUrl;
+          if (url) window.location.href = url;
+        });
+      }
+
+      overlay.querySelector('#paymentSuccessTitle').textContent = title || 'Malipo yamepokelewa';
+      overlay.querySelector('#paymentSuccessMessage').textContent = message || 'Muamala wako umethibitishwa.';
+      overlay.querySelector('#paymentSuccessDetail').textContent = detail || '';
+      overlay.querySelector('#paymentSuccessSms').textContent = smsMessage || '';
+      const downloadButton = overlay.querySelector('#paymentSuccessDownload');
+      downloadButton.classList.toggle('hidden', !downloadUrl);
+      overlay.dataset.downloadUrl = downloadUrl || '';
+      overlay.dataset.autoDownload = downloadUrl ? 'true' : 'false';
+      overlay.classList.remove('hidden');
+      overlay.classList.add('flex');
+
+      clearTimeout(paymentSuccessTimer);
+      if (downloadUrl) {
+        paymentSuccessTimer = setTimeout(() => {
+          if (overlay.dataset.autoDownload === 'true') window.location.href = downloadUrl;
+        }, 1800);
+      }
+    }
+
+    function paymentSmsNotice(confirmation = {}) {
+      if (!confirmation.status || confirmation.status === 'unknown') return 'Taarifa ya SMS haipatikani.';
+      if (confirmation.sent) return 'SMS ya uthibitisho imetumwa.';
+      return `SMS haikutumwa${confirmation.reason ? `: ${confirmation.reason}` : '.'}`;
+    }
+
+    function showCoinPaymentSuccess(verifiedData, fallbackData = {}) {
+      const data = verifiedData?.data || fallbackData;
+      const coinsAdded = Number(data.coinsAdded ?? data.coins ?? 0);
+      const balance = data.userCoins === undefined ? '' : ` Salio jipya: ${Number(data.userCoins).toLocaleString()} coins.`;
+      showPaymentSuccess({
+        title: 'Malipo ya coins yamepokelewa',
+        message: `Coins ${coinsAdded.toLocaleString()} zimeongezwa kwenye akaunti yako.${balance}`,
+        detail: `+${coinsAdded.toLocaleString()} coins`,
+        smsMessage: paymentSmsNotice(data.smsConfirmation)
+      });
+    }
+
     async function pollPaymentVerification(transactionId, messageBox, { onComplete, showReceipt = true, showSmsConfirmation = true } = {}) {
       if (!transactionId) return;
 
@@ -1591,7 +1648,7 @@
             if (data.data?.transactionId) {
               await pollPaymentVerification(data.data.transactionId, messageBox, {
                 onComplete: (verifiedData) => {
-                  showPaymentReceipt(verifiedData?.data || data.data, 'coins');
+                  showCoinPaymentSuccess(verifiedData, data.data);
                   loadUser();
                 }
               });
@@ -1602,7 +1659,7 @@
             if (data.data?.transactionId) {
               await pollPaymentVerification(data.data.transactionId, messageBox, {
                 onComplete: (verifiedData) => {
-                  showPaymentReceipt(verifiedData?.data || data.data, 'coins');
+                  showCoinPaymentSuccess(verifiedData, data.data);
                   loadUser();
                 }
               });
@@ -1681,19 +1738,14 @@
           showSmsConfirmation: false,
           onComplete: (verifiedData) => {
             const paymentData = verifiedData?.data || {};
-            const smsConfirmation = paymentData.smsConfirmation || {};
-            if (smsConfirmation.status !== 'unknown') {
-              const smsMessage = smsConfirmation.sent
-                ? 'SMS ya uthibitisho imetumwa.'
-                : `Malipo yamethibitishwa, lakini SMS haikutumwa${smsConfirmation.reason ? `: ${smsConfirmation.reason}` : '.'}`;
-              showToast(smsMessage, smsConfirmation.sent ? 'success' : 'warning', true);
-            }
-            if (paymentData.downloadUrl) {
-              window.location.href = paymentData.downloadUrl;
-              return;
-            }
             loadBotScripts();
-            showToast('Malipo yamekamilika. Script yako ipo kwenye orodha ya zilizonunuliwa.', 'success', true);
+            showPaymentSuccess({
+              title: 'Malipo ya script yamepokelewa',
+              message: `Malipo ya ${paymentData.productName || 'script'} yamethibitishwa.`,
+              detail: paymentData.amountTzs ? `Tsh ${Number(paymentData.amountTzs).toLocaleString()}` : 'ZIP iko tayari kupakuliwa.',
+              smsMessage: paymentSmsNotice(paymentData.smsConfirmation),
+              downloadUrl: paymentData.downloadUrl
+            });
           }
         });
         return;

@@ -55,4 +55,43 @@ async function sendPaymentConfirmation({ phone, amount, transactionId, product }
   return { sent: true, phone: normalizedPhone, message, result };
 }
 
-module.exports = { normalizePhone, buildPaymentMessage, sendPaymentConfirmation };
+async function sendTextMessage({ phoneNumbers, message }) {
+  const normalizedPhones = [...new Set((Array.isArray(phoneNumbers) ? phoneNumbers : [phoneNumbers])
+    .map(normalizePhone)
+    .filter((phone) => /^255[67]\d{8}$/.test(phone)))];
+  if (!normalizedPhones.length) return { sent: false, skipped: true, reason: 'Hakuna namba sahihi ya kupokea SMS.' };
+
+  const text = String(message || '').trim();
+  if (!text) return { sent: false, skipped: true, reason: 'Ujumbe wa SMS hauwezi kuwa tupu.' };
+  if (text.length > MAX_SMS_LENGTH) return { sent: false, skipped: true, reason: `Ujumbe wa SMS usizidi herufi ${MAX_SMS_LENGTH}.` };
+
+  const client = await getClient();
+  if (!client) return { sent: false, skipped: true, reason: 'TAPSA_API_KEY is not configured.' };
+
+  const results = [];
+  const attempts = Math.max(1, Math.min(Number(process.env.TAPSA_RETRY_ATTEMPTS || 2), 3));
+  for (let index = 0; index < normalizedPhones.length; index += 100) {
+    const batch = normalizedPhones.slice(index, index + 100);
+    let result;
+    let lastError;
+    for (let attempt = 1; attempt <= attempts; attempt += 1) {
+      try {
+        result = await client.sendSMS({
+          phoneNumbers: batch,
+          message: text,
+          senderId: process.env.TAPSA_SENDER_ID || 'MICKEY'
+        });
+        break;
+      } catch (error) {
+        lastError = error;
+        if (attempt < attempts) await new Promise((resolve) => setTimeout(resolve, 250 * attempt));
+      }
+    }
+    if (!result) throw new Error(`SMS sending failed after ${attempts} attempt(s): ${lastError?.message || 'Unknown provider error'}`);
+    results.push(result);
+  }
+
+  return { sent: true, count: normalizedPhones.length, phoneNumbers: normalizedPhones, results };
+}
+
+module.exports = { normalizePhone, buildPaymentMessage, sendPaymentConfirmation, sendTextMessage };

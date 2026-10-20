@@ -6,6 +6,7 @@ const User = require('../models/User');
 const ServerPackage = require('../models/ServerPackage');
 const Transaction = require('../models/Transaction');
 const sendEmail = require('../utils/email');
+const { normalizePhone, sendTextMessage } = require('../services/smsService');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
 const { writeAuditLog } = require('../utils/auditLog');
 const AuditLog = require('../models/AuditLog');
@@ -297,20 +298,93 @@ router.get('/admin/audit-logs', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // Admin: Send email using configured SMTP
+async function getLatestPaymentPhones(userIds) {
+  if (!userIds.length) return new Map();
+  const records = await Transaction.aggregate([
+    {
+      $match: {
+        userId: { $in: userIds },
+        status: 'completed',
+        'metadata.phone': { $type: 'string', $ne: '' }
+      }
+    },
+    { $sort: { completedAt: -1, createdAt: -1 } },
+    { $group: { _id: '$userId', phone: { $first: '$metadata.phone' } } }
+  ]);
+  return new Map(records.map((record) => [String(record._id), record.phone]));
+}
+
 router.post('/admin/send-email', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { to, subject, message, allUsers, pteroAllUsers, bcc } = req.body;
-    if (!subject || !message) {
-      return res.status(400).json({ success: false, message: 'Subject and message are required.' });
+    const channel = String(req.body.channel || 'email').toLowerCase();
+    if (!['email', 'sms'].includes(channel)) {
+      return res.status(400).json({ success: false, message: 'Channel lazima iwe email au sms.' });
+    }
+    if (!message || (channel === 'email' && !subject)) {
+      return res.status(400).json({ success: false, message: 'Ujumbe unahitajika; email pia inahitaji subject.' });
     }
 
-    const recipients = [];
     const normalizeList = (value) => {
       return String(value || '')
         .split(',')
         .map((item) => item.trim())
         .filter(Boolean);
     };
+    const toList = normalizeList(to);
+    const bccList = normalizeList(bcc);
+
+    if (channel === 'sms') {
+      if (pteroAllUsers) {
+        return res.status(400).json({ success: false, message: 'SMS inaweza kutumwa kwa akaunti zenye namba zilizohifadhiwa tu; Pterodactyl haina namba za simu.' });
+      }
+
+      const phoneNumbers = [];
+      let skippedRecipients = 0;
+      if (allUsers) {
+        const users = await User.find().select('_id phone').lean();
+        const paymentPhones = await getLatestPaymentPhones(users.map((user) => user._id));
+        phoneNumbers.push(...users.map((user) => user.phone || paymentPhones.get(String(user._id))).filter(Boolean));
+      }
+
+      const recipientEmails = [];
+      for (const recipient of [...toList, ...bccList]) {
+        if (emailRegex.test(recipient)) {
+          recipientEmails.push(recipient.toLowerCase());
+          continue;
+        }
+        const phone = normalizePhone(recipient);
+        if (!/^255[67]\d{8}$/.test(phone)) {
+          return res.status(400).json({ success: false, message: `Namba au email si sahihi: ${recipient}` });
+        }
+        phoneNumbers.push(phone);
+      }
+
+      if (recipientEmails.length) {
+        const users = await User.find({ email: { $in: [...new Set(recipientEmails)] } }).select('email phone').lean();
+        const usersByEmail = new Map(users.map((user) => [user.email.toLowerCase(), user]));
+        const paymentPhones = await getLatestPaymentPhones(users.filter((user) => !user.phone).map((user) => user._id));
+        for (const email of recipientEmails) {
+          const user = usersByEmail.get(email);
+          const phone = user?.phone || paymentPhones.get(String(user?._id));
+          if (phone) phoneNumbers.push(phone);
+          else skippedRecipients += 1;
+        }
+      }
+
+      const smsResult = await sendTextMessage({ phoneNumbers, message });
+      if (!smsResult.sent) {
+        const statusCode = smsResult.skipped && smsResult.reason?.includes('TAPSA_API_KEY') ? 503 : 400;
+        return res.status(statusCode).json({ success: false, message: smsResult.reason || 'SMS haikutumwa.' });
+      }
+      return res.json({
+        success: true,
+        message: `SMS imetumwa kwa namba ${smsResult.count}.${skippedRecipients ? ` Watumiaji ${skippedRecipients} hawana namba iliyohifadhiwa.` : ''}`,
+        data: { sentCount: smsResult.count, skippedRecipients }
+      });
+    }
+
+    const recipients = [];
 
     if (allUsers) {
       const all = await User.find({ email: { $exists: true, $ne: '' } }).select('email');
@@ -332,9 +406,6 @@ router.post('/admin/send-email', requireAuth, requireAdmin, async (req, res) => 
         }
       });
     }
-
-    const toList = normalizeList(to);
-    const bccList = normalizeList(bcc);
 
     for (const email of toList) {
       if (!emailRegex.test(email)) {
