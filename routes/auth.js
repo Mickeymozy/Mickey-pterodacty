@@ -194,8 +194,11 @@ router.post('/auth/login', (req, res, next) => {
           }).catch(() => {});
         }
       }
+      const requestedReturnTo = String(req.body.returnTo || '');
+      const returnToMatch = requestedReturnTo.match(/^\/api\/bot-scripts\/[a-f\d]{24}\/download$/i);
+      const returnToQuery = returnToMatch ? `&returnTo=${encodeURIComponent(returnToMatch[0])}` : '';
       req.flash('error_msg', info?.message || '❌ Login failed.');
-      return res.redirect('/login.html?error=1');
+      return res.redirect(`/login.html?error=1${returnToQuery}`);
     }
 
     req.logIn(user, async (loginErr) => {
@@ -244,11 +247,7 @@ router.post('/auth/login', (req, res, next) => {
             { $set: { alerted: true } }
           ).catch(() => {});
         }
-        const requestedReturnTo = String(req.body.returnTo || '');
-        const returnToMatch = requestedReturnTo.match(/^\/api\/bot-scripts\/[a-f\d]{24}\/download$/i);
-        const returnToQuery = returnToMatch ? `&returnTo=${encodeURIComponent(returnToMatch[0])}` : '';
-
-        return res.redirect(`/login.html?error=1${returnToQuery}`);
+        if (!loginEmailSent) {
           console.warn(`⚠️ Suspicious login email could not be sent to ${user.email}`);
         }
       }
