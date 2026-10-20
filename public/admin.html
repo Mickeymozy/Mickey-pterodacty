@@ -113,6 +113,7 @@
         <button class="admin-side-link" data-admin-tab="packages"><span>▦</span><span>Packages</span></button>
         <button class="admin-side-link" data-admin-tab="botScripts"><span>⌘</span><span>Bot scripts</span></button>
         <button class="admin-side-link" data-admin-tab="payments"><span>◉</span><span>Malipo</span></button>
+        <button class="admin-side-link" data-admin-tab="paymentApi"><span>⌁</span><span>Payment API</span></button>
         <button class="admin-side-link" data-admin-tab="adminServers"><span>◇</span><span>Servers</span></button>
         <button class="admin-side-link" data-admin-tab="users"><span>◎</span><span>Watumiaji</span></button>
         <button class="admin-side-link" data-admin-tab="activity"><span>≡</span><span>Activity</span></button>
@@ -330,6 +331,34 @@
             </thead>
             <tbody id="paymentsList"></tbody>
           </table>
+        </div>
+      </div>
+    </div>
+
+    <div id="paymentApi" class="tab-content admin-section">
+      <div class="glass max-w-3xl rounded-2xl p-6">
+        <div class="mb-5">
+          <h2 class="text-xl font-semibold text-white">Payment API credentials</h2>
+          <p class="mt-2 text-sm leading-6 text-slate-400">Tengeneza API key na webhook secret. Zinaonyeshwa mara moja tu; ziweke kwenye Vercel Environment Variables kisha redeploy.</p>
+        </div>
+        <button id="generatePaymentApiSecretsBtn" type="button" class="rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-indigo-500">Tengeneza key mpya</button>
+        <p id="paymentApiSecretsStatus" class="mt-3 text-sm text-slate-400" aria-live="polite"></p>
+        <div id="paymentApiSecretsOutput" class="mt-5 hidden space-y-4">
+          <div>
+            <label for="generatedExternalApiKey" class="mb-2 block text-sm font-medium text-slate-300">EXTERNAL_PAYMENT_API_KEY</label>
+            <div class="flex gap-2">
+              <input id="generatedExternalApiKey" type="text" readonly autocomplete="off" class="min-w-0 flex-1 rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2 font-mono text-xs text-emerald-200" />
+              <button type="button" data-copy-payment-secret="generatedExternalApiKey" class="rounded-xl border border-slate-700 px-3 py-2 text-sm text-slate-200 hover:bg-slate-800" title="Copy API key" aria-label="Copy API key">Copy</button>
+            </div>
+          </div>
+          <div>
+            <label for="generatedExternalWebhookSecret" class="mb-2 block text-sm font-medium text-slate-300">EXTERNAL_PAYMENT_WEBHOOK_SECRET</label>
+            <div class="flex gap-2">
+              <input id="generatedExternalWebhookSecret" type="text" readonly autocomplete="off" class="min-w-0 flex-1 rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2 font-mono text-xs text-emerald-200" />
+              <button type="button" data-copy-payment-secret="generatedExternalWebhookSecret" class="rounded-xl border border-slate-700 px-3 py-2 text-sm text-slate-200 hover:bg-slate-800" title="Copy webhook secret" aria-label="Copy webhook secret">Copy</button>
+            </div>
+          </div>
+          <p class="rounded-xl border border-amber-400/20 bg-amber-400/5 p-3 text-xs leading-5 text-amber-200">Usifunge au kurefresh ukurasa kabla hujanakili zote mbili. Admin haiwezi kuonyesha tena key za awali.</p>
         </div>
       </div>
     </div>
@@ -609,6 +638,58 @@
       if(tabName === 'users') loadUsers();
       if(tabName === 'activity') loadAuditLogs();
     }
+
+    async function generatePaymentApiSecrets() {
+      const button = document.getElementById('generatePaymentApiSecretsBtn');
+      const status = document.getElementById('paymentApiSecretsStatus');
+      const output = document.getElementById('paymentApiSecretsOutput');
+      if (!button || !status || !output) return;
+
+      const confirmed = await confirmDialog('Key mpya zitazalishwa na kuonyeshwa mara moja tu. Endelea?', {
+        title: 'Tengeneza payment keys',
+        confirmText: 'Tengeneza'
+      });
+      if (!confirmed) return;
+
+      button.disabled = true;
+      status.textContent = 'Inatengeneza keys...';
+      output.classList.add('hidden');
+      try {
+        const response = await fetch('/api/integration/payments/admin/generate-secrets', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) throw new Error(result.message || 'Haikuweza kutengeneza keys.');
+
+        document.getElementById('generatedExternalApiKey').value = result.data.apiKey;
+        document.getElementById('generatedExternalWebhookSecret').value = result.data.webhookSecret;
+        output.classList.remove('hidden');
+        status.textContent = 'Keys zimetengenezwa. Ziweke kwenye Vercel Environment Variables, kisha redeploy.';
+      } catch (error) {
+        status.textContent = error.message || 'Hitilafu wakati wa kutengeneza keys.';
+        notify(status.textContent, 'error');
+      } finally {
+        button.disabled = false;
+      }
+    }
+
+    async function copyPaymentSecret(inputId, button) {
+      const secret = document.getElementById(inputId)?.value;
+      if (!secret) return;
+      try {
+        await navigator.clipboard.writeText(secret);
+        button.textContent = 'Copied';
+        setTimeout(() => { button.textContent = 'Copy'; }, 1600);
+      } catch (error) {
+        notify('Copy haikufanikiwa. Chagua na nakili key mwenyewe.', 'error');
+      }
+    }
+
+    document.getElementById('generatePaymentApiSecretsBtn')?.addEventListener('click', generatePaymentApiSecrets);
+    document.querySelectorAll('[data-copy-payment-secret]').forEach((button) => {
+      button.addEventListener('click', () => copyPaymentSecret(button.dataset.copyPaymentSecret, button));
+    });
 
     function prefillAdminEmail(email) {
       const select = document.getElementById('adminEmailSelectUser');

@@ -2,8 +2,24 @@ const crypto = require('crypto');
 const express = require('express');
 const palmPesaService = require('../services/palmPesaService');
 const ExternalPayment = require('../models/ExternalPayment');
+const { isAdminUser } = require('../middleware/auth');
+const { writeAuditLog } = require('../utils/auditLog');
 
 const router = express.Router();
+
+router.post('/admin/generate-secrets', async (req, res) => {
+  if (!req.user || !isAdminUser(req.user)) {
+    return res.status(403).json({ success: false, message: 'Admin access required.' });
+  }
+
+  const secrets = {
+    apiKey: `mp_live_${crypto.randomBytes(32).toString('hex')}`,
+    webhookSecret: `mp_whsec_${crypto.randomBytes(32).toString('hex')}`
+  };
+
+  await writeAuditLog(req, 'payment.api_secrets.generated', { type: 'ExternalPayment' });
+  return res.json({ success: true, data: secrets });
+});
 
 function authenticateMerchant(req, res, next) {
   const configuredKey = process.env.EXTERNAL_PAYMENT_API_KEY || '';

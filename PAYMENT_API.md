@@ -17,6 +17,8 @@ Set these environment variables in the Vercel project:
 - `PALMPESA_WEBHOOK_URL`: set to `https://mickey-pterodacty.vercel.app/api/payment/webhook`.
 - `PALMPESA_WEBHOOK_SECRET`: required in production so provider callbacks can be authenticated.
 
+An admin can generate `EXTERNAL_PAYMENT_API_KEY` and `EXTERNAL_PAYMENT_WEBHOOK_SECRET` from **Admin > Payment API**. Each value is displayed only once. Copy them into the matching Vercel Environment Variables and redeploy; generating them in the admin panel does not change the running environment automatically.
+
 The server-side PalmPesa callback is automatic at `/api/payment/webhook`. On a final payment status, this app posts a signed event to `EXTERNAL_PAYMENT_WEBHOOK_URL`. A failed merchant callback returns an error to PalmPesa so its retry policy can retry delivery; the merchant should still make event handling idempotent using `X-Payment-Event-Id`.
 
 ## Create a payment
