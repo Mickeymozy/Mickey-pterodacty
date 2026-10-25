@@ -14,6 +14,7 @@ const axios = require('axios');
 const { writeAuditLog } = require('../utils/auditLog');
 const { normalizePhone, sendPaymentConfirmation } = require('../services/smsService');
 const ExternalPayment = require('../models/ExternalPayment');
+const { getActiveApiKeyConfig } = require('../utils/paymentCredentials');
 const PTERODACTYL_URL = (process.env.PANEL_URL || process.env.PTERODACTYL_URL)?.replace(/\/$/, '');
 const PTERODACTYL_APP_API_KEY = process.env.PANEL_API_KEY || process.env.PTERODACTYL_APP_API_KEY;
 const appApi = PTERODACTYL_URL && PTERODACTYL_APP_API_KEY ? axios.create({ baseURL: `${PTERODACTYL_URL}/api/application`, headers: { Authorization: `Bearer ${PTERODACTYL_APP_API_KEY}`, 'Content-Type': 'application/json', Accept: 'application/json' }, timeout: 10000 }) : null;
@@ -1012,8 +1013,9 @@ router.post('/webhook', async (req, res) => {
           }
         };
         const callbackPayload = JSON.stringify(callbackBody);
-        const callbackSecret = process.env.EXTERNAL_PAYMENT_WEBHOOK_SECRET || '';
-        if (!callbackSecret) throw new Error('EXTERNAL_PAYMENT_WEBHOOK_SECRET is not configured.');
+        const activeCredential = await getActiveApiKeyConfig();
+        const callbackSecret = activeCredential.webhookSecret || '';
+        if (!callbackSecret) throw new Error('External payment webhook secret is not configured.');
         const callbackSignature = require('crypto').createHmac('sha256', callbackSecret).update(callbackPayload).digest('hex');
         await axios.post(callbackUrl, callbackBody, {
           headers: {

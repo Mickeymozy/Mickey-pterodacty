@@ -4,38 +4,87 @@ const palmPesaService = require('../services/palmPesaService');
 const ExternalPayment = require('../models/ExternalPayment');
 const { isAdminUser } = require('../middleware/auth');
 const { writeAuditLog } = require('../utils/auditLog');
+const PaymentCredential = require('../models/PaymentCredential');
+const { getActiveApiKeyConfig, hashApiKey, rotatePaymentCredentials } = require('../utils/paymentCredentials');
 
 const router = express.Router();
 
-router.post('/admin/generate-secrets', async (req, res) => {
+function requireSameOrigin(req, res, next) {
+  const origin = req.get('origin');
+  let source = origin;
+  if (!source && req.get('referer')) {
+    try {
+      source = new URL(req.get('referer')).origin;
+    } catch {
+      return res.status(403).json({ success: false, message: 'Invalid request origin.' });
+    }
+  }
+  const expected = `${req.protocol}://${req.get('host')}`;
+  if (source && source !== expected) {
+    return res.status(403).json({ success: false, message: 'Cross-site request blocked.' });
+  }
+  next();
+}
+
+router.post('/admin/generate-secrets', requireSameOrigin, async (req, res) => {
   if (!req.user || !isAdminUser(req.user)) {
     return res.status(403).json({ success: false, message: 'Admin access required.' });
   }
 
-  const secrets = {
-    apiKey: `mp_live_${crypto.randomBytes(32).toString('hex')}`,
-    webhookSecret: `mp_whsec_${crypto.randomBytes(32).toString('hex')}`
-  };
-
-  await writeAuditLog(req, 'payment.api_secrets.generated', { type: 'ExternalPayment' });
-  return res.json({ success: true, data: secrets });
+  try {
+    const secrets = {
+      apiKey: `mp_live_${crypto.randomBytes(32).toString('hex')}`,
+      webhookSecret: `mp_whsec_${crypto.randomBytes(32).toString('hex')}`
+    };
+    await rotatePaymentCredentials({ apiKey: secrets.apiKey, webhookSecret: secrets.webhookSecret, rotatedBy: req.user._id });
+    await writeAuditLog(req, 'payment.api_secrets.rotated', { type: 'ExternalPayment' }, {
+      apiKeyPrefix: secrets.apiKey.slice(0, 18)
+    });
+    return res.json({ success: true, data: secrets });
+  } catch (error) {
+    console.error('Payment credential rotation failed:', error.message);
+    return res.status(500).json({ success: false, message: 'Credentials could not be activated. Check the server encryption configuration.' });
+  }
 });
 
-function authenticateMerchant(req, res, next) {
-  const configuredKey = process.env.EXTERNAL_PAYMENT_API_KEY || '';
-  const suppliedKey = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
-
-  if (!configuredKey) {
-    return res.status(503).json({ success: false, message: 'External payment API is not configured.' });
+router.get('/admin/config', async (req, res) => {
+  if (!req.user || !isAdminUser(req.user)) {
+    return res.status(403).json({ success: false, message: 'Admin access required.' });
   }
+  const config = await PaymentCredential.findOne({ name: 'external-payment' }).select('apiKeyPrefix rotatedAt').lean();
+  return res.json({
+    success: true,
+    data: {
+      active: Boolean(config),
+      source: config ? 'database' : 'environment',
+      apiKeyPrefix: config?.apiKeyPrefix || null,
+      rotatedAt: config?.rotatedAt || null,
+      webhookUrlConfigured: /^https:\/\//i.test(process.env.EXTERNAL_PAYMENT_WEBHOOK_URL || '')
+    }
+  });
+});
 
-  const configuredBuffer = Buffer.from(configuredKey);
-  const suppliedBuffer = Buffer.from(suppliedKey);
-  if (configuredBuffer.length !== suppliedBuffer.length || !crypto.timingSafeEqual(configuredBuffer, suppliedBuffer)) {
-    return res.status(401).json({ success: false, message: 'Invalid API key.' });
+async function authenticateMerchant(req, res, next) {
+  const suppliedKey = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
+
+  try {
+    const { apiKeyHash } = await getActiveApiKeyConfig();
+    if (!apiKeyHash) {
+      return res.status(503).json({ success: false, message: 'External payment API is not configured.' });
+    }
+
+    const suppliedHash = hashApiKey(suppliedKey);
+    const configuredBuffer = Buffer.from(apiKeyHash, 'hex');
+    const suppliedBuffer = Buffer.from(suppliedHash, 'hex');
+    if (!suppliedKey || configuredBuffer.length !== suppliedBuffer.length || !crypto.timingSafeEqual(configuredBuffer, suppliedBuffer)) {
+      return res.status(401).json({ success: false, message: 'Invalid API key.' });
+    }
+
+    next();
+  } catch (error) {
+    console.error('Payment credential authentication failed:', error.message);
+    return res.status(503).json({ success: false, message: 'External payment credentials are unavailable.' });
   }
-
-  next();
 }
 
 router.use(authenticateMerchant);
@@ -43,7 +92,8 @@ router.use(authenticateMerchant);
 router.post('/checkout', async (req, res) => {
   let payment;
   try {
-    if (!process.env.EXTERNAL_PAYMENT_WEBHOOK_URL || !process.env.EXTERNAL_PAYMENT_WEBHOOK_SECRET) {
+    const activeCredential = await getActiveApiKeyConfig();
+    if (!process.env.EXTERNAL_PAYMENT_WEBHOOK_URL || !activeCredential.webhookSecret) {
       return res.status(503).json({ success: false, message: 'Merchant webhook URL and secret must be configured.' });
     }
     if (process.env.NODE_ENV === 'production' && !process.env.PALMPESA_WEBHOOK_SECRET) {

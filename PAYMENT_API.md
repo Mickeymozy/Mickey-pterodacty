@@ -1,25 +1,36 @@
 # External PalmPesa Payment API
 
-This API lets a merchant website create PalmPesa payment links through this app. PalmPesa credentials remain on this server. The merchant API key must be kept on the merchant's backend; do not put it in browser JavaScript or a public mobile app. An unauthenticated payment-creation endpoint is intentionally not provided.
+This API lets a merchant website create PalmPesa payment links through this app. PalmPesa credentials stay on this server. A merchant API key stays on the merchant backend; never put it in browser JavaScript or a public mobile app.
 
 Base URL: `https://mickey-pterodacty.vercel.app/api/integration/payments`
 
-## Server configuration
+## 1. Configure server settings once
 
-Set these environment variables in the Vercel project:
+Set these Vercel environment variables:
 
-- `EXTERNAL_PAYMENT_API_KEY`: a long, random secret sent by your website backend as a Bearer token.
-- `EXTERNAL_PAYMENT_WEBHOOK_URL`: your merchant backend's HTTPS endpoint for payment events.
-- `EXTERNAL_PAYMENT_WEBHOOK_SECRET`: a separate random secret used to sign callbacks.
-- `EXTERNAL_PAYMENT_MAX_TZS`: optional maximum order amount; defaults to `50000000`.
-- `PALMPESA_API_TOKEN`, `PALMPESA_USER_ID`, `PALMPESA_VENDOR`: existing PalmPesa settings.
-- `APP_URL`: set to `https://mickey-pterodacty.vercel.app` if not already set.
-- `PALMPESA_WEBHOOK_URL`: set to `https://mickey-pterodacty.vercel.app/api/payment/webhook`.
-- `PALMPESA_WEBHOOK_SECRET`: required in production so provider callbacks can be authenticated.
+- `PALMPESA_API_TOKEN`: PalmPesa API token.
+- `PALMPESA_USER_ID`: PalmPesa user ID.
+- `PALMPESA_VENDOR`: PalmPesa vendor/Till identifier.
+- `PALMPESA_WEBHOOK_URL`: `https://mickey-pterodacty.vercel.app/api/payment/webhook`.
+- `PALMPESA_WEBHOOK_SECRET`: a strong secret shared with PalmPesa callback validation.
+- `APP_URL`: `https://mickey-pterodacty.vercel.app`.
+- `EXTERNAL_PAYMENT_WEBHOOK_URL`: the merchant's HTTPS callback endpoint.
+- `PAYMENT_CREDENTIAL_ENCRYPTION_KEY`: a strong random key used to encrypt the stored webhook secret.
+- `EXTERNAL_PAYMENT_MAX_TZS`: optional maximum order amount, default `50000000`.
 
-An admin can generate `EXTERNAL_PAYMENT_API_KEY` and `EXTERNAL_PAYMENT_WEBHOOK_SECRET` from **Admin > Payment API**. Each value is displayed only once. Copy them into the matching Vercel Environment Variables and redeploy; generating them in the admin panel does not change the running environment automatically.
+Redeploy after setting these variables for the first time. Existing merchant API credentials no longer require redeploy after rotation because they are stored securely in MongoDB and loaded at runtime.
 
-The server-side PalmPesa callback is automatic at `/api/payment/webhook`. On a final payment status, this app posts a signed event to `EXTERNAL_PAYMENT_WEBHOOK_URL`. A failed merchant callback returns an error to PalmPesa so its retry policy can retry delivery; the merchant should still make event handling idempotent using `X-Payment-Event-Id`.
+The API key and webhook secret are generated together in **Admin > Payment API**. The server:
+
+1. Generates 256-bit cryptographically random values.
+2. Stores only a SHA-256 hash of the API key.
+3. Encrypts the webhook secret with AES-256-GCM.
+4. Activates the new credentials immediately.
+5. Records only an API key prefix and rotation metadata in audit logs.
+
+The generated values are shown once. Store the API key in the merchant backend and the webhook secret in both sides. Generating a second pair deactivates the old API key and old webhook secret immediately, so rotate during a maintenance window or update the merchant backend first.
+
+The provider callback is automatic at `/api/payment/webhook`. It validates the PalmPesa signature, then the app validates the amount and forwards a signed event to `EXTERNAL_PAYMENT_WEBHOOK_URL`.
 
 ## Create a payment
 

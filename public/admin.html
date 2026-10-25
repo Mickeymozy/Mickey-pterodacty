@@ -339,9 +339,15 @@
       <div class="glass max-w-3xl rounded-2xl p-6">
         <div class="mb-5">
           <h2 class="text-xl font-semibold text-white">Payment API credentials</h2>
-          <p class="mt-2 text-sm leading-6 text-slate-400">Tengeneza API key na webhook secret. Zinaonyeshwa mara moja tu; ziweke kwenye Vercel Environment Variables kisha redeploy.</p>
+          <p class="mt-2 text-sm leading-6 text-slate-400">Tengeneza key mpya; key haiishii na ikifunguliwa inatumika mara moja, bila redeploy. Key zote zinaonyeshwa mara moja tu.</p>
         </div>
-        <button id="generatePaymentApiSecretsBtn" type="button" class="rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-indigo-500">Tengeneza key mpya</button>
+        <dl id="paymentApiCredentialStatus" class="mb-5 grid gap-3 rounded-xl border border-slate-800 bg-slate-950/40 p-4 text-sm sm:grid-cols-2" aria-live="polite">
+          <div><dt class="text-slate-500">Status</dt><dd id="paymentApiStatusValue" class="mt-1 text-white">Inakagua...</dd></div>
+          <div><dt class="text-slate-500">API key</dt><dd id="paymentApiKeyValue" class="mt-1 font-mono text-xs text-slate-200">-</dd></div>
+          <div><dt class="text-slate-500">Chanzo</dt><dd id="paymentApiSourceValue" class="mt-1 text-slate-200">-</dd></div>
+          <div><dt class="text-slate-500">Webhook HTTPS</dt><dd id="paymentApiWebhookValue" class="mt-1 text-slate-200">-</dd></div>
+        </dl>
+        <button id="generatePaymentApiSecretsBtn" type="button" class="rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-indigo-500">Tengeneza na kuamilisha key mpya</button>
         <p id="paymentApiSecretsStatus" class="mt-3 text-sm text-slate-400" aria-live="polite"></p>
         <div id="paymentApiSecretsOutput" class="mt-5 hidden space-y-4">
           <div>
@@ -358,7 +364,7 @@
               <button type="button" data-copy-payment-secret="generatedExternalWebhookSecret" class="rounded-xl border border-slate-700 px-3 py-2 text-sm text-slate-200 hover:bg-slate-800" title="Copy webhook secret" aria-label="Copy webhook secret">Copy</button>
             </div>
           </div>
-          <p class="rounded-xl border border-amber-400/20 bg-amber-400/5 p-3 text-xs leading-5 text-amber-200">Usifunge au kurefresh ukurasa kabla hujanakili zote mbili. Admin haiwezi kuonyesha tena key za awali.</p>
+          <p class="rounded-xl border border-amber-400/20 bg-amber-400/5 p-3 text-xs leading-5 text-amber-200">Nakili key mara moja kisha ishiriki kwa mfumo wa merchant kwa njia salama. Key ya zamani itaacha kufanya kazi mara tu key mpya itaanza; webhook secret ya zamani pia haitumiki tena.</p>
         </div>
       </div>
     </div>
@@ -644,6 +650,30 @@
       if(tabName === 'adminServers') loadAdminServers();
       if(tabName === 'users') loadUsers();
       if(tabName === 'activity') loadAuditLogs();
+      if(tabName === 'paymentApi') loadPaymentApiConfig();
+    }
+
+    async function loadPaymentApiConfig() {
+      const statusValue = document.getElementById('paymentApiStatusValue');
+      const keyValue = document.getElementById('paymentApiKeyValue');
+      const sourceValue = document.getElementById('paymentApiSourceValue');
+      const webhookValue = document.getElementById('paymentApiWebhookValue');
+      try {
+        const response = await fetch('/api/integration/payments/admin/config');
+        const result = await response.json();
+        if (!response.ok || !result.success) throw new Error(result.message || 'Haikuweza kupakia credential status.');
+        const data = result.data;
+        statusValue.textContent = data.active ? 'Active' : 'Haijaanzishwa';
+        statusValue.className = `mt-1 ${data.active ? 'text-emerald-300' : 'text-amber-300'}`;
+        keyValue.textContent = data.apiKeyPrefix ? `${data.apiKeyPrefix}...` : '-';
+        sourceValue.textContent = data.source === 'database' ? 'Database (generated here)' : 'Vercel environment';
+        webhookValue.textContent = data.webhookUrlConfigured ? 'Configured' : 'Missing';
+        webhookValue.className = `mt-1 ${data.webhookUrlConfigured ? 'text-emerald-300' : 'text-rose-300'}`;
+      } catch (error) {
+        statusValue.textContent = 'Imeshindikana';
+        statusValue.className = 'mt-1 text-rose-300';
+        notify(error.message, 'error');
+      }
     }
 
     async function generatePaymentApiSecrets() {
@@ -672,7 +702,8 @@
         document.getElementById('generatedExternalApiKey').value = result.data.apiKey;
         document.getElementById('generatedExternalWebhookSecret').value = result.data.webhookSecret;
         output.classList.remove('hidden');
-        status.textContent = 'Keys zimetengenezwa. Ziweke kwenye Vercel Environment Variables, kisha redeploy.';
+        status.textContent = 'API key mpya imeanza kufanya kazi sasa. Huhitaji redeploy.';
+        await loadPaymentApiConfig();
       } catch (error) {
         status.textContent = error.message || 'Hitilafu wakati wa kutengeneza keys.';
         notify(status.textContent, 'error');
