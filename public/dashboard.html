@@ -1444,6 +1444,10 @@
             return option;
           }));
           applyEggDefaults();
+          if (eggData.warning && eggStatus) {
+            eggStatus.textContent = eggData.warning;
+            eggStatus.className = 'mt-2 text-[11px] text-amber-300';
+          }
         } else if (eggStatus) {
           eggSelect.innerHTML = '<option value="">Eggs hazipatikani</option>';
           eggStatus.textContent = eggData.error || 'Imeshindikana kusoma eggs kutoka Pterodactyl.';

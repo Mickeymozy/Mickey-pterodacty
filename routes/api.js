@@ -317,6 +317,10 @@ async function fetchPanelEggOptions() {
   } catch (err) {
     const providerErrors = err.response?.data?.errors?.map((item) => item.detail).filter(Boolean).join('; ');
     const detail = providerErrors || err.response?.data?.message || err.message;
+    if (err.response?.status === 404) {
+      console.warn('Panel does not expose the nests API; using built-in egg templates.');
+      return Object.values(eggConfigs).map((egg) => ({ ...egg, source: 'builtin' }));
+    }
     console.error('Failed to fetch panel eggs:', detail);
     throw new Error(`Pterodactyl eggs request failed${err.response?.status ? ` (${err.response.status})` : ''}: ${detail}`);
   }
@@ -764,6 +768,10 @@ router.get('/api/eggs', requireAuth, async (req, res) => {
     const syncedEggs = await Promise.all(eggs.map((egg) => fetchEggDetails(egg)));
     res.json({
       success: true,
+      source: eggs.some((egg) => egg.source === 'builtin') ? 'builtin' : 'panel',
+      warning: eggs.some((egg) => egg.source === 'builtin')
+        ? 'Panel haijaonyesha Nests API; zinaonyeshwa templates za ndani za Node.js, Python na Java.'
+        : '',
       eggs: syncedEggs.map((egg) => ({
         id: egg.id,
         name: egg.name,

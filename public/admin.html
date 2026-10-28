@@ -1025,6 +1025,7 @@
         eggSelect.value = panelEggs.some((egg) => String(egg.id) === currentEggId) ? currentEggId : String(panelEggs[0].id);
         const selectedEgg = panelEggs.find((egg) => String(egg.id) === String(eggSelect.value)) || panelEggs[0];
         applyPanelEgg(selectedEgg);
+        if (data.warning && syncMessage) syncMessage.textContent = data.warning;
       } catch (error) {
         if (syncMessage) syncMessage.textContent = `Sync ya Pterodactyl imefeli: ${error.message}`;
         notify('Imeshindikana kusoma Docker/Egg/Startup kutoka Pterodactyl.', 'error');
