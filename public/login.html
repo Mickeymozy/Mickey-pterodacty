@@ -30,29 +30,28 @@
     .theme-toggle { transition: transform .2s ease, background .2s ease; }
     .theme-toggle:hover { transform: translateY(-2px); }
     :root { --ink: #e7f5ef; --muted: #8da9a0; --line: rgba(157, 255, 202, .16); --lime: #c8ff4d; --cyan: #55e6d2; }
-    body { position: relative; overflow-x: hidden; background: #081412; color: var(--ink); background-image: linear-gradient(rgba(200,255,77,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(200,255,77,.035) 1px, transparent 1px), radial-gradient(circle at 12% 12%, rgba(85,230,210,.14), transparent 30%), radial-gradient(circle at 88% 82%, rgba(200,255,77,.09), transparent 28%); background-size: 32px 32px, 32px 32px, auto, auto; }
-    body::before { content: 'MICKEYPANEL / CONTROL YOUR SPACE'; position: fixed; left: 1.25rem; bottom: 1rem; color: rgba(200,255,77,.5); font: 700 10px/1 'DM Sans', sans-serif; letter-spacing: .22em; writing-mode: vertical-rl; pointer-events: none; }
-    .glass { border: 1px solid var(--line); border-radius: 24px; background: linear-gradient(145deg, rgba(18, 35, 31, .94), rgba(8, 20, 18, .9)); box-shadow: 0 28px 80px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.05); }
+    body { position: relative; overflow-x: hidden; background: #081412; color: var(--ink); background-image: linear-gradient(rgba(200,255,77,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(200,255,77,.035) 1px, transparent 1px); background-size: 32px 32px; }
+    body::before { content: none; }
+    .glass { border: 1px solid var(--line); border-radius: 18px; background: linear-gradient(145deg, rgba(18, 35, 31, .97), rgba(8, 20, 18, .95)); box-shadow: 0 24px 64px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.05); }
+    .auth-card { max-height: calc(100dvh - 2rem); overflow-y: auto; overscroll-behavior: contain; }
     .gradient-text { background: linear-gradient(100deg, var(--lime), var(--cyan)); -webkit-background-clip: text; background-clip: text; }
     .tab-btn.active { background: var(--lime); color: #102013; box-shadow: 0 10px 28px rgba(200,255,77,.2); }
+    .tab-btn:not(.active):hover { background: rgba(255,255,255,.06); color: var(--ink); }
     .input-field { border-color: rgba(157,255,202,.14); border-radius: 14px; background: rgba(0,0,0,.28); }
     .input-field:focus { border-color: var(--cyan); box-shadow: 0 0 0 4px rgba(85,230,210,.12), 0 8px 28px rgba(0,0,0,.18); }
+    :focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
     .submit-btn { background: linear-gradient(100deg, var(--lime), #83e65d); color: #102013; box-shadow: 0 12px 28px rgba(200,255,77,.16); }
     .submit-btn:hover { box-shadow: 0 16px 34px rgba(200,255,77,.3); }
     .github-btn { border-color: rgba(157,255,202,.15); background: rgba(255,255,255,.045); }
     .github-btn:hover { border-color: rgba(200,255,77,.35); background: rgba(200,255,77,.08); }
     body.light-mode { background: #eef7ef; background-image: linear-gradient(rgba(19,92,66,.06) 1px, transparent 1px), linear-gradient(90deg, rgba(19,92,66,.06) 1px, transparent 1px); background-size: 32px 32px; }
     body.light-mode .glass { background: rgba(255,255,255,.88); border-color: rgba(19,92,66,.18); }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; scroll-behavior: auto !important; transition-duration: .01ms !important; } }
   </style>
 </head>
 <body class="min-h-screen bg-[#07111f] flex items-center justify-center p-4">
 
-  <div class="fixed inset-0 pointer-events-none">
-    <div class="absolute top-[-20%] right-[-10%] w-[500px] h-[500px] rounded-full bg-indigo-600/10 blur-3xl"></div>
-    <div class="absolute bottom-[-20%] left-[-10%] w-[500px] h-[500px] rounded-full bg-purple-600/10 blur-3xl"></div>
-  </div>
-
-  <div class="relative w-full max-w-[440px] glass rounded-2xl p-8 shadow-2xl shadow-black/60">
+  <div class="auth-card relative w-full max-w-[440px] glass rounded-2xl p-6 sm:p-8 shadow-2xl shadow-black/60">
 
     <button type="button" id="themeModeBtn" onclick="toggleThemeMode()" class="theme-toggle absolute right-5 top-5 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs font-semibold text-slate-300" title="Badilisha light/dark mode">☀️ Light</button>
 
@@ -106,6 +105,12 @@
           <label class="block text-slate-300 text-sm font-medium mb-1.5">Barua Pepe (Email)</label>
           <input type="email" name="email" required autocomplete="email" placeholder="mfano@gmail.com"
                  class="input-field w-full px-4 py-3 rounded-xl text-white text-sm outline-none" />
+        </div>
+        <div>
+          <label class="block text-slate-300 text-sm font-medium mb-1.5" for="registerPhone">Namba ya simu kwa SMS</label>
+          <input id="registerPhone" type="tel" name="phone" required inputmode="tel" autocomplete="tel" placeholder="07XXXXXXXX au 2557XXXXXXXX"
+                 class="input-field w-full px-4 py-3 rounded-xl text-white text-sm outline-none" />
+          <p class="mt-1 text-[11px] text-slate-500">Namba itatumika kwa uthibitisho wa malipo na taarifa muhimu.</p>
         </div>
         <div>
           <label class="block text-slate-300 text-sm font-medium mb-1.5">Jina Kamili</label>

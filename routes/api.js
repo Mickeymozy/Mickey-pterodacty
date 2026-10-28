@@ -265,21 +265,40 @@ async function getFirstAvailableAllocation() {
   return null;
 }
 
+async function fetchPaginatedApplicationData(path) {
+  const entries = [];
+  const perPage = 100;
+
+  for (let page = 1; page <= 100; page += 1) {
+    const response = await appApi.get(path, { params: { per_page: perPage, page } });
+    const pageEntries = response.data?.data;
+    if (!Array.isArray(pageEntries)) throw new Error(`Pterodactyl returned an invalid response for ${path}.`);
+    entries.push(...pageEntries);
+
+    const pagination = response.data?.meta?.pagination;
+    const totalPages = Number(pagination?.total_pages);
+    if (Number.isFinite(totalPages) && totalPages > 0) {
+      if (page >= totalPages) break;
+    } else if (pageEntries.length < perPage) {
+      break;
+    }
+  }
+
+  return entries;
+}
+
 async function fetchPanelEggOptions() {
   if (!appApi) return [];
 
   try {
-    const nestsResponse = await appApi.get('/nests?per_page=1000');
-    const nests = nestsResponse.data?.data || [];
+    const nests = await fetchPaginatedApplicationData('/nests');
     const eggs = [];
 
     for (const nest of nests) {
       const nestId = nest?.attributes?.id;
       if (!nestId) continue;
 
-      const eggsResponse = await appApi.get(`/nests/${nestId}/eggs?per_page=1000`);
-      const eggEntries = eggsResponse.data?.data || [];
-
+      const eggEntries = await fetchPaginatedApplicationData(`/nests/${nestId}/eggs`);
       for (const entry of eggEntries) {
         const attrs = entry?.attributes || {};
         eggs.push({
@@ -296,8 +315,10 @@ async function fetchPanelEggOptions() {
 
     return eggs.filter((egg) => Number.isFinite(egg.id));
   } catch (err) {
-    console.error('Failed to fetch panel eggs:', err.message);
-    return [];
+    const providerErrors = err.response?.data?.errors?.map((item) => item.detail).filter(Boolean).join('; ');
+    const detail = providerErrors || err.response?.data?.message || err.message;
+    console.error('Failed to fetch panel eggs:', detail);
+    throw new Error(`Pterodactyl eggs request failed${err.response?.status ? ` (${err.response.status})` : ''}: ${detail}`);
   }
 }
 
@@ -625,6 +646,7 @@ router.get('/api/me', requireAuth, (req, res) => {
       id: req.user._id,
       username: req.user.username,
       email: req.user.email,
+      phone: req.user.phone || '',
       displayName: req.user.displayName || req.user.firstName || req.user.username,
       pterodactylId: req.user.pteroId,
       linkedToPtero: Boolean(req.user.pteroId && Number(req.user.pteroId) > 0),
@@ -736,6 +758,9 @@ router.get('/api/eggs', requireAuth, async (req, res) => {
 
   try {
     const eggs = await fetchPanelEggOptions();
+    if (!eggs.length) {
+      return res.status(404).json({ success: false, error: 'Pterodactyl haijarudisha eggs. Hakiki kuwa PANEL_API_KEY inaruhusiwa kusoma Nests na Eggs.' });
+    }
     const syncedEggs = await Promise.all(eggs.map((egg) => fetchEggDetails(egg)));
     res.json({
       success: true,
@@ -750,7 +775,8 @@ router.get('/api/eggs', requireAuth, async (req, res) => {
       }))
     });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message || 'Failed to fetch eggs.' });
+    res.status(err.response?.status && err.response.status >= 400 && err.response.status < 500 ? err.response.status : 502)
+      .json({ success: false, error: err.message || 'Failed to fetch eggs.' });
   }
 });
 

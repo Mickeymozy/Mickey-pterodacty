@@ -62,6 +62,8 @@
     .admin-shell { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 1.25rem; max-width: 1440px; }
     .admin-version { display: inline-flex; align-items: center; border: 1px solid rgba(200,255,77,.28); border-radius: 999px; padding: .3rem .6rem; color: #d7ff83; background: rgba(200,255,77,.08); font-size: .7rem; font-weight: 700; }
     .users-row:hover { background: rgba(255,255,255,.025); }
+    .glass { border-radius: 16px; }
+    :focus-visible { outline: 2px solid #55e6d2; outline-offset: 3px; }
     .user-source { display: inline-flex; align-items: center; border-radius: 999px; padding: .25rem .55rem; font-size: .68rem; font-weight: 700; white-space: nowrap; }
     .user-source.both { color: #9af0c1; background: rgba(16,185,129,.12); }
     .user-source.website { color: #8de7e2; background: rgba(45,212,191,.12); }
@@ -74,6 +76,7 @@
     .admin-menu-toggle, .admin-side-backdrop { display: none; }
     @media (max-width: 1024px) { .admin-shell { display: block; } .admin-side-nav { position: fixed; inset: 0 auto 0 0; z-index: 100; width: min(280px, 86vw); height: 100vh; transform: translateX(-105%); transition: transform .25s ease; border-radius: 0 1.5rem 1.5rem 0; } .admin-side-nav.open { transform: translateX(0); } .admin-menu-toggle { display: inline-flex; } .admin-side-backdrop { position: fixed; inset: 0; z-index: 90; background: rgba(3,10,9,.68); backdrop-filter: blur(4px); } .admin-side-backdrop.open { display: block; } }
     @media (min-width: 1025px) { .admin-nav { display: none; } }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; scroll-behavior: auto !important; transition-duration: .01ms !important; } }
   </style>
 </head>
 <body class="min-h-screen bg-[#101315] text-slate-50">

@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { buildPteroLimitsFromPackage, isValidGitUrl, buildStartupCommand } = require('../utils/serverHelper');
 const { validatePasswordComplexity } = require('../utils/passwordValidator');
+const { normalizePhone } = require('../services/smsService');
 
 test('accepts simple passwords with at least 8 characters', () => {
   assert.equal(validatePasswordComplexity('abcdefgh').isValid, true);
@@ -10,6 +11,13 @@ test('accepts simple passwords with at least 8 characters', () => {
 
 test('rejects passwords shorter than 8 characters', () => {
   assert.equal(validatePasswordComplexity('abc123!').isValid, false);
+});
+
+test('normalizes Tanzanian mobile numbers for SMS account settings', () => {
+  assert.equal(normalizePhone('0712 345 678'), '255712345678');
+  assert.equal(normalizePhone('+255 712 345 678'), '255712345678');
+  assert.equal(normalizePhone('712345678'), '255712345678');
+  assert.equal(/^255[67]\d{8}$/.test(normalizePhone('12345')), false);
 });
 
 test('validates public git repository URLs', () => {

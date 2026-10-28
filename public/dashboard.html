@@ -90,13 +90,14 @@
       padding: 0.85rem 0.95rem;
     }
     :root { --accent: #c8ff4d; --accent-rgba: rgba(200,255,77,.34); --ink: #e7f5ef; }
-    body { background-color: #081412; background-image: linear-gradient(rgba(200,255,77,.032) 1px, transparent 1px), linear-gradient(90deg, rgba(200,255,77,.032) 1px, transparent 1px), radial-gradient(circle at 92% 4%, rgba(85,230,210,.13), transparent 25%); background-size: 32px 32px, 32px 32px, auto; }
-    .glass, .hero-panel { border-color: rgba(157,255,202,.15); background: linear-gradient(145deg, rgba(18,35,31,.94), rgba(8,20,18,.9)); box-shadow: 0 22px 60px rgba(0,0,0,.26), inset 0 1px 0 rgba(255,255,255,.04); }
+    body { background-color: #081412; background-image: linear-gradient(rgba(200,255,77,.032) 1px, transparent 1px), linear-gradient(90deg, rgba(200,255,77,.032) 1px, transparent 1px); background-size: 32px 32px; }
+    .glass, .hero-panel { border-color: rgba(157,255,202,.15); border-radius: 16px; background: linear-gradient(145deg, rgba(18,35,31,.96), rgba(8,20,18,.93)); box-shadow: 0 18px 44px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04); }
     .hero-panel { background: linear-gradient(120deg, rgba(18,35,31,.98), rgba(8,20,18,.88) 58%, rgba(200,255,77,.1)); }
     .tab-button.active, .open-panel-btn { background: var(--accent); border-color: var(--accent); color: #102013; box-shadow: 0 10px 28px rgba(200,255,77,.18); }
     .quick-action-card, .mini-metric { border-color: rgba(157,255,202,.14); background: rgba(0,0,0,.22); }
     .quick-action-card:hover { border-color: rgba(200,255,77,.44); background: rgba(200,255,77,.07); }
     .copy-btn:hover { background: rgba(200,255,77,.1); color: var(--accent); }
+    :focus-visible { outline: 2px solid #55e6d2; outline-offset: 3px; }
     body.light-mode { background-color: #eef7ef; background-image: linear-gradient(rgba(19,92,66,.06) 1px, transparent 1px), linear-gradient(90deg, rgba(19,92,66,.06) 1px, transparent 1px); background-size: 32px 32px; }
     body.light-mode .glass, body.light-mode .hero-panel { background: rgba(255,255,255,.88); border-color: rgba(19,92,66,.18); }
     .app-shell { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 1.25rem; max-width: 1440px; }
@@ -106,6 +107,7 @@
     .menu-toggle, .side-nav-backdrop { display: none; }
     @media (max-width: 1024px) { .app-shell { display: block; } .side-nav { position: fixed; inset: 0 auto 0 0; z-index: 100; width: min(280px, 86vw); height: 100vh; transform: translateX(-105%); transition: transform .25s ease; border-radius: 0 1.5rem 1.5rem 0; } .side-nav.open { transform: translateX(0); } .menu-toggle { display: inline-flex; } .side-nav-backdrop { position: fixed; inset: 0; z-index: 90; background: rgba(3,10,9,.68); backdrop-filter: blur(4px); } .side-nav-backdrop.open { display: block; } }
     @media (min-width: 1025px) { .dash-nav { display: none; } }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; scroll-behavior: auto !important; transition-duration: .01ms !important; } }
   </style>
 </head>
 <body class="min-h-screen bg-[#101315] text-slate-50">
@@ -129,6 +131,26 @@
 
   <div id="uiToast" class="fixed right-5 top-5 z-[100] hidden max-w-sm overflow-hidden rounded-3xl border border-slate-700/60 bg-slate-950/95 p-4 shadow-2xl backdrop-blur-xl text-sm text-white">
     <div id="uiToastMessage" class="flex items-center gap-3"></div>
+  </div>
+  <div id="phoneSetupOverlay" class="fixed inset-0 z-[120] hidden items-center justify-center bg-slate-950/80 px-4 py-8 backdrop-blur-md" role="dialog" aria-modal="true" aria-labelledby="phoneSetupTitle" aria-describedby="phoneSetupDescription">
+    <div class="w-full max-w-md overflow-hidden rounded-2xl border border-emerald-300/20 bg-[#10201c] shadow-2xl shadow-black/50">
+      <div class="border-b border-emerald-100/10 px-6 py-5">
+        <p class="text-xs font-bold uppercase tracking-[0.16em] text-emerald-300">Mipangilio ya akaunti</p>
+        <h2 id="phoneSetupTitle" class="mt-2 text-xl font-bold text-white">Ongeza namba ya simu</h2>
+        <p id="phoneSetupDescription" class="mt-2 text-sm leading-6 text-slate-300">Tutaitumia kukutumia SMS za uthibitisho wa malipo. Namba yako itahifadhiwa kwenye akaunti yako.</p>
+      </div>
+      <form id="phoneSetupForm" class="space-y-4 px-6 py-5">
+        <div>
+          <label for="accountPhoneInput" class="mb-2 block text-sm font-semibold text-slate-200">Namba ya Tanzania</label>
+          <input id="accountPhoneInput" type="tel" inputmode="tel" autocomplete="tel" required placeholder="07XXXXXXXX au 2557XXXXXXXX" class="w-full rounded-xl border border-emerald-100/15 bg-black/25 px-4 py-3 text-sm text-white outline-none transition focus:border-emerald-300 focus:ring-4 focus:ring-emerald-300/10" />
+          <p id="phoneSetupError" class="mt-2 hidden text-xs text-rose-300" role="alert"></p>
+        </div>
+        <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <button id="skipPhoneSetupBtn" type="button" class="min-h-11 rounded-xl border border-slate-600/70 px-4 py-2.5 text-sm font-semibold text-slate-300 transition hover:bg-white/5">Baadaye</button>
+          <button id="savePhoneSetupBtn" type="submit" class="min-h-11 rounded-xl bg-emerald-300 px-4 py-2.5 text-sm font-bold text-emerald-950 transition hover:bg-emerald-200">Hifadhi namba</button>
+        </div>
+      </form>
+    </div>
   </div>
   <div id="uiDialogOverlay" class="fixed inset-0 z-[90] hidden items-center justify-center bg-slate-950/70 px-4 py-8 backdrop-blur-sm">
     <div id="uiDialog" class="w-full max-w-lg overflow-hidden rounded-[32px] border border-slate-700/80 bg-slate-900/95 shadow-2xl">
@@ -890,6 +912,71 @@
     }
 
     // VUTA DATA ZA USER KUTOKA CLIENT PANEL LIVE
+    function normalizeTanzaniaPhone(value) {
+      let digits = String(value || '').replace(/\D/g, '');
+      if (digits.startsWith('0') && digits.length === 10) digits = `255${digits.slice(1)}`;
+      else if ((digits.startsWith('6') || digits.startsWith('7')) && digits.length === 9) digits = `255${digits}`;
+      return /^255[67]\d{8}$/.test(digits) ? digits : '';
+    }
+
+    function showPhoneSetupIfNeeded(phone) {
+      if (normalizeTanzaniaPhone(phone)) return false;
+      try {
+        if (sessionStorage.getItem('phoneSetupDismissed') === '1') return false;
+      } catch (error) {}
+      const overlay = document.getElementById('phoneSetupOverlay');
+      overlay?.classList.remove('hidden');
+      overlay?.classList.add('flex');
+      requestAnimationFrame(() => document.getElementById('accountPhoneInput')?.focus());
+      return true;
+    }
+
+    function closePhoneSetup() {
+      const overlay = document.getElementById('phoneSetupOverlay');
+      overlay?.classList.add('hidden');
+      overlay?.classList.remove('flex');
+      try { sessionStorage.setItem('phoneSetupDismissed', '1'); } catch (error) {}
+    }
+
+    document.getElementById('skipPhoneSetupBtn')?.addEventListener('click', closePhoneSetup);
+    document.getElementById('phoneSetupForm')?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const input = document.getElementById('accountPhoneInput');
+      const errorElement = document.getElementById('phoneSetupError');
+      const submitButton = document.getElementById('savePhoneSetupBtn');
+      const phone = normalizeTanzaniaPhone(input?.value);
+      if (!phone) {
+        errorElement.textContent = 'Weka namba sahihi, mfano 07XXXXXXXX au 2557XXXXXXXX.';
+        errorElement.classList.remove('hidden');
+        input?.focus();
+        return;
+      }
+
+      errorElement.classList.add('hidden');
+      submitButton.disabled = true;
+      submitButton.textContent = 'Inahifadhi...';
+      try {
+        const response = await fetch('/api/user/profile/phone', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone })
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) throw new Error(result.message || 'Imeshindikana kuhifadhi namba.');
+        try { sessionStorage.removeItem('phoneSetupDismissed'); } catch (error) {}
+        const overlay = document.getElementById('phoneSetupOverlay');
+        overlay?.classList.add('hidden');
+        overlay?.classList.remove('flex');
+        showToast('Namba ya simu imehifadhiwa kwenye akaunti yako.', 'success');
+      } catch (error) {
+        errorElement.textContent = error.message || 'Imeshindikana kuhifadhi namba. Jaribu tena.';
+        errorElement.classList.remove('hidden');
+      } finally {
+        submitButton.disabled = false;
+        submitButton.textContent = 'Hifadhi namba';
+      }
+    });
+
     async function loadUser() {
       try {
         const res = await fetch('/api/me');
@@ -910,10 +997,11 @@
           adminBadge.classList.add('hidden');
           adminLink.classList.add('hidden');
         }
+        const phoneSetupRequired = showPhoneSetupIfNeeded(data.user.phone);
         try {
-          if (sessionStorage.getItem('serverGuideDismissed') !== '1') openServerGuide();
+          if (!phoneSetupRequired && sessionStorage.getItem('serverGuideDismissed') !== '1') openServerGuide();
         } catch (error) {
-          openServerGuide();
+          if (!phoneSetupRequired) openServerGuide();
         }
       } catch (e) {
         window.location.href = '/login.html?error=account_offline';
@@ -1346,10 +1434,20 @@
         const eggRes = await fetch('/api/eggs');
         const eggData = await eggRes.json().catch(() => ({}));
         const eggSelect = document.getElementById('eggSelect');
-        if (eggData.success && eggData.eggs) {
+        const eggStatus = document.getElementById('runtimeSyncMessage');
+        if (eggRes.ok && eggData.success && Array.isArray(eggData.eggs) && eggData.eggs.length) {
           globalEggs = eggData.eggs;
-          eggSelect.innerHTML = globalEggs.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+          eggSelect.replaceChildren(...globalEggs.map((egg) => {
+            const option = document.createElement('option');
+            option.value = egg.id;
+            option.textContent = `${egg.name} (ID: ${egg.id})`;
+            return option;
+          }));
           applyEggDefaults();
+        } else if (eggStatus) {
+          eggSelect.innerHTML = '<option value="">Eggs hazipatikani</option>';
+          eggStatus.textContent = eggData.error || 'Imeshindikana kusoma eggs kutoka Pterodactyl.';
+          eggStatus.className = 'mt-2 text-[11px] text-amber-300';
         }
 
         const pkgRes = await fetch('/api/packages');

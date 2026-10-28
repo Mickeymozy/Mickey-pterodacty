@@ -9,6 +9,7 @@ const sendEmail = require('../utils/email');
 const axios = require('axios');
 const LoginActivity = require('../models/LoginActivity');
 const { isIP } = require('net');
+const { normalizePhone } = require('../services/smsService');
 
 function isAcceptablePassword(password) {
   return validatePasswordComplexity(String(password || '')).isValid;
@@ -272,9 +273,15 @@ router.post('/auth/register', async (req, res) => {
   const { username, email, password, confirmPassword, first_name, last_name } = req.body;
   const cleanUsername = String(username || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
   const cleanEmail = String(email || '').trim().toLowerCase();
+  const cleanPhone = normalizePhone(req.body.phone);
 
-  if (!cleanUsername || !cleanEmail || !password) {
+  if (!cleanUsername || !cleanEmail || !password || !cleanPhone) {
     req.flash('error_msg', '❌ Taarifa zote zinahitajika.');
+    return res.redirect('/login.html?tab=register');
+  }
+
+  if (!/^255[67]\d{8}$/.test(cleanPhone)) {
+    req.flash('error_msg', '❌ Weka namba sahihi ya Tanzania, mfano 07XXXXXXXX au 2557XXXXXXXX.');
     return res.redirect('/login.html?tab=register');
   }
 
@@ -334,6 +341,7 @@ router.post('/auth/register', async (req, res) => {
     const newUser = new User({
       username: pteroData?.username || cleanUsername,
       email: pteroData?.email || cleanEmail,
+      phone: cleanPhone,
       password: password, // Inahifadhi password ile ile ya Pterodactyl
       pteroId: pteroData?.id || undefined,
       firstName: pteroData?.first_name || first_name || username,

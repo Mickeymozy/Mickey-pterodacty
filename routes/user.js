@@ -158,6 +158,7 @@ router.get('/profile', requireAuth, async (req, res) => {
         id: user._id,
         username: user.username,
         email: user.email,
+        phone: user.phone || '',
         displayName: user.displayName,
         coins: user.coins,
         isAdmin: user.isAdmin,
@@ -170,6 +171,23 @@ router.get('/profile', requireAuth, async (req, res) => {
   } catch (error) {
     console.error('Error fetching profile:', error);
     res.status(500).json({ success: false, message: 'Error fetching profile' });
+  }
+});
+
+router.put('/profile/phone', requireAuth, async (req, res) => {
+  try {
+    const phone = normalizePhone(req.body.phone);
+    if (!/^255[67]\d{8}$/.test(phone)) {
+      return res.status(400).json({ success: false, message: 'Weka namba sahihi ya Tanzania, mfano 07XXXXXXXX.' });
+    }
+
+    const user = await User.findByIdAndUpdate(req.user._id, { $set: { phone } }, { new: true, runValidators: true }).select('phone');
+    if (!user) return res.status(404).json({ success: false, message: 'Akaunti haijapatikana.' });
+    req.user.phone = user.phone;
+    res.json({ success: true, message: 'Namba ya simu imehifadhiwa.', data: { phone: user.phone } });
+  } catch (error) {
+    console.error('Error updating user phone:', error.message);
+    res.status(500).json({ success: false, message: 'Imeshindikana kuhifadhi namba ya simu.' });
   }
 });
 
