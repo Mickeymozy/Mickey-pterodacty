@@ -321,24 +321,24 @@ function buildPteroLimitsFromPackage(specifications = {}) {
   const ramValue = Number(specifications?.ram ?? specifications?.memory ?? 0);
   const diskValue = Number(specifications?.disk ?? specifications?.storage ?? 0);
 
-  const cpu = Number.isFinite(cpuValue) && cpuValue > 0
-    ? Math.round(cpuValue <= 10 ? cpuValue * 100 : cpuValue)
+  const cpu = Number.isFinite(cpuValue) && cpuValue >= 0
+    ? cpuValue === 0 ? 0 : Math.round(cpuValue <= 10 ? cpuValue * 100 : cpuValue)
     : 100;
 
-  const memory = Number.isFinite(ramValue) && ramValue > 0
+  const memory = Number.isFinite(ramValue) && ramValue >= 0
     ? Math.round(ramValue)
     : 1024;
 
-  const disk = Number.isFinite(diskValue) && diskValue > 0
-    ? (diskValue >= 1024 ? Math.round(diskValue) : Math.round(diskValue * 1024))
+  const disk = Number.isFinite(diskValue) && diskValue >= 0
+    ? (diskValue === 0 ? 0 : diskValue >= 1024 ? Math.round(diskValue) : Math.round(diskValue * 1024))
     : 2048;
 
   return {
-    memory: Math.max(256, memory),
+    memory: memory === 0 ? 0 : Math.max(256, memory),
     swap: 0,
-    disk: Math.max(1024, disk),
+    disk: disk === 0 ? 0 : Math.max(1024, disk),
     io: 500,
-    cpu: Math.max(25, cpu),
+    cpu: cpu === 0 ? 0 : Math.max(25, cpu),
     oom_disabled: false
   };
 }

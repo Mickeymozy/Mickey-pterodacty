@@ -243,16 +243,16 @@
             <!-- Resource Limits -->
             <div class="grid grid-cols-3 gap-2">
               <div>
-                <label class="block text-xs text-slate-400">CPU (Cores)</label>
-                <input type="number" id="pkgCpu" class="w-full rounded bg-slate-950/50 border border-slate-700/50 p-1 text-white" required>
+                <label class="block text-xs text-slate-400" for="pkgCpu">CPU (0 = unlimited)</label>
+                <input type="number" id="pkgCpu" min="0" step="0.5" class="w-full rounded bg-slate-950/50 border border-slate-700/50 p-1 text-white" required>
               </div>
               <div>
-                <label class="block text-xs text-slate-400">RAM (MB)</label>
-                <input type="number" id="pkgRam" class="w-full rounded bg-slate-950/50 border border-slate-700/50 p-1 text-white" required>
+                <label class="block text-xs text-slate-400" for="pkgRam">RAM MB (0 = unlimited)</label>
+                <input type="number" id="pkgRam" min="0" step="1" class="w-full rounded bg-slate-950/50 border border-slate-700/50 p-1 text-white" required>
               </div>
               <div>
-                <label class="block text-xs text-slate-400">Disk (GB)</label>
-                <input type="number" id="pkgDisk" class="w-full rounded bg-slate-950/50 border border-slate-700/50 p-1 text-white" required>
+                <label class="block text-xs text-slate-400" for="pkgDisk">Disk GB (0 = unlimited)</label>
+                <input type="number" id="pkgDisk" min="0" step="1" class="w-full rounded bg-slate-950/50 border border-slate-700/50 p-1 text-white" required>
               </div>
             </div>
             <div>
@@ -1494,9 +1494,13 @@
       };
       const url = id ? `${API_URL}/packages/${id}` : `${API_URL}/packages`;
       const res = await fetch(url, { method: id ? 'PUT' : 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(formData) });
-      if((await res.json()).success) {
+      const result = await res.json();
+      if (res.ok && result.success) {
         document.getElementById('packageForm').reset();
         loadPackages(); loadStats();
+        notify(result.message || 'Package imehifadhiwa.', 'success');
+      } else {
+        notify(result.message || 'Imeshindikana kuhifadhi package.', 'error');
       }
     });
 

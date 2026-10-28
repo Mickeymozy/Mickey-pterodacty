@@ -20,17 +20,17 @@ const serverPackageSchema = new mongoose.Schema({
     cpu: {
       type: Number,
       required: [true, 'CPU cores required'],
-      min: [0.5, 'CPU must be at least 0.5 cores']
+      min: [0, 'CPU cannot be negative; use 0 for unlimited']
     },
     ram: {
       type: Number,
       required: [true, 'RAM is required'],
-      min: [256, 'RAM must be at least 256MB']
+      min: [0, 'RAM cannot be negative; use 0 for unlimited']
     },
     disk: {
       type: Number,
       required: [true, 'Disk space is required'],
-      min: [1, 'Disk must be at least 1GB']
+      min: [0, 'Disk cannot be negative; use 0 for unlimited']
     },
     backups: {
       type: Number,

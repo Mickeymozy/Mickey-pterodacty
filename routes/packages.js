@@ -71,10 +71,12 @@ router.post('/packages', adminOnly, async (req, res) => {
     }
 
     const { cpu, ram, disk } = specifications;
-    if (!cpu || !ram || !disk) {
+    const resourceValues = [cpu, ram, disk].map(Number);
+    if ([cpu, ram, disk].some((value) => value === undefined || value === null || value === '')
+      || resourceValues.some((value) => !Number.isFinite(value) || value < 0)) {
       return res.status(400).json({
         success: false,
-        message: 'Missing specification fields: cpu, ram, disk'
+        message: 'CPU, RAM na Disk lazima ziwe namba zisizopungua sifuri; tumia 0 kwa unlimited.'
       });
     }
 
