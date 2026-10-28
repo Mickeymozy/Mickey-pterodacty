@@ -51,7 +51,7 @@
     ::-webkit-scrollbar-thumb { background: rgba(45,212,191,.35); border-radius: 8px; }
     ::-webkit-scrollbar-thumb:hover { background: rgba(45,212,191,.58); }
     :root { --accent: #c8ff4d; --accent-rgba: rgba(200,255,77,.34); }
-    body { background-color: #081412; background-image: linear-gradient(rgba(200,255,77,.032) 1px, transparent 1px), linear-gradient(90deg, rgba(200,255,77,.032) 1px, transparent 1px), radial-gradient(circle at 92% 4%, rgba(85,230,210,.13), transparent 25%); background-size: 32px 32px, 32px 32px, auto; }
+    body { background-color: #081412; background-image: linear-gradient(rgba(200,255,77,.032) 1px, transparent 1px), linear-gradient(90deg, rgba(200,255,77,.032) 1px, transparent 1px); background-size: 32px 32px; }
     .glass { border-color: rgba(157,255,202,.15); background: linear-gradient(145deg, rgba(18,35,31,.94), rgba(8,20,18,.9)); box-shadow: 0 22px 60px rgba(0,0,0,.26), inset 0 1px 0 rgba(255,255,255,.04); }
     .tab-button.active { background: var(--accent); border-color: var(--accent); color: #102013; box-shadow: 0 10px 28px rgba(200,255,77,.18); }
     input, select, textarea { border-color: rgba(157,255,202,.14) !important; background-color: rgba(0,0,0,.24) !important; }
@@ -60,6 +60,14 @@
     body.light-mode { background-color: #eef7ef; background-image: linear-gradient(rgba(19,92,66,.06) 1px, transparent 1px), linear-gradient(90deg, rgba(19,92,66,.06) 1px, transparent 1px); background-size: 32px 32px; }
     body.light-mode .glass { background: rgba(255,255,255,.88); border-color: rgba(19,92,66,.18); }
     .admin-shell { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 1.25rem; max-width: 1440px; }
+    .admin-version { display: inline-flex; align-items: center; border: 1px solid rgba(200,255,77,.28); border-radius: 999px; padding: .3rem .6rem; color: #d7ff83; background: rgba(200,255,77,.08); font-size: .7rem; font-weight: 700; }
+    .users-row:hover { background: rgba(255,255,255,.025); }
+    .user-source { display: inline-flex; align-items: center; border-radius: 999px; padding: .25rem .55rem; font-size: .68rem; font-weight: 700; white-space: nowrap; }
+    .user-source.both { color: #9af0c1; background: rgba(16,185,129,.12); }
+    .user-source.website { color: #8de7e2; background: rgba(45,212,191,.12); }
+    .user-source.panel { color: #ffd48a; background: rgba(245,158,11,.12); }
+    .users-count { min-width: 2rem; border: 1px solid rgba(157,255,202,.13); border-radius: 999px; padding: .2rem .55rem; color: #dcebe3; background: rgba(255,255,255,.035); text-align: center; font-size: .72rem; font-weight: 700; }
+    button:disabled { cursor: wait; opacity: .6; }
     .admin-side-nav { position: sticky; top: 1.5rem; height: calc(100vh - 3rem); align-self: start; }
     .admin-side-link { display: flex; align-items: center; gap: .65rem; width: 100%; padding: .7rem .8rem; border: 1px solid transparent; border-radius: .85rem; color: #9bb6ad; text-align: left; transition: .2s ease; }
     .admin-side-link:hover, .admin-side-link.active { color: #102013; background: var(--accent); border-color: var(--accent); box-shadow: 0 8px 22px rgba(200,255,77,.16); }
@@ -80,7 +88,6 @@
   </div>
 
   <div id="uiToast" class="fixed right-5 top-5 z-[100] hidden max-w-sm overflow-hidden rounded-3xl border border-slate-700/60 bg-slate-950/95 p-4 shadow-2xl backdrop-blur-xl text-sm text-white">
-          <button type="button" onclick="syncPanelUsers()" class="inline-flex items-center justify-center rounded-2xl bg-cyan-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-cyan-500">Sync Panel ↔ Website</button>
     <div id="uiToastMessage" class="flex items-center gap-3"></div>
   </div>
   <div id="uiDialogOverlay" class="fixed inset-0 z-[90] hidden items-center justify-center bg-slate-950/70 px-4 py-8 backdrop-blur-sm">
@@ -98,12 +105,6 @@
     </div>
   </div>
   <div id="adminSideBackdrop" class="admin-side-backdrop" aria-hidden="true"></div>
-
-  <div class="fixed inset-0 overflow-hidden pointer-events-none">
-    <div class="absolute -top-40 -right-40 h-96 w-96 rounded-full bg-purple-500/10 blur-3xl"></div>
-    <div class="absolute top-1/2 -left-40 h-96 w-96 rounded-full bg-indigo-500/10 blur-3xl"></div>
-    <div class="absolute bottom-0 right-1/3 h-72 w-72 rounded-full bg-cyan-500/5 blur-3xl"></div>
-  </div>
 
   <div class="admin-shell relative mx-auto px-4 py-6 sm:px-6 lg:px-8">
     <aside id="adminSideNav" class="admin-side-nav glass rounded-3xl p-4" aria-label="Admin navigation">
@@ -125,11 +126,12 @@
     <header class="glass rounded-2xl p-6 mb-6 sm:p-7">
       <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div class="flex items-center gap-2"><button id="adminMenuToggle" type="button" class="admin-menu-toggle rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2 text-lg text-slate-200" aria-label="Fungua admin menu" aria-controls="adminSideNav" aria-expanded="false">☰</button><p class="text-sm text-slate-400 font-medium">Sehemu ya Admin</p></div>
-          <h1 class="mt-1 text-2xl font-bold gradient-text">Control Panel</h1>
-          <p class="mt-1 text-sm text-slate-400">Usimamizi wa Package & Mifumo</p>
+          <div class="flex items-center gap-2"><button id="adminMenuToggle" type="button" class="admin-menu-toggle rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2 text-lg text-slate-200" aria-label="Fungua admin menu" aria-controls="adminSideNav" aria-expanded="false">☰</button><p class="text-sm text-slate-400 font-medium">MickeyPanel / Admin</p></div>
+          <h1 class="mt-1 text-2xl font-bold gradient-text">Control Center</h1>
+          <p class="mt-1 text-sm text-slate-400">Usimamizi wa mfumo, malipo na watumiaji</p>
         </div>
         <div class="flex items-center gap-3">
+          <span class="admin-version">v2.7.21</span>
           <button type="button" id="themeModeBtn" onclick="toggleThemeMode()" class="px-4 py-2.5 rounded-xl bg-slate-800/50 text-sm font-medium text-slate-300 hover:bg-slate-700/50 transition border border-slate-700/50" title="Badilisha light/dark mode">☀️ Light</button>
           <a href="/dashboard.html" class="px-4 py-2.5 rounded-xl bg-slate-800/50 text-sm font-medium text-slate-300 hover:bg-slate-700/50 transition border border-slate-700/50">📊 Dashboard</a>
           <a href="/logout" class="px-4 py-2.5 rounded-xl bg-red-500/10 text-sm font-medium text-red-400 hover:bg-red-500/20 transition border border-red-500/20">Ondoka</a>
@@ -466,17 +468,27 @@
         <div class="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div>
             <h2 class="text-xl font-semibold text-white">👥 Usimamizi wa Watumiaji</h2>
-            <p class="text-sm text-slate-400">Rekebisha coins, tuma email, au futa akaunti kwa urahisi.</p>
+            <p class="text-sm text-slate-400">Website na Pterodactyl accounts, pamoja na hali ya kuunganishwa.</p>
           </div>
+          <button id="syncPanelUsersBtn" type="button" onclick="syncPanelUsers()" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-cyan-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:brightness-110" title="Unda upande unaokosekana na unganisha akaunti zinazolingana">
+            <span aria-hidden="true">⇄</span><span>Sync Panel ↔ Website</span>
+          </button>
         </div>
+        <div class="mb-4 flex flex-wrap items-center gap-2" aria-label="User directory counts">
+          <span class="users-count"><span id="websiteUsersCount">0</span> Website</span>
+          <span class="users-count"><span id="panelUsersCount">0</span> Panel</span>
+          <span class="users-count"><span id="unlinkedUsersCount">0</span> hazijaunganishwa</span>
+        </div>
+        <p id="userSyncStatus" class="mb-3 min-h-5 text-xs text-slate-400" role="status" aria-live="polite">Inapakia directory za watumiaji...</p>
         <div class="overflow-x-auto">
-          <table class="w-full text-left text-sm border-collapse">
+          <table class="w-full min-w-[700px] text-left text-sm border-collapse">
             <thead>
               <tr class="border-b border-slate-800 text-slate-400 text-xs">
-                <th class="py-2 px-4">Mtumiaji</th>
-                <th class="py-2 px-4">Hadhi</th>
-                <th class="py-2 px-4">Salio la Coins</th>
-                <th class="py-2 px-4">Action</th>
+                <th class="py-3 px-4">Mtumiaji</th>
+                <th class="py-3 px-4">Directory</th>
+                <th class="py-3 px-4">Muunganisho</th>
+                <th class="py-3 px-4">Coins</th>
+                <th class="py-3 px-4">Vitendo</th>
               </tr>
             </thead>
             <tbody id="usersList"></tbody>
@@ -1072,37 +1084,104 @@
     }
 
     async function loadUsers() {
+      const tbody = document.getElementById('usersList');
+      const status = document.getElementById('userSyncStatus');
       try {
-        const res = await fetch(`${API_URL}/user/users/admin/all`);
-        const d = await res.json();
-        const tbody = document.getElementById('usersList');
-        if(d.success) {
-          tbody.innerHTML = d.data.map(u => `
-            <tr class="border-b border-slate-800/40 text-xs">
-              <td class="py-2 px-4">${u.username || u.email}</td>
-              <td class="py-2 px-4 text-slate-300">${u.role === 'admin' || u.isAdmin ? 'Admin' : 'User'}</td>
-              <td class="py-2 px-4 text-amber-400">🪙 ${Number(u.coins || 0).toLocaleString()}</td>
-              <td class="py-2 px-4">
-                <div class="flex flex-wrap gap-2">
-                  <button onclick="adjustCoins('${u._id||u.id}', ${u.coins||0})" class="rounded-lg bg-slate-700 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-slate-600">Edit Coins</button>
-                  <button onclick="deleteUser('${u._id||u.id}')" class="rounded-lg bg-red-500/20 px-3 py-1.5 text-[11px] font-semibold text-red-400 transition hover:bg-red-500/30">Futa</button>
-                  <button onclick="prefillAdminEmail('${u.email || ''}')" class="rounded-lg bg-sky-500/20 px-3 py-1.5 text-[11px] font-semibold text-sky-300 transition hover:bg-sky-500/30">Email</button>
-                </div>
-              </td>
-            </tr>
-          `).join('');
+        const [localRes, panelRes] = await Promise.all([
+          fetch(`${API_URL}/user/users/admin/all`),
+          fetch(`${API_URL}/user/users/pterodactyl`)
+        ]);
+        const [localData, panelData] = await Promise.all([localRes.json(), panelRes.json()]);
+        if (!localRes.ok || !localData.success) throw new Error(localData.message || 'Website users hawakupatikana.');
+
+        const localUsers = Array.isArray(localData.data) ? localData.data : [];
+        const panelUsers = panelRes.ok && panelData.success && Array.isArray(panelData.data) ? panelData.data : [];
+        const byPanelId = new Map(localUsers.filter((user) => Number(user.pteroId) > 0).map((user) => [String(user.pteroId), user]));
+        const byEmail = new Map(localUsers.map((user) => [String(user.email || '').toLowerCase(), user]));
+        const directory = new Map(localUsers.map((user) => [`website:${user._id || user.id}`, { local: user, panel: null }]));
+        const linkedLocalIds = new Set();
+        const linkedPanelIds = new Set();
+
+        panelUsers.forEach((panelUser) => {
+          const local = byPanelId.get(String(panelUser.id)) || byEmail.get(String(panelUser.email || '').toLowerCase());
+          if (local) {
+            const key = `website:${local._id || local.id}`;
+            const entry = directory.get(key);
+            if (entry) entry.panel = panelUser;
+            linkedLocalIds.add(String(local._id || local.id));
+            linkedPanelIds.add(String(panelUser.id));
+          } else {
+            directory.set(`panel:${panelUser.id}`, { local: null, panel: panelUser });
+          }
+        });
+
+        document.getElementById('websiteUsersCount').textContent = localUsers.length;
+        document.getElementById('panelUsersCount').textContent = panelRes.ok && panelData.success ? panelUsers.length : '–';
+        document.getElementById('unlinkedUsersCount').textContent = panelRes.ok && panelData.success
+          ? localUsers.length - linkedLocalIds.size + panelUsers.length - linkedPanelIds.size
+          : '–';
+
+        if (status) {
+          status.textContent = panelRes.ok && panelData.success
+            ? 'Directory zimepakiwa. Akaunti zisizounganishwa zitaunganishwa wakati wa Sync.'
+            : panelData.message || 'Pterodactyl haipatikani; website users wameonyeshwa.';
+          status.className = `mb-3 min-h-5 text-xs ${panelRes.ok && panelData.success ? 'text-slate-400' : 'text-amber-300'}`;
         }
-      } catch(e) { console.error(e); }
+
+        const rows = [...directory.values()].sort((left, right) => {
+          const leftName = left.local?.username || left.panel?.username || left.local?.email || left.panel?.email || '';
+          const rightName = right.local?.username || right.panel?.username || right.local?.email || right.panel?.email || '';
+          return leftName.localeCompare(rightName);
+        });
+
+        tbody.innerHTML = rows.length ? rows.map(({ local, panel }) => {
+          const account = local || panel;
+          const email = String(account.email || '');
+          const name = account.username || email || `User ${account.id || ''}`;
+          const source = local && panel ? 'both' : local ? 'website' : 'panel';
+          const sourceLabel = source === 'both' ? 'Website + Panel' : source === 'website' ? 'Website' : 'Pterodactyl';
+          const linkLabel = source === 'both' ? 'Imeunganishwa' : source === 'panel' ? 'Website haipo' : Number(local.pteroId) > 0 ? 'Panel haipo' : 'Haijaunganishwa';
+          const roleLabel = local?.role === 'admin' || local?.isAdmin ? 'Admin' : 'User';
+          const actions = local
+            ? `<button onclick="adjustCoins('${local._id || local.id}', ${Number(local.coins || 0)})" class="rounded-lg bg-slate-700 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-slate-600">Coins</button><button onclick="deleteUser('${local._id || local.id}')" class="rounded-lg bg-red-500/15 px-3 py-1.5 text-[11px] font-semibold text-red-300 transition hover:bg-red-500/25">Futa</button>${email ? `<button onclick="prefillAdminEmail(this.dataset.email)" data-email="${escapeHtml(email)}" class="rounded-lg bg-sky-500/15 px-3 py-1.5 text-[11px] font-semibold text-sky-200 transition hover:bg-sky-500/25">Ujumbe</button>` : ''}`
+            : email ? `<button onclick="prefillAdminEmail(this.dataset.email)" data-email="${escapeHtml(email)}" class="rounded-lg bg-sky-500/15 px-3 py-1.5 text-[11px] font-semibold text-sky-200 transition hover:bg-sky-500/25">Ujumbe</button>` : '<span class="text-slate-500">Hakuna</span>';
+          return `<tr class="users-row border-b border-slate-800/40 text-xs">
+            <td class="py-3 px-4"><div class="font-semibold text-slate-100">${escapeHtml(name)}</div><div class="mt-1 text-[11px] text-slate-500">${escapeHtml(email)}</div></td>
+            <td class="py-3 px-4"><span class="user-source ${source}">${sourceLabel}</span><div class="mt-1 text-[11px] text-slate-500">${roleLabel}</div></td>
+            <td class="py-3 px-4 text-slate-300">${linkLabel}</td>
+            <td class="py-3 px-4 text-amber-300">${local ? `🪙 ${Number(local.coins || 0).toLocaleString()}` : '—'}</td>
+            <td class="py-3 px-4"><div class="flex flex-wrap gap-2">${actions}</div></td>
+          </tr>`;
+        }).join('') : '<tr><td colspan="5" class="p-8 text-center text-slate-400">Hakuna watumiaji waliopatikana.</td></tr>';
+      } catch (error) {
+        console.error('Failed to load user directories:', error);
+        if (status) status.textContent = error.message || 'Imeshindikana kupakia watumiaji.';
+        if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="p-8 text-center text-rose-300">Imeshindikana kupakia website users.</td></tr>';
+      }
     }
 
     async function syncPanelUsers() {
       const confirmed = await confirmDialog('Users waliokosekana wataundwa upande mwingine. Password mpya itahitaji reset. Endelea?', { title: 'Sync users' });
       if (!confirmed) return;
-      const result = await (await fetch(`${API_URL}/user/users/sync`, { method: 'POST', headers: { 'Content-Type': 'application/json' } })).json();
-      if (!result.success) { notify(result.message || 'User sync imeshindikana.', 'error'); return; }
-      const data = result.data || {};
-      notify(`Sync imekamilika: panel mpya ${data.createdOnPanel || 0}, website mpya ${data.createdOnWebsite || 0}, linked ${data.linked || 0}.`, 'success');
-      loadUsers();
+      const button = document.getElementById('syncPanelUsersBtn');
+      const status = document.getElementById('userSyncStatus');
+      if (button) button.disabled = true;
+      if (status) status.textContent = 'Inalinganisha website na Pterodactyl...';
+      try {
+        const response = await fetch(`${API_URL}/user/users/sync`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+        const result = await response.json();
+        if (!response.ok || !result.success) throw new Error(result.message || 'User sync imeshindikana.');
+        const data = result.data || {};
+        const failed = Array.isArray(data.errors) ? data.errors.length : 0;
+        notify(`Sync: Panel +${data.createdOnPanel || 0}, Website +${data.createdOnWebsite || 0}, linked ${data.linked || 0}${failed ? `, errors ${failed}` : ''}.`, failed ? 'error' : 'success');
+        if (failed) console.warn('User sync partial failures:', data.errors);
+        await loadUsers();
+      } catch (error) {
+        if (status) status.textContent = error.message || 'Sync imeshindikana.';
+        notify(error.message || 'User sync imeshindikana.', 'error');
+      } finally {
+        if (button) button.disabled = false;
+      }
     }
 
     async function loadAuditLogs() {

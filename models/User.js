@@ -4,9 +4,7 @@ const bcrypt = require('bcryptjs');
 const UserSchema = new mongoose.Schema({
   pteroId: {
     type: Number,
-    required: true,
-    unique: true,
-    default: 0
+    min: 1
   },
   username: {
     type: String,
@@ -101,7 +99,9 @@ const UserSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   }
-});
+}, { autoIndex: false });
+
+UserSchema.index({ pteroId: 1 }, { unique: true, partialFilterExpression: { pteroId: { $type: 'number', $gt: 0 } } });
 
 // Hash password before saving
 UserSchema.pre('save', async function(next) {

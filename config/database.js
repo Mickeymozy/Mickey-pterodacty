@@ -18,6 +18,21 @@ const connectDB = async () => {
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
 
     try {
+      const users = conn.connection.db.collection('users');
+      await users.updateMany({ pteroId: { $lte: 0 } }, { $unset: { pteroId: '' } });
+      await users.createIndex({ username: 1 }, { unique: true });
+      await users.createIndex({ email: 1 }, { unique: true });
+      const indexes = await users.listIndexes().toArray();
+      const pteroIndex = indexes.find((index) => index.key?.pteroId === 1);
+      if (pteroIndex && JSON.stringify(pteroIndex.partialFilterExpression || {}) !== JSON.stringify({ pteroId: { $type: 'number', $gt: 0 } })) {
+        await users.dropIndex(pteroIndex.name);
+      }
+      await users.createIndex({ pteroId: 1 }, { unique: true, partialFilterExpression: { pteroId: { $type: 'number', $gt: 0 } } });
+    } catch (indexErr) {
+      console.warn('⚠️ Could not migrate Pterodactyl user index:', indexErr.message);
+    }
+
+    try {
       await conn.connection.db.collection('transactions').dropIndex('transactionRef_1');
       console.log('✅ Removed legacy transactionRef index from MongoDB');
     } catch (indexErr) {

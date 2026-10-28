@@ -1,6 +1,6 @@
 {
   "name": "pterodactyl-dashboard",
-  "version": "1.0.0",
+  "version": "2.7.21",
   "description": "Web dashboard for managing Pterodactyl servers",
   "main": "server.js",
   "scripts": {

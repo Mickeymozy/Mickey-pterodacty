@@ -335,7 +335,7 @@ router.post('/auth/register', async (req, res) => {
       username: pteroData?.username || cleanUsername,
       email: pteroData?.email || cleanEmail,
       password: password, // Inahifadhi password ile ile ya Pterodactyl
-      pteroId: pteroData?.id || 0,
+      pteroId: pteroData?.id || undefined,
       firstName: pteroData?.first_name || first_name || username,
       lastName: pteroData?.last_name || last_name || 'User',
       displayName: pteroData?.first_name || first_name || username,

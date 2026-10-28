@@ -12,8 +12,8 @@ const { writeAuditLog } = require('../utils/auditLog');
 const AuditLog = require('../models/AuditLog');
 const LoginActivity = require('../models/LoginActivity');
 
-const PTERODACTYL_URL = process.env.PTERODACTYL_URL?.replace(/\/$/, '');
-const PTERODACTYL_APP_API_KEY = process.env.PTERODACTYL_APP_API_KEY;
+const PTERODACTYL_URL = (process.env.PANEL_URL || process.env.PTERODACTYL_URL)?.replace(/\/$/, '');
+const PTERODACTYL_APP_API_KEY = process.env.PANEL_API_KEY || process.env.PTERODACTYL_APP_API_KEY;
 const appApi = PTERODACTYL_URL && PTERODACTYL_APP_API_KEY
   ? axios.create({
       baseURL: `${PTERODACTYL_URL}/api/application`,
@@ -78,11 +78,10 @@ router.post('/users/sync', requireAuth, requireAdmin, async (req, res) => {
 
     const byId = new Map(websiteUsers.filter((user) => user.pteroId).map((user) => [String(user.pteroId), user]));
     const byEmail = new Map(websiteUsers.map((user) => [String(user.email || '').toLowerCase(), user]));
-    const byUsername = new Map(websiteUsers.map((user) => [String(user.username || '').toLowerCase(), user]));
     const linkedWebsiteIds = new Set();
 
     for (const panelUser of panelUsers) {
-      let local = byId.get(String(panelUser.id)) || byEmail.get(String(panelUser.email || '').toLowerCase()) || byUsername.get(String(panelUser.username || '').toLowerCase());
+      const local = byId.get(String(panelUser.id)) || byEmail.get(String(panelUser.email || '').toLowerCase());
       if (local) {
         const update = {};
         if (Number(local.pteroId) !== Number(panelUser.id)) update.pteroId = Number(panelUser.id);
@@ -94,7 +93,7 @@ router.post('/users/sync', requireAuth, requireAdmin, async (req, res) => {
       }
 
       try {
-        const email = String(panelUser.email || `${panelUser.username}@panel.local`).toLowerCase();
+        const email = String(panelUser.email).toLowerCase();
         const created = await new User({
           pteroId: Number(panelUser.id),
           username: String(panelUser.username || `paneluser${panelUser.id}`).toLowerCase(),
@@ -113,8 +112,8 @@ router.post('/users/sync', requireAuth, requireAdmin, async (req, res) => {
     }
 
     for (const local of websiteUsers) {
-      if (local.pteroId || linkedWebsiteIds.has(String(local._id))) continue;
-      const existingPanel = panelUsers.find((panelUser) => String(panelUser.email || '').toLowerCase() === String(local.email || '').toLowerCase() || String(panelUser.username || '').toLowerCase() === String(local.username || '').toLowerCase());
+      if (linkedWebsiteIds.has(String(local._id))) continue;
+      const existingPanel = panelUsers.find((panelUser) => String(panelUser.email || '').toLowerCase() === String(local.email || '').toLowerCase());
       if (existingPanel) {
         await User.updateOne({ _id: local._id }, { $set: { pteroId: Number(existingPanel.id) } });
         summary.linked += 1;
@@ -201,7 +200,7 @@ router.get('/users/admin/all', requireAuth, requireAdmin, async (req, res) => {
 router.get('/users/pterodactyl', requireAuth, requireAdmin, async (req, res) => {
   try {
     if (!appApi) {
-      return res.json({ success: true, data: [] });
+      return res.status(503).json({ success: false, message: 'PANEL_URL na PANEL_API_KEY hazijawekwa.' });
     }
     const users = await fetchPteroUsers();
     res.json({ success: true, data: users });
