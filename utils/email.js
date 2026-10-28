@@ -9,6 +9,7 @@ const SMTP_USER = process.env.SMTP_USER;
 const SMTP_PASS = process.env.SMTP_PASS;
 const SMTP_FROM = process.env.SMTP_FROM || SMTP_USER;
 const SMTP_FROM_NAME = process.env.SMTP_FROM_NAME || 'LeoNodes';
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const APP_URL = (process.env.APP_URL || 'https://leonodes.xyz').replace(/\/$/, '');
 const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || SMTP_FROM;
 const BRAND_COLOR = process.env.EMAIL_BRAND_COLOR || '#0f766e';
@@ -71,7 +72,7 @@ function wrapEmailHtml({ subject, html, text }) {
 </html>`;
 }
 
-if (SMTP_HOST && SMTP_USER && SMTP_PASS) {
+if (!RESEND_API_KEY && SMTP_HOST && SMTP_USER && SMTP_PASS) {
   transporter = nodemailer.createTransport({
     host: SMTP_HOST,
     port: SMTP_PORT,
@@ -93,13 +94,53 @@ if (SMTP_HOST && SMTP_USER && SMTP_PASS) {
   }).catch((err) => {
     console.warn('⚠️ SMTP transport verification failed:', err.message);
   });
-} else {
+} else if (!RESEND_API_KEY) {
   console.warn('⚠️ SMTP is not configured. Email delivery is disabled.');
 }
 
-async function sendEmail({ to, subject, html, text, bcc }) {
-  if (!transporter || !to) {
+async function sendEmail({ to, subject, html, text, bcc, throwOnError = false }) {
+  if (!to) {
+    console.warn('⚠️ Email not sent because no recipient was provided.');
+    if (throwOnError) throw new Error('No email recipient was provided.');
+    return false;
+  }
+
+  if (RESEND_API_KEY) {
+    try {
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${RESEND_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          from: `${SMTP_FROM_NAME} <${SMTP_FROM}>`,
+          to: String(to).split(',').map((address) => address.trim()),
+          ...(bcc ? { bcc: String(bcc).split(',').map((address) => address.trim()) } : {}),
+          subject,
+          html: wrapEmailHtml({ subject, html, text }),
+          text
+        })
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const reason = `Resend rejected the email (${response.status}): ${result.message || result.name || 'Provider rejected request'}`;
+        console.error('❌', reason);
+        if (throwOnError) throw new Error(reason);
+        return false;
+      }
+      console.log(`✅ Email sent to ${to} (${result.id || 'Resend'})`);
+      return true;
+    } catch (err) {
+      console.error('❌ Resend email request failed:', err.message);
+      if (throwOnError) throw err;
+      return false;
+    }
+  }
+
+  if (!transporter) {
     console.warn(`⚠️ Email not sent to ${to || 'unknown'} because SMTP is not configured.`);
+    if (throwOnError) throw new Error('SMTP is not configured.');
     return false;
   }
 
@@ -128,6 +169,7 @@ async function sendEmail({ to, subject, html, text, bcc }) {
     if (err.response) {
       console.error('SMTP response:', err.response);
     }
+    if (throwOnError) throw new Error(`SMTP delivery failed: ${err.message}`);
     return false;
   }
 }

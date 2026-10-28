@@ -433,7 +433,7 @@ router.post('/admin/send-email', requireAuth, requireAdmin, async (req, res) => 
       sendOptions.bcc = Array.from(new Set(bccList)).join(', ');
     }
 
-    const sent = await sendEmail(sendOptions);
+    const sent = await sendEmail({ ...sendOptions, throwOnError: true });
     if (!sent) {
       return res.status(500).json({ success: false, message: 'Email could not be sent. Check SMTP configuration.' });
     }
@@ -441,7 +441,7 @@ router.post('/admin/send-email', requireAuth, requireAdmin, async (req, res) => 
     res.json({ success: true, message: 'Email sent successfully.' });
   } catch (error) {
     console.error('Error sending admin email:', error);
-    res.status(500).json({ success: false, message: 'Error sending email' });
+    res.status(500).json({ success: false, message: error.message || 'Email or SMS delivery failed.' });
   }
 });
 

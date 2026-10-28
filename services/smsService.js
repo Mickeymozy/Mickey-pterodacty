@@ -26,7 +26,10 @@ async function getClient() {
     apiKey: process.env.TAPSA_API_KEY,
     baseUrl: process.env.TAPSA_BASE_URL || undefined,
     timeout: Number(process.env.TAPSA_TIMEOUT_MS || 30000)
-  }));
+  })).catch((error) => {
+    sdkPromise = null;
+    throw new Error(`SMS client initialization failed: ${error.message}`);
+  });
   return sdkPromise;
 }
 

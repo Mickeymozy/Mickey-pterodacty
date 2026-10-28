@@ -177,6 +177,10 @@ SMTP_USER=your-email@gmail.com
 SMTP_PASS=your-app-password
 SUPPORT_EMAIL=support@example.com
 EMAIL_BRAND_COLOR=#0f766e
+# Optional HTTPS email delivery (recommended for Vercel/serverless)
+RESEND_API_KEY=re_your_api_key
+SMTP_FROM=verified-sender@example.com
+SMTP_FROM_NAME=Your App Name
 
 # ZenoPay
 ZENOPAY_API_KEY=your-api-key
