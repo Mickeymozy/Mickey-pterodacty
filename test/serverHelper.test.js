@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const { buildPteroLimitsFromPackage, isValidGitUrl, buildStartupCommand } = require('../utils/serverHelper');
 const { normalizePanelBaseUrl } = require('../utils/panelUrl');
 const { fetchPterodactylEggs } = require('../utils/pterodactylEggs');
+const { fetchPaginatedApplicationData } = require('../utils/pterodactylPagination');
 const { validatePasswordComplexity } = require('../utils/passwordValidator');
 const { normalizePhone } = require('../services/smsService');
 
@@ -111,4 +112,24 @@ test('loads all eggs and variable defaults through the Admin API', async () => {
   assert.equal(eggs[0].environment.NODE_ENV, 'production');
   assert.equal(requests.length, 2);
   assert.ok(requests.every(({ path, params }) => path === '/eggs' && params.include === 'variables'));
+});
+
+test('loads servers across all Application API pages', async () => {
+  const requests = [];
+  const api = {
+    async get(path, { params }) {
+      requests.push({ path, params });
+      return {
+        data: {
+          data: [{ attributes: { id: params.page } }],
+          meta: { pagination: { total_pages: 2 } }
+        }
+      };
+    }
+  };
+
+  const servers = await fetchPaginatedApplicationData(api, '/servers');
+  assert.deepEqual(servers.map((server) => server.attributes.id), [1, 2]);
+  assert.deepEqual(requests.map(({ params }) => params.page), [1, 2]);
+  assert.ok(requests.every(({ path, params }) => path === '/servers' && params.per_page === 100));
 });

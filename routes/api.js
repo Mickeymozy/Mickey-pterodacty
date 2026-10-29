@@ -11,6 +11,7 @@ const { createServerFromPackage, isValidGitUrl, buildStartupCommand } = require(
 const { writeAuditLog } = require('../utils/auditLog');
 const { normalizePanelBaseUrl } = require('../utils/panelUrl');
 const { fetchPterodactylEggs } = require('../utils/pterodactylEggs');
+const { fetchPaginatedApplicationData } = require('../utils/pterodactylPagination');
 
 const PTERODACTYL_URL = normalizePanelBaseUrl(process.env.PANEL_URL || process.env.PTERODACTYL_URL);
 const PTERODACTYL_APP_API_KEY = process.env.PANEL_API_KEY || process.env.PTERODACTYL_APP_API_KEY;
@@ -123,7 +124,7 @@ async function getServerConnectionDetails(ref) {
         ipAddress: attrs.ip || attrs.address || attrs.ipv4 || attrs.ip_address || '',
         port: attrs.port ? String(attrs.port) : '',
         sftpHost: resolvedHost || process.env.PTERODACTYL_URL || '',
-        sftpUser: String(serverId)
+        sftpUser: String(id)
       };
     }
   } catch (err) {
@@ -405,7 +406,7 @@ router.get(['/admin/servers', '/api/admin/servers'], requireAuth, requireAdmin, 
   }
 
   try {
-    const servers = await fetchPaginatedApplicationData('/servers');
+    const servers = await fetchPaginatedApplicationData(appApi, '/servers');
     const localUsers = await User.find({ pteroId: { $exists: true, $ne: null } }).select('pteroId username email');
     const userMap = new Map(localUsers.map((user) => [Number(user.pteroId), user]));
 
@@ -572,7 +573,7 @@ router.get('/api/servers', requireAuth, async (req, res) => {
       });
     }
 
-    const serverEntries = await fetchPaginatedApplicationData('/servers');
+    const serverEntries = await fetchPaginatedApplicationData(appApi, '/servers');
     const ownedServers = serverEntries.filter((server) => Number(server?.attributes?.user) === Number(resolvedPteroId));
 
     const servers = await Promise.all(
