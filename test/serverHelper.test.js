@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { buildPteroLimitsFromPackage, isValidGitUrl, buildStartupCommand } = require('../utils/serverHelper');
 const { normalizePanelBaseUrl } = require('../utils/panelUrl');
+const { fetchPterodactylEggs } = require('../utils/pterodactylEggs');
 const { validatePasswordComplexity } = require('../utils/passwordValidator');
 const { normalizePhone } = require('../services/smsService');
 
@@ -73,5 +74,41 @@ test('normalizes panel URLs with optional API path suffixes', () => {
   assert.equal(normalizePanelBaseUrl('https://panel.example.com/api'), 'https://panel.example.com');
   assert.equal(normalizePanelBaseUrl('https://panel.example.com/api/application/'), 'https://panel.example.com');
   assert.equal(normalizePanelBaseUrl('https://panel.example.com/api/client'), 'https://panel.example.com');
+  assert.equal(normalizePanelBaseUrl('https://panel.example.com/api/admin'), 'https://panel.example.com');
   assert.equal(normalizePanelBaseUrl('https://panel.example.com/panel/api/application'), 'https://panel.example.com/panel');
+});
+
+test('loads all eggs and variable defaults through the Admin API', async () => {
+  const requests = [];
+  const adminApi = {
+    async get(path, { params }) {
+      requests.push({ path, params });
+      if (params.page === 1) {
+        return {
+          data: {
+            data: [{
+              id: 42,
+              attributes: { name: 'Custom Node', docker_image: 'node:22', startup: 'node server.js' },
+              relationships: { variables: { data: [{ type: 'egg_variable', id: '77' }] } }
+            }],
+            included: [{
+              type: 'egg_variable',
+              id: '77',
+              attributes: { env_variable: 'NODE_ENV', default_value: 'production' }
+            }],
+            meta: { pagination: { total_pages: 2 } }
+          }
+        };
+      }
+      return { data: { data: [], meta: { pagination: { total_pages: 2 } } } };
+    }
+  };
+
+  const eggs = await fetchPterodactylEggs(adminApi);
+  assert.equal(eggs.length, 1);
+  assert.equal(eggs[0].id, 42);
+  assert.equal(eggs[0].name, 'Custom Node');
+  assert.equal(eggs[0].environment.NODE_ENV, 'production');
+  assert.equal(requests.length, 2);
+  assert.ok(requests.every(({ path, params }) => path === '/eggs' && params.include === 'variables'));
 });

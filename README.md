@@ -203,6 +203,7 @@ PANEL_PROVIDER=pterodactyl
 PANEL_URL=https://panel.example.com
 PANEL_API_KEY=ptla_application_key
 PANEL_CLIENT_API_KEY=ptlc_client_key
+PANEL_ADMIN_API_KEY=ptlc_root_admin_client_key
 
 # Billing automation
 BILLING_AUTOMATION_ENABLED=true
@@ -214,6 +215,8 @@ TAPSA_SENDER_ID=TAPSA
 # Optional: defaults to https://api.smstapsa.site
 TAPSA_BASE_URL=https://api.smstapsa.site
 ```
+
+`PANEL_ADMIN_API_KEY` must be a Client API key owned by a root administrator; it is required to list eggs through the Pterodactyl v2 Admin API. The Application API key remains in `PANEL_API_KEY` for user and server operations.
 
 After payment is confirmed by the provider API, webhook, or admin approval, the customer receives an SMS confirmation on the phone number used for that payment. Pending and failed payments do not trigger this SMS. Admins can also choose Email or SMS in the admin message composer; SMS requires `TAPSA_API_KEY` and a valid saved phone number.
 

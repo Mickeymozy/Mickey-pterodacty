@@ -108,8 +108,9 @@
     .app-shell { max-width: 1540px; gap: 1.5rem; padding-top: 1.25rem; }
     .glass, .hero-panel { border-color: rgba(157,255,202,.13); background: linear-gradient(145deg, rgba(18,35,31,.96), rgba(8,20,18,.92)); box-shadow: 0 16px 42px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.035); }
     .hero-panel { background: linear-gradient(110deg, rgba(18,35,31,.98), rgba(8,20,18,.94) 72%, rgba(200,255,77,.08)); }
-    .side-nav { display: flex; flex-direction: column; border-radius: 14px; }
+    .side-nav { display: flex; flex-direction: column; overflow-y: auto; border-radius: 14px; }
     .side-nav-link { min-height: 2.8rem; border-radius: 8px; }
+    .side-nav-label { padding: .5rem .85rem .25rem; color: #789187; font-size: .64rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
     .side-nav-link > span:first-child { display: grid; width: 1.25rem; place-items: center; color: currentColor; }
     .side-nav-link:not(.active):hover { background: rgba(200,255,77,.07); color: #e7f5ef; }
     .quick-action-card, .mini-metric { border-radius: 8px; }
@@ -239,11 +240,15 @@
     <aside id="sideNav" class="side-nav glass rounded-3xl p-4" aria-label="Dashboard navigation">
       <div class="mb-6 flex items-center justify-between"><div><p class="text-[10px] font-bold uppercase tracking-[0.2em] text-lime-200">MickeyPanel</p><p class="mt-1 text-sm font-semibold text-white">Workspace</p></div><button id="closeSideNav" type="button" class="rounded-lg border border-slate-700 px-2 py-1 text-slate-300 lg:hidden" aria-label="Funga menu">×</button></div>
       <nav class="space-y-2">
-        <button class="side-nav-link active" data-side-tab="my-servers"><span>◈</span><span>Server zangu</span></button>
-        <button class="side-nav-link" data-side-tab="deploy-panel"><span>↗</span><span>Unda server</span></button>
-        <button class="side-nav-link" data-side-tab="buy-coins"><span>◉</span><span>Nunua coins</span></button>
+        <p class="side-nav-label">Workspace</p>
+        <button class="side-nav-link active" data-side-tab="dash-overview"><span>▦</span><span>Overview</span></button>
+        <p class="side-nav-label mt-5">Panel</p>
+        <button class="side-nav-link" data-side-tab="my-servers"><span>◈</span><span>Servers</span></button>
+        <button class="side-nav-link" data-side-tab="deploy-panel"><span>↗</span><span>Deploy</span></button>
+        <p class="side-nav-label mt-5">Account</p>
+        <button class="side-nav-link" data-side-tab="buy-coins"><span>◉</span><span>Coins & payments</span></button>
         <button class="side-nav-link" data-side-tab="bot-scripts"><span>⌘</span><span>Bot scripts</span></button>
-        <button class="side-nav-link" data-side-tab="transactions"><span>≡</span><span>Transactions</span></button>
+        <button class="side-nav-link" data-side-tab="transactions"><span>≡</span><span>History</span></button>
         <button class="side-nav-link" data-side-tab="support"><span>?</span><span>Support</span></button>
       </nav>
       <div class="mt-auto border-t border-slate-700/50 pt-5"><p class="text-[10px] uppercase tracking-[0.18em] text-slate-500">System</p><a href="/logout" class="mt-3 flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-red-300 transition hover:bg-red-500/10">↪ Ondoka</a></div>
@@ -285,7 +290,8 @@
       </div>
     </header>
 
-    <section class="mb-6 grid gap-3 sm:grid-cols-3" aria-label="Muhtasari wa akaunti">
+    <div id="dash-overview" class="tab-content active space-y-6">
+    <section class="grid gap-3 sm:grid-cols-3" aria-label="Muhtasari wa akaunti">
       <div class="glass rounded-xl p-4">
         <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Servers Zangu</p>
         <p id="serverCount" class="mt-2 text-2xl font-bold text-white">0</p>
@@ -303,7 +309,7 @@
       </div>
     </section>
 
-    <section class="mb-6 grid gap-4 xl:grid-cols-[1.4fr_0.6fr]">
+    <section class="grid gap-4 xl:grid-cols-[1.4fr_0.6fr]">
       <div class="hero-panel rounded-3xl p-5 sm:p-6">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -320,31 +326,31 @@
 
       <div class="glass rounded-3xl p-5">
         <div class="flex items-center justify-between">
-          <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Quick access</p>
+          <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Account shortcuts</p>
           <span class="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">Ready</span>
         </div>
 
         <div class="mt-4 space-y-3">
-          <button type="button" data-open-tab="deploy-panel" class="quick-action-card">
+          <button type="button" data-open-tab="bot-scripts" class="quick-action-card">
             <div>
-              <p class="text-sm font-semibold text-white">Unda server mpya</p>
-              <p class="text-[11px] text-slate-400">Start with package and engine</p>
+              <p class="text-sm font-semibold text-white">Bot scripts</p>
+              <p class="text-[11px] text-slate-400">Browse the marketplace</p>
             </div>
-            <span class="text-lg text-cyan-300">→</span>
+            <span class="text-lg text-lime-200">→</span>
           </button>
 
-          <button type="button" data-open-tab="my-servers" class="quick-action-card">
+          <button type="button" data-open-tab="transactions" class="quick-action-card">
             <div>
-              <p class="text-sm font-semibold text-white">Server zangu</p>
-              <p class="text-[11px] text-slate-400">Manage, restart, and monitor</p>
+              <p class="text-sm font-semibold text-white">Transaction history</p>
+              <p class="text-[11px] text-slate-400">Review payments and top-ups</p>
             </div>
-            <span class="text-lg text-indigo-300">→</span>
+            <span class="text-lg text-emerald-300">→</span>
           </button>
 
-          <button type="button" data-open-tab="buy-coins" class="quick-action-card">
+          <button type="button" data-open-tab="support" class="quick-action-card">
             <div>
-              <p class="text-sm font-semibold text-white">Nunua coins</p>
-              <p class="text-[11px] text-slate-400">Top up using mobile payment</p>
+              <p class="text-sm font-semibold text-white">Support</p>
+              <p class="text-[11px] text-slate-400">Contact the admin team</p>
             </div>
             <span class="text-lg text-amber-300">→</span>
           </button>
@@ -352,9 +358,11 @@
       </div>
     </section>
 
+    </div>
+
     <div class="grid gap-6">
 
-      <div id="my-servers" class="tab-content active space-y-4">
+      <div id="my-servers" class="tab-content space-y-4">
         <div class="glass rounded-2xl p-6">
           <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-4">
             <div>
@@ -873,6 +881,7 @@
       document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
       document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
       document.getElementById(tabName).classList.add('active');
+      document.querySelectorAll('[data-side-tab]').forEach((button) => button.classList.toggle('active', button.dataset.sideTab === tabName));
       if(event) event.currentTarget.classList.add('active');
       
       if (tabName === 'deploy-panel') fetchConfigs();
@@ -1900,7 +1909,6 @@
     sideNavBackdrop?.addEventListener('click', () => setSideNavOpen(false));
     document.querySelectorAll('[data-side-tab]').forEach((button) => {
       button.addEventListener('click', () => {
-        document.querySelectorAll('[data-side-tab]').forEach((item) => item.classList.toggle('active', item === button));
         switchDashTab(null, button.dataset.sideTab);
         setSideNavOpen(false);
       });

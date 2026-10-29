@@ -79,8 +79,9 @@
     body { color: #e7f5ef; background-color: #081412; background-image: linear-gradient(rgba(200,255,77,.026) 1px, transparent 1px), linear-gradient(90deg, rgba(200,255,77,.026) 1px, transparent 1px); background-size: 40px 40px; }
     .admin-shell { max-width: 1540px; gap: 1.5rem; }
     .glass { border-color: rgba(157,255,202,.13); background: linear-gradient(145deg, rgba(18,35,31,.96), rgba(8,20,18,.92)); box-shadow: 0 16px 42px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.035); }
-    .admin-side-nav { display: flex; flex-direction: column; border-radius: 14px; }
+    .admin-side-nav { display: flex; flex-direction: column; overflow-y: auto; border-radius: 14px; }
     .admin-side-link { min-height: 2.8rem; border-radius: 8px; }
+    .admin-side-label { padding: .5rem .8rem .25rem; color: #789187; font-size: .64rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
     .admin-side-link > span:first-child { display: grid; width: 1.25rem; place-items: center; color: currentColor; }
     .admin-side-link:not(.active):hover { background: rgba(200,255,77,.07); color: #e7f5ef; }
     header.glass { border-radius: 12px; }
@@ -134,13 +135,18 @@
     <aside id="adminSideNav" class="admin-side-nav glass rounded-3xl p-4" aria-label="Admin navigation">
       <div class="mb-6 flex items-center justify-between"><div><p class="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300">MickeyPanel</p><p class="mt-1 text-sm font-semibold text-white">Admin workspace</p></div><button id="closeAdminSideNav" type="button" class="rounded-lg border border-slate-700 px-2 py-1 text-slate-300 lg:hidden" aria-label="Funga menu">×</button></div>
       <nav class="space-y-2">
+        <p class="admin-side-label">Workspace</p>
         <button class="admin-side-link active" data-admin-tab="overview"><span>◈</span><span>Overview</span></button>
-        <button class="admin-side-link" data-admin-tab="packages"><span>▦</span><span>Packages</span></button>
-        <button class="admin-side-link" data-admin-tab="botScripts"><span>⌘</span><span>Bot scripts</span></button>
-        <button class="admin-side-link" data-admin-tab="payments"><span>◉</span><span>Malipo</span></button>
-        <button class="admin-side-link" data-admin-tab="paymentApi"><span>⌁</span><span>Payment API</span></button>
+        <p class="admin-side-label mt-5">Panel operations</p>
         <button class="admin-side-link" data-admin-tab="adminServers"><span>◇</span><span>Servers</span></button>
         <button class="admin-side-link" data-admin-tab="users"><span>◎</span><span>Watumiaji</span></button>
+        <p class="admin-side-label mt-5">Catalog</p>
+        <button class="admin-side-link" data-admin-tab="packages"><span>▦</span><span>Packages</span></button>
+        <button class="admin-side-link" data-admin-tab="botScripts"><span>⌘</span><span>Bot scripts</span></button>
+        <p class="admin-side-label mt-5">Billing</p>
+        <button class="admin-side-link" data-admin-tab="payments"><span>◉</span><span>Malipo</span></button>
+        <button class="admin-side-link" data-admin-tab="paymentApi"><span>⌁</span><span>Payment API</span></button>
+        <p class="admin-side-label mt-5">System</p>
         <button class="admin-side-link" data-admin-tab="activity"><span>≡</span><span>Activity</span></button>
         <button class="admin-side-link" data-admin-tab="supportAdminTab"><span>?</span><span>Support</span></button>
       </nav>
@@ -163,6 +169,7 @@
       </div>
     </header>
 
+    <div id="overview" class="tab-content active space-y-6">
     <!-- Stats -->
     <section class="admin-section grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 mb-4">
       <div class="glass glass-hover rounded-2xl p-5">
@@ -204,8 +211,7 @@
       </div>
     </section>
 
-    <!-- Overview Tab -->
-    <div id="overview" class="tab-content active admin-section">
+    <section class="admin-section">
       <div class="grid gap-6 lg:grid-cols-2">
         <div class="glass rounded-2xl p-6">
           <h2 class="text-xl font-semibold text-white mb-4">📋 Taarifa za Mfumo</h2>
@@ -237,6 +243,7 @@
           </div>
         </div>
       </div>
+    </section>
     </div>
 
     <!-- Packages Tab -->

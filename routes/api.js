@@ -10,12 +10,15 @@ const { requireAuth, requireAdmin, isAdminUser } = require('../middleware/auth')
 const { createServerFromPackage, isValidGitUrl, buildStartupCommand } = require('../utils/serverHelper');
 const { writeAuditLog } = require('../utils/auditLog');
 const { normalizePanelBaseUrl } = require('../utils/panelUrl');
+const { fetchPterodactylEggs } = require('../utils/pterodactylEggs');
 
 const PTERODACTYL_URL = normalizePanelBaseUrl(process.env.PANEL_URL || process.env.PTERODACTYL_URL);
 const PTERODACTYL_APP_API_KEY = process.env.PANEL_API_KEY || process.env.PTERODACTYL_APP_API_KEY;
 const PTERODACTYL_CLIENT_API_KEY = process.env.PANEL_CLIENT_API_KEY || process.env.PTERODACTYL_CLIENT_API_KEY || process.env.PTERODACTYL_CLIENT_KEY || process.env.PTERODACTYL_API_KEY || PTERODACTYL_APP_API_KEY;
+const PTERODACTYL_ADMIN_API_KEY = process.env.PANEL_ADMIN_API_KEY || process.env.PTERODACTYL_ADMIN_API_KEY || (PTERODACTYL_CLIENT_API_KEY?.startsWith('ptlc_') ? PTERODACTYL_CLIENT_API_KEY : '');
 const hasPteroConfig = PTERODACTYL_URL && PTERODACTYL_APP_API_KEY;
 const hasClientConfig = PTERODACTYL_URL && PTERODACTYL_CLIENT_API_KEY;
+const hasAdminApiConfig = PTERODACTYL_URL && PTERODACTYL_ADMIN_API_KEY;
 
 // Power control and live resource/status reads only work through the Pterodactyl
 // Client API, which requires a client key (prefixed "ptlc_"). An application key
@@ -41,6 +44,18 @@ const clientApi = hasClientConfig
       baseURL: `${PTERODACTYL_URL}/api/client`,
       headers: {
         Authorization: `Bearer ${PTERODACTYL_CLIENT_API_KEY}`,
+        'Content-Type': 'application/json',
+        Accept: 'application/json'
+      },
+      timeout: 10000
+    })
+  : null;
+
+const adminApi = hasAdminApiConfig
+  ? axios.create({
+      baseURL: `${PTERODACTYL_URL}/api/admin`,
+      headers: {
+        Authorization: `Bearer ${PTERODACTYL_ADMIN_API_KEY}`,
         'Content-Type': 'application/json',
         Accept: 'application/json'
       },
@@ -223,97 +238,8 @@ async function getFirstAvailableAllocation() {
   return null;
 }
 
-async function fetchPaginatedApplicationData(path) {
-  const entries = [];
-  const perPage = 100;
-
-  for (let page = 1; page <= 100; page += 1) {
-    const response = await appApi.get(path, { params: { per_page: perPage, page } });
-    const pageEntries = response.data?.data;
-    if (!Array.isArray(pageEntries)) throw new Error(`Pterodactyl returned an invalid response for ${path}.`);
-    entries.push(...pageEntries);
-
-    const pagination = response.data?.meta?.pagination;
-    const totalPages = Number(pagination?.total_pages);
-    if (Number.isFinite(totalPages) && totalPages > 0) {
-      if (page >= totalPages) break;
-    } else if (pageEntries.length < perPage) {
-      break;
-    }
-  }
-
-  return entries;
-}
-
 async function fetchPanelEggOptions() {
-  if (!appApi) return [];
-
-  try {
-    const nests = await fetchPaginatedApplicationData('/nests');
-    const eggs = [];
-
-    for (const nest of nests) {
-      const nestId = nest?.attributes?.id;
-      if (!nestId) continue;
-
-      const eggEntries = await fetchPaginatedApplicationData(`/nests/${nestId}/eggs`);
-      for (const entry of eggEntries) {
-        const attrs = entry?.attributes || {};
-        eggs.push({
-          id: Number(attrs.id),
-          name: attrs.name || `Egg ${attrs.id}`,
-          nestName: nest?.attributes?.name || `Nest ${nestId}`,
-          docker_image: attrs.docker_image || '',
-          startup: attrs.startup || '',
-          startup_command: attrs.environment?.STARTUP_CMD || '',
-          environment: attrs.environment || {},
-          nestId
-        });
-      }
-    }
-
-    return eggs.filter((egg) => Number.isFinite(egg.id));
-  } catch (err) {
-    const providerErrors = err.response?.data?.errors?.map((item) => item.detail).filter(Boolean).join('; ');
-    const detail = providerErrors || err.response?.data?.message || err.message;
-    console.error('Failed to fetch panel eggs:', detail);
-    throw new Error(`Pterodactyl eggs request failed${err.response?.status ? ` (${err.response.status})` : ''}: ${detail}`);
-  }
-}
-
-async function fetchEggDetails(eggConfig) {
-  if (!appApi || !eggConfig?.id || !eggConfig?.nestId) return eggConfig;
-
-  try {
-    const response = await appApi.get(`/nests/${eggConfig.nestId}/eggs/${eggConfig.id}?include=variables`);
-    const attrs = response.data?.attributes || {};
-    const included = response.data?.included || [];
-
-    const variableDefaults = {};
-    for (const item of included) {
-      if (item?.type !== 'egg_variable') continue;
-      const variable = item?.attributes || {};
-      const envKey = variable.env_variable;
-      if (envKey && variable.default_value !== undefined && variable.default_value !== null) {
-        variableDefaults[envKey] = String(variable.default_value);
-      }
-    }
-
-    return {
-      ...eggConfig,
-      docker_image: attrs.docker_image || eggConfig.docker_image,
-      startup: attrs.startup || eggConfig.startup,
-      startup_command: attrs.environment?.STARTUP_CMD || eggConfig.startup_command || '',
-      environment: {
-        ...(eggConfig.environment || {}),
-        ...(attrs.environment || {}),
-        ...variableDefaults
-      }
-    };
-  } catch (err) {
-    console.warn('Unable to fetch egg details, using fallback defaults:', err.message);
-    return eggConfig;
-  }
+  return fetchPterodactylEggs(adminApi);
 }
 
 async function resolveEggConfig(rawEgg) {
@@ -709,20 +635,19 @@ router.get('/api/admin/analytics', requireAuth, requireAdmin, async (req, res) =
 
 // Get eggs available in the panel
 router.get('/api/eggs', requireAuth, async (req, res) => {
-  if (!appApi) {
-    return res.status(503).json({ success: false, error: 'Pterodactyl API is not configured.' });
+  if (!adminApi) {
+    return res.status(503).json({ success: false, error: 'Egg sync requires PANEL_ADMIN_API_KEY with a root administrator Client API key (ptlc_). The Application API key cannot access eggs in Pterodactyl v2.' });
   }
 
   try {
     const eggs = await fetchPanelEggOptions();
     if (!eggs.length) {
-      return res.status(404).json({ success: false, error: 'Pterodactyl haijarudisha eggs. Hakiki kuwa PANEL_API_KEY inaruhusiwa kusoma Nests na Eggs.' });
+      return res.status(404).json({ success: false, error: 'Hakuna eggs zilizopatikana kupitia Pterodactyl Admin API.' });
     }
-    const syncedEggs = await Promise.all(eggs.map((egg) => fetchEggDetails(egg)));
     res.json({
       success: true,
       source: 'panel',
-      eggs: syncedEggs.map((egg) => ({
+      eggs: eggs.map((egg) => ({
         id: egg.id,
         name: egg.name,
         nestName: egg.nestName || '',
@@ -734,13 +659,18 @@ router.get('/api/eggs', requireAuth, async (req, res) => {
       }))
     });
   } catch (err) {
+    const providerErrors = err.response?.data?.errors?.map((item) => item.detail).filter(Boolean).join('; ');
+    const error = providerErrors || err.response?.data?.message || err.message || 'Failed to fetch eggs.';
     res.status(err.response?.status && err.response.status >= 400 && err.response.status < 500 ? err.response.status : 502)
-      .json({ success: false, error: err.message || 'Failed to fetch eggs.' });
+      .json({ success: false, error });
   }
 });
 
 // Create server
 router.post('/api/servers/create', requireAuth, async (req, res) => {
+  if (!adminApi) {
+    return res.status(503).json({ success: false, error: 'Server deployment requires PANEL_ADMIN_API_KEY with a root administrator Client API key (ptlc_) to read eggs from Pterodactyl v2.' });
+  }
   if (!appApi) {
     return res.status(503).json({ success: false, error: 'Pterodactyl API is not configured.' });
   }
@@ -760,7 +690,7 @@ router.post('/api/servers/create', requireAuth, async (req, res) => {
       return res.status(400).json({ success: false, error: 'Invalid GitHub/Git repository URL. Use a public HTTPS .git URL.' });
     }
 
-    const resolvedEggConfig = await fetchEggDetails(eggConfig);
+    const resolvedEggConfig = eggConfig;
     const syncedDockerImage = resolvedEggConfig.docker_image || dockerImage;
     const syncedStartupCommand = resolvedEggConfig.startup || startupCommand;
     const safeEnvironment = buildServerEnvironment(resolvedEggConfig, {

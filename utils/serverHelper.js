@@ -6,15 +6,30 @@ const axios = require('axios');
 const ServerPackage = require('../models/ServerPackage');
 const sendEmail = require('./email');
 const { normalizePanelBaseUrl } = require('./panelUrl');
+const { fetchPterodactylEggs } = require('./pterodactylEggs');
 
 const PTERODACTYL_URL = normalizePanelBaseUrl(process.env.PANEL_URL || process.env.PTERODACTYL_URL);
 const PTERODACTYL_APP_API_KEY = process.env.PANEL_API_KEY || process.env.PTERODACTYL_APP_API_KEY;
+const PTERODACTYL_CLIENT_API_KEY = process.env.PANEL_CLIENT_API_KEY || process.env.PTERODACTYL_CLIENT_API_KEY || process.env.PTERODACTYL_CLIENT_KEY || process.env.PTERODACTYL_API_KEY || '';
+const PTERODACTYL_ADMIN_API_KEY = process.env.PANEL_ADMIN_API_KEY || process.env.PTERODACTYL_ADMIN_API_KEY || (PTERODACTYL_CLIENT_API_KEY.startsWith('ptlc_') ? PTERODACTYL_CLIENT_API_KEY : '');
 
 const appApi = PTERODACTYL_URL && PTERODACTYL_APP_API_KEY
   ? axios.create({
       baseURL: `${PTERODACTYL_URL}/api/application`,
       headers: {
         Authorization: `Bearer ${PTERODACTYL_APP_API_KEY}`,
+        'Content-Type': 'application/json',
+        Accept: 'application/json'
+      },
+      timeout: 10000
+    })
+  : null;
+
+const adminApi = PTERODACTYL_URL && PTERODACTYL_ADMIN_API_KEY
+  ? axios.create({
+      baseURL: `${PTERODACTYL_URL}/api/admin`,
+      headers: {
+        Authorization: `Bearer ${PTERODACTYL_ADMIN_API_KEY}`,
         'Content-Type': 'application/json',
         Accept: 'application/json'
       },
@@ -179,56 +194,8 @@ async function getFirstAvailableAllocation() {
   return null;
 }
 
-async function fetchPaginatedApplicationData(path) {
-  const entries = [];
-
-  for (let page = 1; page <= 100; page += 1) {
-    const response = await appApi.get(path, { params: { per_page: 100, page } });
-    const pageEntries = response.data?.data;
-    if (!Array.isArray(pageEntries)) {
-      throw new Error(`Pterodactyl returned an invalid response for ${path}.`);
-    }
-    entries.push(...pageEntries);
-
-    const totalPages = Number(response.data?.meta?.pagination?.total_pages);
-    if (Number.isFinite(totalPages) && totalPages > 0) {
-      if (page >= totalPages) break;
-    } else if (pageEntries.length < 100) {
-      break;
-    }
-  }
-
-  return entries;
-}
-
 async function fetchPanelEggOptions() {
-  if (!appApi) return [];
-
-  const nests = await fetchPaginatedApplicationData('/nests');
-  const eggs = [];
-
-  for (const nest of nests) {
-    const nestId = nest?.attributes?.id;
-    if (!nestId) continue;
-
-    const eggEntries = await fetchPaginatedApplicationData(`/nests/${nestId}/eggs`);
-
-    for (const entry of eggEntries) {
-      const attrs = entry?.attributes || {};
-      eggs.push({
-        id: Number(attrs.id),
-        name: attrs.name || `Egg ${attrs.id}`,
-        nestName: nest?.attributes?.name || `Nest ${nestId}`,
-        docker_image: attrs.docker_image || '',
-        startup: attrs.startup || '',
-        startup_command: attrs.environment?.STARTUP_CMD || '',
-        environment: attrs.environment || {},
-        nestId
-      });
-    }
-  }
-
-  return eggs.filter((egg) => Number.isFinite(egg.id));
+  return fetchPterodactylEggs(adminApi);
 }
 
 async function resolvePteroUser(user) {

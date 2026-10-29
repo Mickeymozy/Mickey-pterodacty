@@ -2,7 +2,7 @@ function normalizePanelBaseUrl(value) {
   return String(value || '')
     .trim()
     .replace(/\/+$/, '')
-    .replace(/\/api(?:\/(?:application|client))?$/i, '')
+    .replace(/\/api(?:\/(?:application|client|admin))?$/i, '')
     .replace(/\/+$/, '');
 }
 
