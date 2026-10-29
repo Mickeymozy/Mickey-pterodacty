@@ -398,34 +398,31 @@ async function createServerFromPackage(user, packageId, serverName, options = {}
   const aliasMap = { nodejs: '16', node: '16', python: '27', java: '28' };
   const normalizedLookup = aliasMap[eggLookup] || eggLookup;
 
-  let resolvedEggConfig = eggConfigs[Number(normalizedLookup)] || eggConfigs[normalizedLookup];
+  let resolvedEggConfig = null;
 
-  if (!resolvedEggConfig) {
-    try {
-      const eggsList = await fetchPanelEggOptions();
-      resolvedEggConfig = eggsList.find((egg) => {
-        const eggId = Number(egg.id);
-        return eggId === Number(normalizedLookup) ||
-          String(egg.name).toLowerCase() === eggLookup ||
-          String(egg.key).toLowerCase() === eggLookup ||
-          String(egg.id) === normalizedLookup;
-      }) || null;
+  try {
+    const eggsList = await fetchPanelEggOptions();
+    resolvedEggConfig = eggsList.find((egg) => {
+      const eggId = Number(egg.id);
+      return eggId === Number(normalizedLookup) ||
+        String(egg.name).toLowerCase() === eggLookup ||
+        String(egg.key).toLowerCase() === eggLookup ||
+        String(egg.id) === normalizedLookup;
+    }) || null;
 
-      if (!resolvedEggConfig) {
-        resolvedEggConfig = eggsList.find((egg) => Number(egg.id) === Number(pkg.serverConfig?.eggId)) || null;
-      }
-
-      if (!resolvedEggConfig && eggsList.length === 1) {
-        resolvedEggConfig = eggsList[0];
-      }
-
-      if (!resolvedEggConfig) {
-        throw new Error('Egg configuration not found.');
-      }
-    } catch (err) {
-      throw new Error('Failed to fetch egg configuration.');
+    if (!resolvedEggConfig) {
+      resolvedEggConfig = eggsList.find((egg) => Number(egg.id) === Number(pkg.serverConfig?.eggId)) || null;
     }
+
+    if (!resolvedEggConfig && eggsList.length === 1) {
+      resolvedEggConfig = eggsList[0];
+    }
+  } catch (err) {
+    throw new Error('Failed to fetch egg configuration.');
   }
+
+  resolvedEggConfig = resolvedEggConfig || eggConfigs[Number(normalizedLookup)] || eggConfigs[normalizedLookup];
+  if (!resolvedEggConfig) throw new Error('Egg configuration not found.');
 
   const name = serverName || pkg.name + '-' + Date.now();
   const limits = buildPteroLimitsFromPackage(pkg.specifications || {});

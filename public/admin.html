@@ -220,64 +220,110 @@
 
     <!-- Packages Tab -->
     <div id="packages" class="tab-content admin-section">
-      <div class="grid gap-6 lg:grid-cols-2">
-        <!-- Create Form -->
-        <div class="glass rounded-2xl p-6">
-          <h2 class="text-xl font-semibold text-white mb-4">📝 Unda/Hariri Package</h2>
-          <form id="packageForm" class="space-y-4">
-            <input type="hidden" id="packageId" value="">
-            <div>
-              <label class="block text-sm font-medium text-slate-300 mb-1">Jina la Package *</label>
-              <input type="text" id="pkgName" class="w-full rounded-xl bg-slate-950/50 border border-slate-700/50 px-3 py-2 text-white outline-none focus:border-indigo-500" required>
-            </div>
-            <div class="grid grid-cols-2 gap-3">
-              <div>
-                <label class="block text-xs font-medium text-slate-300 mb-1">Gharama (Coins) *</label>
-                <input type="number" id="pkgCoins" class="w-full rounded-lg bg-slate-950/50 border border-slate-700/50 px-3 py-2 text-white outline-none" required>
-              </div>
-              <div>
-                <label class="block text-xs font-medium text-slate-300 mb-1">Gharama (Tsh) *</label>
-                <input type="number" id="pkgUsd" placeholder="Mfano: 25000" class="w-full rounded-lg bg-slate-950/50 border border-slate-700/50 px-3 py-2 text-white outline-none" required>
-              </div>
-            </div>
-            <!-- Resource Limits -->
-            <div class="grid grid-cols-3 gap-2">
-              <div>
-                <label class="block text-xs text-slate-400" for="pkgCpu">CPU (0 = unlimited)</label>
-                <input type="number" id="pkgCpu" min="0" step="0.5" class="w-full rounded bg-slate-950/50 border border-slate-700/50 p-1 text-white" required>
-              </div>
-              <div>
-                <label class="block text-xs text-slate-400" for="pkgRam">RAM MB (0 = unlimited)</label>
-                <input type="number" id="pkgRam" min="0" step="1" class="w-full rounded bg-slate-950/50 border border-slate-700/50 p-1 text-white" required>
-              </div>
-              <div>
-                <label class="block text-xs text-slate-400" for="pkgDisk">Disk GB (0 = unlimited)</label>
-                <input type="number" id="pkgDisk" min="0" step="1" class="w-full rounded bg-slate-950/50 border border-slate-700/50 p-1 text-white" required>
-              </div>
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-slate-300 mb-1">Docker Image</label>
-              <input type="text" id="pkgDocker" placeholder="Inasoma kutoka Pterodactyl..." class="w-full rounded-xl bg-slate-950/50 border border-slate-700/50 px-3 py-2 text-white outline-none focus:border-indigo-500">
-            </div>
-            <div class="grid grid-cols-2 gap-3">
-              <div><label class="block text-xs text-slate-400 mb-1">Egg kutoka Pterodactyl</label><select id="pkgEggId" class="w-full rounded-lg bg-slate-950/50 border border-slate-700/50 p-2 text-emerald-200"><option value="">Inapakia eggs...</option></select></div>
-              <div><label class="block text-xs text-slate-400 mb-1">Egg Name</label><input type="text" id="pkgEggName" value="Node.js" readonly class="w-full rounded-lg bg-slate-950/50 border border-slate-700/50 p-2 text-emerald-200"></div>
-            </div>
-            <div class="grid grid-cols-2 gap-3">
-              <div><label class="block text-xs text-slate-400 mb-1">Startup File</label><input type="text" id="pkgStartupFile" value="index.js" readonly class="w-full rounded-lg bg-slate-950/50 border border-slate-700/50 p-2 text-emerald-200"></div>
-              <div><label class="block text-xs text-slate-400 mb-1">Startup Command</label><input type="text" id="pkgStartupCommand" value="npm start" readonly class="w-full rounded-lg bg-slate-950/50 border border-slate-700/50 p-2 text-emerald-200"></div>
-            </div>
-            <p id="pkgRuntimeSyncMsg" class="text-xs text-slate-500">Inasubiri data ya egg kutoka Pterodactyl...</p>
-            <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 rounded-lg transition">Save Package</button>
-            <p id="pkgFormMsg" class="text-xs"></p>
-          </form>
+      <div class="mb-6 flex flex-col gap-3 border-b border-emerald-100/10 pb-5 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-lime-300">Catalog</p>
+          <h2 class="mt-1 text-2xl font-bold text-white">Packages</h2>
         </div>
+        <p class="text-sm text-slate-400">Manage pricing, resources and server runtime.</p>
+      </div>
 
-        <!-- List -->
-        <div class="glass rounded-2xl p-6">
-          <h2 class="text-xl font-semibold text-white mb-4">📦 Package Zilizopo</h2>
-          <div id="packagesList" class="space-y-3 max-h-[400px] overflow-y-auto"></div>
-        </div>
+      <div class="grid items-start gap-6 xl:grid-cols-[minmax(340px,0.82fr)_minmax(0,1.18fr)]">
+        <section class="glass min-w-0 rounded-2xl p-5 sm:p-6" aria-labelledby="packageFormTitle">
+          <div class="mb-5 flex items-start justify-between gap-3">
+            <div>
+              <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Configuration</p>
+              <h3 id="packageFormTitle" class="mt-1 text-lg font-semibold text-white">Create package</h3>
+            </div>
+            <span id="packageFormMode" class="rounded-full border border-lime-300/20 bg-lime-300/10 px-2.5 py-1 text-[11px] font-semibold text-lime-200">New</span>
+          </div>
+          <form id="packageForm" class="space-y-5">
+            <input type="hidden" id="packageId" value="">
+
+            <div class="space-y-3">
+              <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Package details</p>
+              <label class="block text-xs font-medium text-slate-300" for="pkgName">Package name</label>
+              <input type="text" id="pkgName" placeholder="e.g. Starter Node" class="w-full rounded-lg border border-slate-700/70 bg-black/20 px-3 py-2.5 text-sm text-white outline-none" required>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="mb-1.5 block text-xs font-medium text-slate-300" for="pkgCoins">Price in coins</label>
+                  <input type="number" id="pkgCoins" min="0" step="1" placeholder="0" class="w-full rounded-lg border border-slate-700/70 bg-black/20 px-3 py-2.5 text-sm text-white outline-none" required>
+                </div>
+                <div>
+                  <label class="mb-1.5 block text-xs font-medium text-slate-300" for="pkgUsd">Price in TZS</label>
+                  <input type="number" id="pkgUsd" min="0" step="1" placeholder="25,000" class="w-full rounded-lg border border-slate-700/70 bg-black/20 px-3 py-2.5 text-sm text-white outline-none" required>
+                </div>
+              </div>
+            </div>
+
+            <div class="space-y-3 border-t border-white/5 pt-4">
+              <div class="flex items-center justify-between gap-3">
+                <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Resource limits</p>
+                <span class="text-[11px] text-slate-500">0 = unlimited</span>
+              </div>
+              <div class="grid grid-cols-3 gap-2 sm:gap-3">
+                <div>
+                  <label class="mb-1.5 block text-xs font-medium text-slate-300" for="pkgCpu">CPU limit</label>
+                  <input type="number" id="pkgCpu" min="0" step="0.5" placeholder="1" class="w-full rounded-lg border border-slate-700/70 bg-black/20 px-2.5 py-2.5 text-sm text-white outline-none" required>
+                </div>
+                <div>
+                  <label class="mb-1.5 block text-xs font-medium text-slate-300" for="pkgRam">RAM MB</label>
+                  <input type="number" id="pkgRam" min="0" step="1" placeholder="1024" class="w-full rounded-lg border border-slate-700/70 bg-black/20 px-2.5 py-2.5 text-sm text-white outline-none" required>
+                </div>
+                <div>
+                  <label class="mb-1.5 block text-xs font-medium text-slate-300" for="pkgDisk">Disk GB</label>
+                  <input type="number" id="pkgDisk" min="0" step="1" placeholder="10" class="w-full rounded-lg border border-slate-700/70 bg-black/20 px-2.5 py-2.5 text-sm text-white outline-none" required>
+                </div>
+              </div>
+            </div>
+
+            <div class="space-y-3 border-t border-white/5 pt-4">
+              <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Server runtime</p>
+              <div>
+                <label class="mb-1.5 block text-xs font-medium text-slate-300" for="pkgEggId">Pterodactyl egg</label>
+                <select id="pkgEggId" required class="w-full rounded-lg border border-slate-700/70 bg-black/20 px-3 py-2.5 text-sm text-white outline-none"><option value="">Loading eggs...</option></select>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="mb-1.5 block text-xs font-medium text-slate-300" for="pkgStartupFile">Startup file</label>
+                  <input type="text" id="pkgStartupFile" value="index.js" readonly class="w-full min-w-0 rounded-lg border border-slate-700/70 bg-black/20 px-3 py-2.5 text-xs text-emerald-100">
+                </div>
+                <div>
+                  <label class="mb-1.5 block text-xs font-medium text-slate-300" for="pkgStartupCommand">Startup command</label>
+                  <input type="text" id="pkgStartupCommand" value="npm start" readonly class="w-full min-w-0 rounded-lg border border-slate-700/70 bg-black/20 px-3 py-2.5 text-xs text-emerald-100">
+                </div>
+              </div>
+              <div>
+                <label class="mb-1.5 block text-xs font-medium text-slate-300" for="pkgDocker">Docker image</label>
+                <input type="text" id="pkgDocker" placeholder="Synced from Pterodactyl" class="w-full rounded-lg border border-slate-700/70 bg-black/20 px-3 py-2.5 text-sm text-white outline-none">
+              </div>
+              <input type="hidden" id="pkgEggName" value="Node.js">
+              <p id="pkgRuntimeSyncMsg" class="min-h-5 text-xs text-slate-500">Waiting for egg sync...</p>
+            </div>
+
+            <div class="flex flex-col gap-3 border-t border-white/5 pt-4 sm:flex-row sm:items-center">
+              <button type="submit" class="min-h-11 flex-1 rounded-lg bg-lime-300 px-4 py-2.5 text-sm font-bold text-[#102013] transition hover:bg-lime-200">Save package</button>
+              <p id="pkgFormMsg" class="min-h-5 text-xs text-slate-400 sm:flex-1"></p>
+            </div>
+          </form>
+        </section>
+
+        <section class="glass min-w-0 rounded-2xl p-5 sm:p-6" aria-labelledby="packagesListTitle">
+          <div class="mb-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Catalog overview</p>
+              <div class="mt-1 flex items-center gap-2.5">
+                <h3 id="packagesListTitle" class="text-lg font-semibold text-white">Existing packages</h3>
+                <span id="packagesCount" class="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-xs font-semibold text-slate-300">0</span>
+              </div>
+            </div>
+            <label class="block w-full sm:max-w-xs">
+              <span class="sr-only">Search packages</span>
+              <input id="packagesSearch" type="search" placeholder="Search packages..." class="w-full rounded-lg border border-slate-700/70 bg-black/20 px-3 py-2.5 text-sm text-white outline-none">
+            </label>
+          </div>
+          <div id="packagesList" class="max-h-[75vh] space-y-3 overflow-y-auto pr-1"></div>
+        </section>
       </div>
     </div>
 
@@ -966,25 +1012,69 @@
       } catch(e) { console.error(e); }
     }
 
+    let packageCatalog = [];
+
+    function formatPackageLimit(value, unit) {
+      const limit = Number(value);
+      return limit === 0 ? 'Unlimited' : `${limit.toLocaleString()} ${unit}`;
+    }
+
+    function formatPackageCpu(value) {
+      const limit = Number(value);
+      if (limit === 0) return 'Unlimited';
+      return limit <= 10 ? `${limit.toLocaleString()} cores` : `${limit.toLocaleString()}%`;
+    }
+
+    function renderPackages() {
+      const list = document.getElementById('packagesList');
+      const count = document.getElementById('packagesCount');
+      const query = document.getElementById('packagesSearch').value.trim().toLowerCase();
+      const filteredPackages = packageCatalog.filter((pkg) =>
+        [pkg.name, pkg.serverConfig?.eggName].some((value) => String(value || '').toLowerCase().includes(query))
+      );
+
+      count.textContent = String(packageCatalog.length);
+      if (!filteredPackages.length) {
+        list.innerHTML = `<div class="rounded-xl border border-dashed border-white/10 px-4 py-10 text-center text-sm text-slate-500">${query ? 'No matching packages.' : 'No packages have been created yet.'}</div>`;
+        return;
+      }
+
+      list.innerHTML = filteredPackages.map((pkg) => {
+        const packageId = pkg._id || pkg.id;
+        const pricing = pkg.pricing || {};
+        const specs = pkg.specifications || {};
+        return `
+          <article class="rounded-xl border border-white/10 bg-black/10 p-4 transition hover:border-lime-200/25">
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div class="min-w-0 flex-1">
+                <div class="flex flex-wrap items-center gap-2">
+                  <h4 class="truncate font-semibold text-white">${pkg.name || 'Unnamed package'}</h4>
+                  <span class="rounded-full border border-emerald-300/15 bg-emerald-300/5 px-2 py-0.5 text-[10px] font-medium text-emerald-100">${pkg.serverConfig?.eggName || 'Server package'}</span>
+                </div>
+                <p class="mt-2 text-sm font-medium text-slate-200">TZS ${Number(pricing.usdCost ?? pkg.usdCost ?? 0).toLocaleString()} <span class="px-1 text-slate-600">/</span> ${Number(pricing.coinsCost ?? pkg.coinsCost ?? 0).toLocaleString()} coins</p>
+                <div class="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-slate-400">
+                  <span>CPU <strong class="font-medium text-slate-200">${formatPackageCpu(specs.cpu)}</strong></span>
+                  <span>RAM <strong class="font-medium text-slate-200">${formatPackageLimit(specs.ram, 'MB')}</strong></span>
+                  <span>Disk <strong class="font-medium text-slate-200">${formatPackageLimit(specs.disk, 'GB')}</strong></span>
+                </div>
+              </div>
+              <div class="flex shrink-0 gap-2 sm:pt-0.5">
+                <button type="button" onclick="editPackage('${packageId}')" class="rounded-md border border-white/10 px-3 py-1.5 text-xs font-semibold text-slate-200 transition hover:border-lime-200/30 hover:text-lime-100" aria-label="Edit ${pkg.name || 'package'}">Edit</button>
+                <button type="button" onclick="deletePackage('${packageId}')" class="rounded-md border border-red-300/15 px-3 py-1.5 text-xs font-semibold text-red-200/80 transition hover:border-red-300/40 hover:text-red-100" aria-label="Delete ${pkg.name || 'package'}">Delete</button>
+              </div>
+            </div>
+          </article>
+        `;
+      }).join('');
+    }
+
     async function loadPackages() {
       try {
         const res = await fetch(`${API_URL}/packages`);
         const d = await res.json();
-        if(d.success) {
-          const list = document.getElementById('packagesList');
-          list.innerHTML = d.data.map(p => `
-            <div class="glass glass-hover p-4 rounded-xl flex justify-between items-center">
-              <div>
-                <h4 class="font-bold">${p.name}</h4>
-                <p class="text-xs text-slate-400">Tsh ${Number(p.pricing?.usdCost || p.usdCost || 0).toLocaleString()} / ${p.pricing?.coinsCost || p.coinsCost} Coins</p>
-              </div>
-              <div class="flex gap-2">
-                <button onclick="editPackage('${p._id || p.id}')" class="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded">Edit</button>
-                <button onclick="deletePackage('${p._id || p.id}')" class="text-xs bg-red-500/20 text-red-400 px-2 py-1 rounded">Delete</button>
-              </div>
-            </div>
-          `).join('');
-        }
+        if (!d.success) throw new Error(d.message || 'Packages could not be loaded.');
+        packageCatalog = Array.isArray(d.data) ? d.data : [];
+        renderPackages();
       } catch(e) { console.error(e); }
     }
 
@@ -1345,14 +1435,18 @@
         if (!d.success || !d.data) return;
         const pkg = d.data;
         document.getElementById('packageId').value = pkg._id || pkg.id;
+        document.getElementById('packageFormTitle').textContent = 'Edit package';
+        document.getElementById('packageFormMode').textContent = 'Editing';
+        document.getElementById('packageFormMode').className = 'rounded-full border border-amber-300/20 bg-amber-300/10 px-2.5 py-1 text-[11px] font-semibold text-amber-100';
+        document.querySelector('#packageForm button[type="submit"]').textContent = 'Update package';
         document.getElementById('pkgName').value = pkg.name || '';
-        document.getElementById('pkgCoins').value = pkg.pricing?.coinsCost || '';
-        document.getElementById('pkgUsd').value = pkg.pricing?.usdCost || '';
-        document.getElementById('pkgCpu').value = pkg.specifications?.cpu || '';
-        document.getElementById('pkgRam').value = pkg.specifications?.ram || '';
-        document.getElementById('pkgDisk').value = pkg.specifications?.disk || '';
+        document.getElementById('pkgCoins').value = pkg.pricing?.coinsCost ?? '';
+        document.getElementById('pkgUsd').value = pkg.pricing?.usdCost ?? '';
+        document.getElementById('pkgCpu').value = pkg.specifications?.cpu ?? '';
+        document.getElementById('pkgRam').value = pkg.specifications?.ram ?? '';
+        document.getElementById('pkgDisk').value = pkg.specifications?.disk ?? '';
         document.getElementById('pkgDocker').value = pkg.serverConfig?.dockerImage || '';
-        const savedEggId = String(pkg.serverConfig?.eggId || 16);
+        const savedEggId = String(pkg.serverConfig?.eggId ?? 16);
         const eggSelect = document.getElementById('pkgEggId');
         eggSelect.value = savedEggId;
         document.getElementById('pkgEggName').value = pkg.serverConfig?.eggName || 'Node.js';
@@ -1470,6 +1564,8 @@
       });
     });
 
+    document.getElementById('packagesSearch').addEventListener('input', renderPackages);
+
     document.getElementById('packageForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const id = document.getElementById('packageId').value;
@@ -1496,7 +1592,15 @@
       const res = await fetch(url, { method: id ? 'PUT' : 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(formData) });
       const result = await res.json();
       if (res.ok && result.success) {
+        const selectedEggId = document.getElementById('pkgEggId').value;
         document.getElementById('packageForm').reset();
+        document.getElementById('packageId').value = '';
+        document.getElementById('packageFormTitle').textContent = 'Create package';
+        document.getElementById('packageFormMode').textContent = 'New';
+        document.getElementById('packageFormMode').className = 'rounded-full border border-lime-300/20 bg-lime-300/10 px-2.5 py-1 text-[11px] font-semibold text-lime-200';
+        document.querySelector('#packageForm button[type="submit"]').textContent = 'Save package';
+        const activeEgg = panelEggs.find((egg) => String(egg.id) === selectedEggId);
+        if (activeEgg) applyPanelEgg(activeEgg);
         loadPackages(); loadStats();
         notify(result.message || 'Package imehifadhiwa.', 'success');
       } else {

@@ -43,6 +43,17 @@ test('keeps package CPU percentages instead of multiplying them by 100', () => {
   assert.equal(buildPteroLimitsFromPackage({ cpu: 30 }).cpu, 30);
 });
 
+test('preserves zero package limits as unlimited', () => {
+  assert.deepEqual(buildPteroLimitsFromPackage({ cpu: 0, ram: 0, disk: 0 }), {
+    memory: 0,
+    swap: 0,
+    disk: 0,
+    io: 500,
+    cpu: 0,
+    oom_disabled: false
+  });
+});
+
 test('keeps the startup command unchanged when no repository is configured', () => {
   const startupCommand = 'npm start';
   assert.equal(buildStartupCommand(startupCommand), startupCommand);

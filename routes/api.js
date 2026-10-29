@@ -378,12 +378,9 @@ async function resolveEggConfig(rawEgg) {
   const numericValue = Number(normalized);
   const configKey = Number.isFinite(numericValue) ? numericValue : normalized;
 
-  if (eggConfigs[configKey]) {
-    return eggConfigs[configKey];
-  }
-
   const panelEggOptions = await fetchPanelEggOptions();
-  return panelEggOptions.find((egg) => Number(egg.id) === Number(configKey)) || null;
+  const syncedEgg = panelEggOptions.find((egg) => Number(egg.id) === Number(configKey));
+  return syncedEgg || eggConfigs[configKey] || null;
 }
 
 function getDefaultStartupFile(eggConfig = {}) {
@@ -847,16 +844,20 @@ router.post('/api/servers/create', requireAuth, async (req, res) => {
       });
     }
 
-    const safeCpu = Math.max(25, Math.min(1000, Number.isFinite(Number(cpu)) ? (Number(cpu) > 100 ? Number(cpu) : Number(cpu) * 100) : 100));
+    const rawCpu = cpu !== undefined && cpu !== null && cpu !== '' ? Number(cpu) : Number.NaN;
+    const cpuLimit = Number.isFinite(rawCpu) ? (rawCpu > 100 ? rawCpu : rawCpu * 100) : 100;
+    const safeCpu = rawCpu === 0 ? 0 : Math.max(25, Math.min(1000, cpuLimit));
+    const rawMemory = Number(memory);
+    const rawDisk = Number(disk);
     const basePayload = {
       name,
       user: pteroUserId,
       egg: Number(resolvedEggConfig.id),
       environment: safeEnvironment,
       limits: {
-        memory: Number(memory) || 1024,
+        memory: memory !== undefined && memory !== null && memory !== '' && Number.isFinite(rawMemory) ? Math.max(0, rawMemory) : 1024,
         swap: 0,
-        disk: Number(disk) || 2048,
+        disk: disk !== undefined && disk !== null && disk !== '' && Number.isFinite(rawDisk) ? Math.max(0, rawDisk) : 2048,
         io: 500,
         cpu: safeCpu,
         oom_disabled: false
