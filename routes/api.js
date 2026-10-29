@@ -9,8 +9,9 @@ const sendEmail = require('../utils/email');
 const { requireAuth, requireAdmin, isAdminUser } = require('../middleware/auth');
 const { createServerFromPackage, isValidGitUrl, buildStartupCommand } = require('../utils/serverHelper');
 const { writeAuditLog } = require('../utils/auditLog');
+const { normalizePanelBaseUrl } = require('../utils/panelUrl');
 
-const PTERODACTYL_URL = (process.env.PANEL_URL || process.env.PTERODACTYL_URL)?.replace(/\/$/, '');
+const PTERODACTYL_URL = normalizePanelBaseUrl(process.env.PANEL_URL || process.env.PTERODACTYL_URL);
 const PTERODACTYL_APP_API_KEY = process.env.PANEL_API_KEY || process.env.PTERODACTYL_APP_API_KEY;
 const PTERODACTYL_CLIENT_API_KEY = process.env.PANEL_CLIENT_API_KEY || process.env.PTERODACTYL_CLIENT_API_KEY || process.env.PTERODACTYL_CLIENT_KEY || process.env.PTERODACTYL_API_KEY || PTERODACTYL_APP_API_KEY;
 const hasPteroConfig = PTERODACTYL_URL && PTERODACTYL_APP_API_KEY;

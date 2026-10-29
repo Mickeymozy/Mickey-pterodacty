@@ -5,8 +5,9 @@
 const axios = require('axios');
 const ServerPackage = require('../models/ServerPackage');
 const sendEmail = require('./email');
+const { normalizePanelBaseUrl } = require('./panelUrl');
 
-const PTERODACTYL_URL = (process.env.PANEL_URL || process.env.PTERODACTYL_URL)?.replace(/\/$/, '');
+const PTERODACTYL_URL = normalizePanelBaseUrl(process.env.PANEL_URL || process.env.PTERODACTYL_URL);
 const PTERODACTYL_APP_API_KEY = process.env.PANEL_API_KEY || process.env.PTERODACTYL_APP_API_KEY;
 
 const appApi = PTERODACTYL_URL && PTERODACTYL_APP_API_KEY

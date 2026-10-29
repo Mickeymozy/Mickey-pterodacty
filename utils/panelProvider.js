@@ -1,8 +1,9 @@
 const axios = require('axios');
+const { normalizePanelBaseUrl } = require('./panelUrl');
 
 class PterodactylProvider {
   constructor() {
-    const baseUrl = String(process.env.PANEL_URL || process.env.PTERODACTYL_URL || '').replace(/\/$/, '');
+    const baseUrl = normalizePanelBaseUrl(process.env.PANEL_URL || process.env.PTERODACTYL_URL);
     const apiKey = process.env.PANEL_API_KEY || process.env.PTERODACTYL_APP_API_KEY || '';
     if (!baseUrl || !apiKey) throw new Error('Panel URL and API key are required.');
     this.client = axios.create({
@@ -32,7 +33,7 @@ class PterodactylProvider {
 
   async getServerResources(identifier) {
     const clientKey = process.env.PTERODACTYL_CLIENT_API_KEY || process.env.PTERODACTYL_CLIENT_KEY;
-    const baseUrl = String(process.env.PANEL_URL || process.env.PTERODACTYL_URL || '').replace(/\/$/, '');
+    const baseUrl = normalizePanelBaseUrl(process.env.PANEL_URL || process.env.PTERODACTYL_URL);
     if (!clientKey || !baseUrl) throw new Error('Panel client API key is required for resources.');
     const response = await axios.get(`${baseUrl}/api/client/servers/${encodeURIComponent(identifier)}/resources`, {
       headers: { Authorization: `Bearer ${clientKey}`, Accept: 'application/json' },

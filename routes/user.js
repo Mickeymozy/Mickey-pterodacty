@@ -12,7 +12,8 @@ const { writeAuditLog } = require('../utils/auditLog');
 const AuditLog = require('../models/AuditLog');
 const LoginActivity = require('../models/LoginActivity');
 
-const PTERODACTYL_URL = (process.env.PANEL_URL || process.env.PTERODACTYL_URL)?.replace(/\/$/, '');
+const { normalizePanelBaseUrl } = require('../utils/panelUrl');
+const PTERODACTYL_URL = normalizePanelBaseUrl(process.env.PANEL_URL || process.env.PTERODACTYL_URL);
 const PTERODACTYL_APP_API_KEY = process.env.PANEL_API_KEY || process.env.PTERODACTYL_APP_API_KEY;
 const appApi = PTERODACTYL_URL && PTERODACTYL_APP_API_KEY
   ? axios.create({

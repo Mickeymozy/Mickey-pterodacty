@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { buildPteroLimitsFromPackage, isValidGitUrl, buildStartupCommand } = require('../utils/serverHelper');
+const { normalizePanelBaseUrl } = require('../utils/panelUrl');
 const { validatePasswordComplexity } = require('../utils/passwordValidator');
 const { normalizePhone } = require('../services/smsService');
 
@@ -65,4 +66,12 @@ test('initializes a repository before running the original startup command', () 
 
   assert.match(repositoryStartup, /git clone --depth=1/);
   assert.ok(repositoryStartup.endsWith('cd /home/container\nnpm start'));
+});
+
+test('normalizes panel URLs with optional API path suffixes', () => {
+  assert.equal(normalizePanelBaseUrl('https://panel.example.com/'), 'https://panel.example.com');
+  assert.equal(normalizePanelBaseUrl('https://panel.example.com/api'), 'https://panel.example.com');
+  assert.equal(normalizePanelBaseUrl('https://panel.example.com/api/application/'), 'https://panel.example.com');
+  assert.equal(normalizePanelBaseUrl('https://panel.example.com/api/client'), 'https://panel.example.com');
+  assert.equal(normalizePanelBaseUrl('https://panel.example.com/panel/api/application'), 'https://panel.example.com/panel');
 });
