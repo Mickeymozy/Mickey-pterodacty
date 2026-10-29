@@ -76,6 +76,27 @@
     .admin-menu-toggle, .admin-side-backdrop { display: none; }
     @media (max-width: 1024px) { .admin-shell { display: block; } .admin-side-nav { position: fixed; inset: 0 auto 0 0; z-index: 100; width: min(280px, 86vw); height: 100vh; transform: translateX(-105%); transition: transform .25s ease; border-radius: 0 1.5rem 1.5rem 0; } .admin-side-nav.open { transform: translateX(0); } .admin-menu-toggle { display: inline-flex; } .admin-side-backdrop { position: fixed; inset: 0; z-index: 90; background: rgba(3,10,9,.68); backdrop-filter: blur(4px); } .admin-side-backdrop.open { display: block; } }
     @media (min-width: 1025px) { .admin-nav { display: none; } }
+    body { color: #e7f5ef; background-color: #081412; background-image: linear-gradient(rgba(200,255,77,.026) 1px, transparent 1px), linear-gradient(90deg, rgba(200,255,77,.026) 1px, transparent 1px); background-size: 40px 40px; }
+    .admin-shell { max-width: 1540px; gap: 1.5rem; }
+    .glass { border-color: rgba(157,255,202,.13); background: linear-gradient(145deg, rgba(18,35,31,.96), rgba(8,20,18,.92)); box-shadow: 0 16px 42px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.035); }
+    .admin-side-nav { display: flex; flex-direction: column; border-radius: 14px; }
+    .admin-side-link { min-height: 2.8rem; border-radius: 8px; }
+    .admin-side-link > span:first-child { display: grid; width: 1.25rem; place-items: center; color: currentColor; }
+    .admin-side-link:not(.active):hover { background: rgba(200,255,77,.07); color: #e7f5ef; }
+    header.glass { border-radius: 12px; }
+    input, select, textarea { border-radius: 8px !important; color-scheme: dark; }
+    input::placeholder, textarea::placeholder { color: #6f8880; }
+    button, a { -webkit-tap-highlight-color: transparent; }
+    body.light-mode { color: #183331; background-color: #eef7ef; }
+    body.light-mode .glass { background: rgba(255,255,255,.9); }
+    body.light-mode input, body.light-mode select, body.light-mode textarea { color-scheme: light; }
+    body.light-mode input, body.light-mode select, body.light-mode textarea { border-color: rgba(19,92,66,.2) !important; background-color: rgba(255,255,255,.92) !important; color: #183331; }
+    body.light-mode input::placeholder, body.light-mode textarea::placeholder { color: #718780; }
+    body.light-mode .admin-side-nav { background: rgba(255,255,255,.96); }
+    @media (max-width: 640px) {
+      .admin-shell { padding-left: .75rem; padding-right: .75rem; padding-top: .75rem; }
+      .admin-side-nav { border-radius: 0 12px 12px 0; }
+    }
     @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; scroll-behavior: auto !important; transition-duration: .01ms !important; } }
   </style>
 </head>

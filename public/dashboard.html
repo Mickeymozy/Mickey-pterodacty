@@ -104,6 +104,26 @@
     .side-nav { position: sticky; top: 1.5rem; height: calc(100vh - 3rem); align-self: start; }
     .side-nav-link { display: flex; align-items: center; gap: .75rem; width: 100%; padding: .75rem .9rem; border: 1px solid transparent; border-radius: .9rem; color: #9bb6ad; text-align: left; transition: .2s ease; }
     .side-nav-link:hover, .side-nav-link.active { color: #102013; background: var(--accent); border-color: var(--accent); box-shadow: 0 8px 22px rgba(200,255,77,.16); }
+    body { color: #e7f5ef; background-color: #081412; background-image: linear-gradient(rgba(200,255,77,.026) 1px, transparent 1px), linear-gradient(90deg, rgba(200,255,77,.026) 1px, transparent 1px); background-size: 40px 40px; }
+    .app-shell { max-width: 1540px; gap: 1.5rem; padding-top: 1.25rem; }
+    .glass, .hero-panel { border-color: rgba(157,255,202,.13); background: linear-gradient(145deg, rgba(18,35,31,.96), rgba(8,20,18,.92)); box-shadow: 0 16px 42px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.035); }
+    .hero-panel { background: linear-gradient(110deg, rgba(18,35,31,.98), rgba(8,20,18,.94) 72%, rgba(200,255,77,.08)); }
+    .side-nav { display: flex; flex-direction: column; border-radius: 14px; }
+    .side-nav-link { min-height: 2.8rem; border-radius: 8px; }
+    .side-nav-link > span:first-child { display: grid; width: 1.25rem; place-items: center; color: currentColor; }
+    .side-nav-link:not(.active):hover { background: rgba(200,255,77,.07); color: #e7f5ef; }
+    .quick-action-card, .mini-metric { border-radius: 8px; }
+    .dash-nav .tab-button { min-height: 2.75rem; }
+    input, select, textarea { border-radius: 8px !important; color-scheme: dark; }
+    input::placeholder, textarea::placeholder { color: #6f8880; }
+    body.light-mode { color: #183331; background-color: #eef7ef; }
+    body.light-mode .glass, body.light-mode .hero-panel { background: rgba(255,255,255,.9); }
+    body.light-mode input, body.light-mode select, body.light-mode textarea { color-scheme: light; }
+    body.light-mode input, body.light-mode select, body.light-mode textarea { border-color: rgba(19,92,66,.2) !important; background-color: rgba(255,255,255,.92) !important; color: #183331; }
+    body.light-mode input::placeholder, body.light-mode textarea::placeholder { color: #718780; }
+    body.light-mode .side-nav { background: rgba(255,255,255,.96); }
+    body.light-mode .quick-action-card, body.light-mode .mini-metric { border-color: rgba(19,92,66,.15); background: rgba(255,255,255,.74); }
+    @media (max-width: 640px) { .app-shell { padding: .75rem; } .side-nav { border-radius: 0 12px 12px 0; } }
     .menu-toggle, .side-nav-backdrop { display: none; }
     @media (max-width: 1024px) { .app-shell { display: block; } .side-nav { position: fixed; inset: 0 auto 0 0; z-index: 100; width: min(280px, 86vw); height: 100vh; transform: translateX(-105%); transition: transform .25s ease; border-radius: 0 1.5rem 1.5rem 0; } .side-nav.open { transform: translateX(0); } .menu-toggle { display: inline-flex; } .side-nav-backdrop { position: fixed; inset: 0; z-index: 90; background: rgba(3,10,9,.68); backdrop-filter: blur(4px); } .side-nav-backdrop.open { display: block; } }
     @media (min-width: 1025px) { .dash-nav { display: none; } }
@@ -215,15 +235,9 @@
     </div>
   </div>
 
-  <div class="fixed inset-0 overflow-hidden pointer-events-none">
-    <div class="absolute -top-40 -right-40 h-96 w-96 rounded-full bg-indigo-500/10 blur-3xl"></div>
-    <div class="absolute top-1/2 -left-40 h-96 w-96 rounded-full bg-purple-500/10 blur-3xl"></div>
-    <div class="absolute bottom-0 right-1/3 h-72 w-72 rounded-full bg-cyan-500/5 blur-3xl"></div>
-  </div>
-
   <div class="app-shell relative mx-auto px-4 py-6">
     <aside id="sideNav" class="side-nav glass rounded-3xl p-4" aria-label="Dashboard navigation">
-      <div class="mb-6 flex items-center justify-between"><div><p class="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300">MickeyPanel</p><p class="mt-1 text-sm font-semibold text-white">Workspace</p></div><button id="closeSideNav" type="button" class="rounded-lg border border-slate-700 px-2 py-1 text-slate-300 lg:hidden" aria-label="Funga menu">×</button></div>
+      <div class="mb-6 flex items-center justify-between"><div><p class="text-[10px] font-bold uppercase tracking-[0.2em] text-lime-200">MickeyPanel</p><p class="mt-1 text-sm font-semibold text-white">Workspace</p></div><button id="closeSideNav" type="button" class="rounded-lg border border-slate-700 px-2 py-1 text-slate-300 lg:hidden" aria-label="Funga menu">×</button></div>
       <nav class="space-y-2">
         <button class="side-nav-link active" data-side-tab="my-servers"><span>◈</span><span>Server zangu</span></button>
         <button class="side-nav-link" data-side-tab="deploy-panel"><span>↗</span><span>Unda server</span></button>
@@ -271,57 +285,35 @@
       </div>
     </header>
 
-    <section class="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="Muhtasari wa akaunti">
-      <div class="glass rounded-2xl border-l-4 border-cyan-400 p-4">
+    <section class="mb-6 grid gap-3 sm:grid-cols-3" aria-label="Muhtasari wa akaunti">
+      <div class="glass rounded-xl p-4">
         <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Servers Zangu</p>
         <p id="serverCount" class="mt-2 text-2xl font-bold text-white">0</p>
         <p class="mt-1 text-xs text-slate-500">Jumla ya servers kwenye akaunti</p>
       </div>
-      <div class="glass rounded-2xl border-l-4 border-emerald-400 p-4">
+      <div class="glass rounded-xl p-4">
         <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Zilizo Online</p>
         <p id="onlineServerCount" class="mt-2 text-2xl font-bold text-emerald-300">0</p>
         <p class="mt-1 text-xs text-slate-500">Status ya sasa kutoka panel</p>
       </div>
-      <div class="glass rounded-2xl border-l-4 border-amber-400 p-4">
+      <div class="glass rounded-xl p-4">
         <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Coins</p>
         <p id="summaryCoins" class="mt-2 text-2xl font-bold text-amber-300">0</p>
         <p class="mt-1 text-xs text-slate-500">Salio linalopatikana sasa</p>
-      </div>
-      <div class="glass rounded-2xl border-l-4 border-indigo-400 p-4">
-        <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Quick Action</p>
-        <button type="button" onclick="switchDashTab(null, 'deploy-panel')" class="mt-2 text-left text-sm font-semibold text-indigo-300 transition hover:text-indigo-200">+ Unda server mpya</button>
-        <p class="mt-1 text-xs text-slate-500">Anza deployment kwa hatua chache</p>
       </div>
     </section>
 
     <section class="mb-6 grid gap-4 xl:grid-cols-[1.4fr_0.6fr]">
       <div class="hero-panel rounded-3xl p-5 sm:p-6">
-        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-cyan-300">Dashboard</p>
-            <h2 class="mt-2 text-2xl font-bold text-white">Karibu kwenye panel yako ya kutengeneza server</h2>
+            <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-lime-200">MickeyPanel / Workspace</p>
+            <h2 class="mt-2 max-w-2xl text-2xl font-bold text-white">Karibu kwenye panel yako</h2>
+            <p class="mt-2 max-w-xl text-sm leading-6 text-slate-400">Simamia servers, malipo na deployments zako sehemu moja.</p>
           </div>
           <div class="flex flex-wrap gap-2">
-            <button type="button" onclick="switchDashTab(null, 'deploy-panel')" class="rounded-xl bg-cyan-500 px-3 py-2 text-xs font-semibold text-slate-950 transition hover:bg-cyan-400">🚀 Unda sasa</button>
-            <button type="button" onclick="switchDashTab(null, 'buy-coins')" class="rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800">🪙 Nunua coins</button>
-          </div>
-        </div>
-
-        <div class="mt-6 grid gap-3 sm:grid-cols-3">
-          <div class="mini-metric">
-            <p class="text-[10px] uppercase tracking-[0.2em] text-slate-400">Status</p>
-            <p class="mt-2 text-xl font-bold text-emerald-300">Online</p>
-            <p class="mt-1 text-[11px] text-slate-400">Node na panel ziko tayari</p>
-          </div>
-          <div class="mini-metric">
-            <p class="text-[10px] uppercase tracking-[0.2em] text-slate-400">Muda wa matumizi</p>
-            <p class="mt-2 text-xl font-bold text-cyan-300">24/7</p>
-            <p class="mt-1 text-[11px] text-slate-400">Uwezo wa kutumia server kila wakati</p>
-          </div>
-          <div class="mini-metric">
-            <p class="text-[10px] uppercase tracking-[0.2em] text-slate-400">Msaada</p>
-            <p class="mt-2 text-xl font-bold text-amber-300">Video</p>
-            <p class="mt-1 text-[11px] text-slate-400">Fungua mwongozo wa haraka</p>
+            <button type="button" onclick="switchDashTab(null, 'deploy-panel')" class="rounded-lg bg-lime-300 px-4 py-2.5 text-sm font-bold text-[#102013] transition hover:bg-lime-200">Unda server</button>
+            <button type="button" onclick="switchDashTab(null, 'buy-coins')" class="rounded-lg border border-white/10 bg-black/20 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-lime-200/30">Nunua coins</button>
           </div>
         </div>
       </div>
@@ -565,7 +557,7 @@
 
             <div class="glass rounded-xl p-5 border border-slate-800 flex flex-col justify-between bg-gradient-to-br from-slate-950/70 to-slate-900/40">
               <div>
-                <h3 class="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-3">📋 Kifurushi Specifications</h3>
+                <h3 class="text-xs font-bold text-lime-200 uppercase tracking-wider mb-3">📋 Kifurushi Specifications</h3>
                 <div class="space-y-3 text-xs">
                   <div class="flex justify-between border-b border-slate-800/60 pb-2">
                     <span class="text-slate-400">Jina la Package:</span>

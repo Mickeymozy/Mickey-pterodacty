@@ -46,18 +46,45 @@
     .github-btn:hover { border-color: rgba(200,255,77,.35); background: rgba(200,255,77,.08); }
     body.light-mode { background: #eef7ef; background-image: linear-gradient(rgba(19,92,66,.06) 1px, transparent 1px), linear-gradient(90deg, rgba(19,92,66,.06) 1px, transparent 1px); background-size: 32px 32px; }
     body.light-mode .glass { background: rgba(255,255,255,.88); border-color: rgba(19,92,66,.18); }
+    .auth-layout { max-width: 1160px; }
+    .auth-brand { min-height: min(680px, calc(100dvh - 5rem)); animation: brand-enter .6s .08s ease both; }
+    .auth-card { border-radius: 12px; }
+    .auth-brand-mark { display: grid; width: 3rem; height: 3rem; place-items: center; border: 1px solid rgba(200,255,77,.28); border-radius: 10px; background: rgba(200,255,77,.09); color: var(--lime); font-family: 'Space Grotesk', sans-serif; font-size: 1.15rem; font-weight: 700; }
+    .auth-brand-line { width: 3rem; height: 2px; background: linear-gradient(90deg, var(--lime), var(--cyan)); }
+    @keyframes brand-enter { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .tab-btn { min-height: 2.75rem; border-radius: 8px; }
+    .input-field { border-radius: 8px; }
+    .submit-btn, .github-btn { min-height: 2.875rem; border-radius: 8px; }
+    body.light-mode .auth-brand { color: #183331; }
     @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; scroll-behavior: auto !important; transition-duration: .01ms !important; } }
   </style>
 </head>
-<body class="min-h-screen bg-[#07111f] flex items-center justify-center p-4">
+<body class="min-h-screen bg-[#07111f]">
+  <main class="auth-layout mx-auto grid min-h-[100dvh] w-full items-center gap-6 px-4 py-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_440px] lg:gap-16 lg:px-10 lg:py-10">
+    <section class="auth-brand hidden flex-col justify-between py-8 lg:flex" aria-label="MickeyPanel">
+      <div class="flex items-center gap-3">
+        <div class="auth-brand-mark" aria-hidden="true">M</div>
+        <div><p class="font-semibold text-white">MickeyPanel</p><p class="mt-0.5 text-xs text-slate-500">Server workspace</p></div>
+      </div>
+      <div class="max-w-xl py-12">
+        <div class="auth-brand-line mb-6"></div>
+        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-lime-200">Pterodactyl control workspace</p>
+        <h2 class="mt-4 text-4xl font-bold leading-tight text-white xl:text-5xl">Your servers, <span class="gradient-text">in your hands.</span></h2>
+        <p class="mt-5 max-w-lg text-base leading-7 text-slate-400">Manage server deployments, payments and account settings from one secure dashboard.</p>
+      </div>
+      <div class="flex items-center justify-between border-t border-white/10 pt-5 text-xs text-slate-500">
+        <span>Secure account access</span>
+        <span>© 2026 MickeyPanel</span>
+      </div>
+    </section>
 
-  <div class="auth-card relative w-full max-w-[440px] glass rounded-2xl p-6 sm:p-8 shadow-2xl shadow-black/60">
+  <div class="auth-card relative w-full max-w-[440px] justify-self-center glass p-6 sm:p-8 shadow-2xl shadow-black/40">
 
     <button type="button" id="themeModeBtn" onclick="toggleThemeMode()" class="theme-toggle absolute right-5 top-5 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs font-semibold text-slate-300" title="Badilisha light/dark mode">☀️ Light</button>
 
     <div class="text-center mb-8">
       <h1 class="text-4xl font-extrabold gradient-text">MickeyPanel</h1>
-      <p class="text-slate-400 text-sm mt-1">Manage your servers with ease</p>
+      <p class="text-slate-400 text-sm mt-1">Sign in to your workspace</p>
       <span class="mt-3 inline-flex rounded-full border border-lime-300/25 bg-lime-300/10 px-2.5 py-1 text-[10px] font-bold text-lime-200">VERSION 2.7.21</span>
     </div>
 
@@ -161,6 +188,7 @@
 
     <p class="text-center text-slate-500 text-xs mt-6">© 2026 MickeyPanel</p>
   </div>
+  </main>
 
   <script>
     const alertBox = document.getElementById('alert-box');
