@@ -1058,6 +1058,15 @@
       try {
         const res = await fetch('/api/servers');
         const data = await res.json();
+        if (!res.ok || !data.success) {
+          allServers = [];
+          updateServerSummary();
+          const errorMessage = document.createElement('p');
+          errorMessage.className = 'rounded-lg border border-red-400/15 bg-red-400/5 p-4 text-center text-sm text-red-200';
+          errorMessage.textContent = data.error || 'Imeshindwa kupakia server kutoka Pterodactyl.';
+          serverList.replaceChildren(errorMessage);
+          return;
+        }
         allServers = data.servers || [];
         updateServerSummary();
 
@@ -1068,7 +1077,10 @@
 
         renderServerList();
       } catch (e) {
-        serverList.innerHTML = `<p class="text-xs text-red-400 text-center">Hitilafu: Imeshindwa kusoma data halisi kutoka Pterodactyl Node.</p>`;
+        const errorMessage = document.createElement('p');
+        errorMessage.className = 'rounded-lg border border-red-400/15 bg-red-400/5 p-4 text-center text-sm text-red-200';
+        errorMessage.textContent = e.message || 'Imeshindwa kusoma data halisi kutoka Pterodactyl Node.';
+        serverList.replaceChildren(errorMessage);
       }
     }
 

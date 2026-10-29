@@ -525,8 +525,7 @@ router.get(['/admin/servers', '/api/admin/servers'], requireAuth, requireAdmin, 
   }
 
   try {
-    const response = await appApi.get('/servers?per_page=1000');
-    const servers = response.data?.data || [];
+    const servers = await fetchPaginatedApplicationData('/servers');
     const localUsers = await User.find({ pteroId: { $exists: true, $ne: null } }).select('pteroId username email');
     const userMap = new Map(localUsers.map((user) => [Number(user.pteroId), user]));
 
@@ -550,7 +549,10 @@ router.get(['/admin/servers', '/api/admin/servers'], requireAuth, requireAdmin, 
     res.json({ success: true, data: serverList });
   } catch (err) {
     console.error('Error fetching admin server list:', err);
-    res.status(500).json({ success: false, error: 'Error fetching servers.' });
+    const providerErrors = err.response?.data?.errors?.map((item) => item.detail).filter(Boolean).join('; ');
+    const error = providerErrors || err.response?.data?.message || err.message || 'Error fetching servers.';
+    const status = err.response?.status;
+    res.status(status && status >= 400 && status < 500 ? status : 500).json({ success: false, error });
   }
 });
 
@@ -690,8 +692,8 @@ router.get('/api/servers', requireAuth, async (req, res) => {
       });
     }
 
-    const response = await appApi.get('/servers?per_page=1000');
-    const ownedServers = (response.data?.data || []).filter((server) => Number(server?.attributes?.user) === Number(resolvedPteroId));
+    const serverEntries = await fetchPaginatedApplicationData('/servers');
+    const ownedServers = serverEntries.filter((server) => Number(server?.attributes?.user) === Number(resolvedPteroId));
 
     const servers = await Promise.all(
       ownedServers.map(async (server) => {
