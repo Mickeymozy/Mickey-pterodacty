@@ -1444,7 +1444,7 @@
           eggSelect.replaceChildren(...globalEggs.map((egg) => {
             const option = document.createElement('option');
             option.value = egg.id;
-            option.textContent = `${egg.name} (ID: ${egg.id})`;
+            option.textContent = `${egg.nestName ? `${egg.nestName} / ` : ''}${egg.name} (ID: ${egg.id})`;
             return option;
           }));
           applyEggDefaults();

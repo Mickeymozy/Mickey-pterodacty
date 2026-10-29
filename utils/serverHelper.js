@@ -21,49 +21,6 @@ const appApi = PTERODACTYL_URL && PTERODACTYL_APP_API_KEY
     })
   : null;
 
-const eggConfigs = {
-  16: {
-    id: 16,
-    key: 'nodejs',
-    name: 'Node.js',
-    docker_image: 'ghcr.io/parkervcp/yolks:nodejs_21',
-    startup: `if [[ -d .git ]] && [[ "$AUTO_UPDATE" == "1" ]]; then git pull; fi; if [[ ! -z "$NODE_PACKAGES" ]]; then /usr/local/bin/npm install $NODE_PACKAGES; fi; if [[ ! -z "$UNNODE_PACKAGES" ]]; then /usr/local/bin/npm uninstall $UNNODE_PACKAGES; fi; if [ -f /home/container/package.json ]; then /usr/local/bin/npm install; fi; if [[ "$MAIN_FILE" == "*.js" ]]; then /usr/local/bin/node "/home/container/$MAIN_FILE" $NODE_ARGS; else /usr/local/bin/ts-node --esm "/home/container/$MAIN_FILE" $NODE_ARGS; fi`,
-    environment: {
-      USER_UPLOAD: '0',
-      MAIN_FILE: 'index.js',
-      AUTO_UPDATE: '1',
-      STARTUP_CMD: 'npm start'
-    }
-  },
-  27: {
-    id: 27,
-    key: 'python',
-    name: 'Python',
-    docker_image: 'ghcr.io/parkervcp/yolks:python_3.10',
-    startup: `if [[ -d .git ]] && [[ "$AUTO_UPDATE" == "1" ]]; then git pull; fi; if [[ ! -z "$PY_PACKAGES" ]]; then pip install -U --prefix .local $PY_PACKAGES; fi; if [[ -f /home/container/$REQUIREMENTS_FILE ]]; then pip install -U --prefix .local -r $REQUIREMENTS_FILE; fi; /usr/local/bin/python /home/container/$PY_FILE`,
-    environment: {
-      USER_UPLOAD: '0',
-      PY_FILE: 'main.py',
-      REQUIREMENTS_FILE: 'requirements.txt',
-      AUTO_UPDATE: '1',
-      STARTUP_CMD: 'python3 main.py'
-    }
-  },
-  28: {
-    id: 28,
-    key: 'java',
-    name: 'Java',
-    docker_image: 'ghcr.io/parkervcp/yolks:java_17',
-    startup: 'java -Dterminal.jline=false -Dterminal.ansi=true -jar $SERVER_JARFILE',
-    environment: {
-      USER_UPLOAD: '0',
-      SERVER_JARFILE: 'server.jar',
-      AUTO_UPDATE: '1',
-      STARTUP_CMD: 'java -jar server.jar'
-    }
-  }
-};
-
 function normalizeEnvironmentValue(value) {
   if (value === undefined || value === null) return undefined;
   if (typeof value === 'string') {
@@ -221,40 +178,56 @@ async function getFirstAvailableAllocation() {
   return null;
 }
 
+async function fetchPaginatedApplicationData(path) {
+  const entries = [];
+
+  for (let page = 1; page <= 100; page += 1) {
+    const response = await appApi.get(path, { params: { per_page: 100, page } });
+    const pageEntries = response.data?.data;
+    if (!Array.isArray(pageEntries)) {
+      throw new Error(`Pterodactyl returned an invalid response for ${path}.`);
+    }
+    entries.push(...pageEntries);
+
+    const totalPages = Number(response.data?.meta?.pagination?.total_pages);
+    if (Number.isFinite(totalPages) && totalPages > 0) {
+      if (page >= totalPages) break;
+    } else if (pageEntries.length < 100) {
+      break;
+    }
+  }
+
+  return entries;
+}
+
 async function fetchPanelEggOptions() {
   if (!appApi) return [];
 
-  try {
-    const nestsResponse = await appApi.get('/nests?per_page=1000');
-    const nests = nestsResponse.data?.data || [];
-    const eggs = [];
+  const nests = await fetchPaginatedApplicationData('/nests');
+  const eggs = [];
 
-    for (const nest of nests) {
-      const nestId = nest?.attributes?.id;
-      if (!nestId) continue;
+  for (const nest of nests) {
+    const nestId = nest?.attributes?.id;
+    if (!nestId) continue;
 
-      const eggsResponse = await appApi.get(`/nests/${nestId}/eggs?per_page=1000`);
-      const eggEntries = eggsResponse.data?.data || [];
+    const eggEntries = await fetchPaginatedApplicationData(`/nests/${nestId}/eggs`);
 
-      for (const entry of eggEntries) {
-        const attrs = entry?.attributes || {};
-        eggs.push({
-          id: Number(attrs.id),
-          name: attrs.name || `Egg ${attrs.id}`,
-          docker_image: attrs.docker_image || '',
-          startup: attrs.startup || '',
-          startup_command: attrs.environment?.STARTUP_CMD || '',
-          environment: attrs.environment || {},
-          nestId
-        });
-      }
+    for (const entry of eggEntries) {
+      const attrs = entry?.attributes || {};
+      eggs.push({
+        id: Number(attrs.id),
+        name: attrs.name || `Egg ${attrs.id}`,
+        nestName: nest?.attributes?.name || `Nest ${nestId}`,
+        docker_image: attrs.docker_image || '',
+        startup: attrs.startup || '',
+        startup_command: attrs.environment?.STARTUP_CMD || '',
+        environment: attrs.environment || {},
+        nestId
+      });
     }
-
-    return eggs.filter((egg) => Number.isFinite(egg.id));
-  } catch (err) {
-    console.error('Failed to fetch panel eggs:', err.message);
-    return [];
   }
+
+  return eggs.filter((egg) => Number.isFinite(egg.id));
 }
 
 async function resolvePteroUser(user) {
@@ -394,35 +367,19 @@ async function createServerFromPackage(user, packageId, serverName, options = {}
 
   const allocationId = await getFirstAvailableAllocation();
   const requestedEggValue = options?.eggId ?? options?.egg ?? pkg.serverConfig?.eggId;
-  const eggLookup = String(requestedEggValue || '').trim().toLowerCase();
+  const eggLookup = String(requestedEggValue ?? '').trim().toLowerCase();
   const aliasMap = { nodejs: '16', node: '16', python: '27', java: '28' };
   const normalizedLookup = aliasMap[eggLookup] || eggLookup;
 
-  let resolvedEggConfig = null;
-
-  try {
-    const eggsList = await fetchPanelEggOptions();
-    resolvedEggConfig = eggsList.find((egg) => {
-      const eggId = Number(egg.id);
-      return eggId === Number(normalizedLookup) ||
-        String(egg.name).toLowerCase() === eggLookup ||
-        String(egg.key).toLowerCase() === eggLookup ||
-        String(egg.id) === normalizedLookup;
-    }) || null;
-
-    if (!resolvedEggConfig) {
-      resolvedEggConfig = eggsList.find((egg) => Number(egg.id) === Number(pkg.serverConfig?.eggId)) || null;
-    }
-
-    if (!resolvedEggConfig && eggsList.length === 1) {
-      resolvedEggConfig = eggsList[0];
-    }
-  } catch (err) {
-    throw new Error('Failed to fetch egg configuration.');
+  const eggsList = await fetchPanelEggOptions();
+  const resolvedEggConfig = eggsList.find((egg) =>
+    Number(egg.id) === Number(normalizedLookup) ||
+    String(egg.name).toLowerCase() === eggLookup ||
+    String(egg.id) === normalizedLookup
+  );
+  if (!resolvedEggConfig) {
+    throw new Error('Egg iliyochaguliwa haipo tena kwenye Pterodactyl. Refresh eggs kisha chagua tena.');
   }
-
-  resolvedEggConfig = resolvedEggConfig || eggConfigs[Number(normalizedLookup)] || eggConfigs[normalizedLookup];
-  if (!resolvedEggConfig) throw new Error('Egg configuration not found.');
 
   const name = serverName || pkg.name + '-' + Date.now();
   const limits = buildPteroLimitsFromPackage(pkg.specifications || {});

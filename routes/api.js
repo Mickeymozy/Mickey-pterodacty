@@ -49,49 +49,6 @@ const clientApi = hasClientConfig
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const eggConfigs = {
-  16: {
-    id: 16,
-    key: 'nodejs',
-    name: 'Node.js',
-    docker_image: 'ghcr.io/parkervcp/yolks:nodejs_21',
-    startup: `if [[ -d .git ]] && [[ "$AUTO_UPDATE" == "1" ]]; then git pull; fi; if [[ ! -z "$NODE_PACKAGES" ]]; then /usr/local/bin/npm install $NODE_PACKAGES; fi; if [[ ! -z "$UNNODE_PACKAGES" ]]; then /usr/local/bin/npm uninstall $UNNODE_PACKAGES; fi; if [ -f /home/container/package.json ]; then /usr/local/bin/npm install; fi; if [[ "$MAIN_FILE" == "*.js" ]]; then /usr/local/bin/node "/home/container/$MAIN_FILE" $NODE_ARGS; else /usr/local/bin/ts-node --esm "/home/container/$MAIN_FILE" $NODE_ARGS; fi`,
-    environment: {
-      USER_UPLOAD: '0',
-      MAIN_FILE: 'index.js',
-      AUTO_UPDATE: '1',
-      STARTUP_CMD: 'npm start'
-    }
-  },
-  27: {
-    id: 27,
-    key: 'python',
-    name: 'Python',
-    docker_image: 'ghcr.io/parkervcp/yolks:python_3.10',
-    startup: `if [[ -d .git ]] && [[ "$AUTO_UPDATE" == "1" ]]; then git pull; fi; if [[ ! -z "$PY_PACKAGES" ]]; then pip install -U --prefix .local $PY_PACKAGES; fi; if [[ -f /home/container/$REQUIREMENTS_FILE ]]; then pip install -U --prefix .local -r $REQUIREMENTS_FILE; fi; /usr/local/bin/python /home/container/$PY_FILE`,
-    environment: {
-      USER_UPLOAD: '0',
-      PY_FILE: 'main.py',
-      REQUIREMENTS_FILE: 'requirements.txt',
-      AUTO_UPDATE: '1',
-      STARTUP_CMD: 'python3 main.py'
-    }
-  },
-  28: {
-    id: 28,
-    key: 'java',
-    name: 'Java',
-    docker_image: 'ghcr.io/parkervcp/yolks:java_17',
-    startup: 'java -Dterminal.jline=false -Dterminal.ansi=true -jar $SERVER_JARFILE',
-    environment: {
-      USER_UPLOAD: '0',
-      SERVER_JARFILE: 'server.jar',
-      AUTO_UPDATE: '1',
-      STARTUP_CMD: 'java -jar server.jar'
-    }
-  }
-};
-
 const normalizeServerStatus = (value) => {
   const raw = String(value || '').trim().toLowerCase();
   if (!raw || ['unknown', 'null', 'none'].includes(raw)) return 'unknown';
@@ -304,6 +261,7 @@ async function fetchPanelEggOptions() {
         eggs.push({
           id: Number(attrs.id),
           name: attrs.name || `Egg ${attrs.id}`,
+          nestName: nest?.attributes?.name || `Nest ${nestId}`,
           docker_image: attrs.docker_image || '',
           startup: attrs.startup || '',
           startup_command: attrs.environment?.STARTUP_CMD || '',
@@ -317,10 +275,6 @@ async function fetchPanelEggOptions() {
   } catch (err) {
     const providerErrors = err.response?.data?.errors?.map((item) => item.detail).filter(Boolean).join('; ');
     const detail = providerErrors || err.response?.data?.message || err.message;
-    if (err.response?.status === 404) {
-      console.warn('Panel does not expose the nests API; using built-in egg templates.');
-      return Object.values(eggConfigs).map((egg) => ({ ...egg, source: 'builtin' }));
-    }
     console.error('Failed to fetch panel eggs:', detail);
     throw new Error(`Pterodactyl eggs request failed${err.response?.status ? ` (${err.response.status})` : ''}: ${detail}`);
   }
@@ -379,8 +333,7 @@ async function resolveEggConfig(rawEgg) {
   const configKey = Number.isFinite(numericValue) ? numericValue : normalized;
 
   const panelEggOptions = await fetchPanelEggOptions();
-  const syncedEgg = panelEggOptions.find((egg) => Number(egg.id) === Number(configKey));
-  return syncedEgg || eggConfigs[configKey] || null;
+  return panelEggOptions.find((egg) => Number(egg.id) === Number(configKey)) || null;
 }
 
 function getDefaultStartupFile(eggConfig = {}) {
@@ -767,13 +720,11 @@ router.get('/api/eggs', requireAuth, async (req, res) => {
     const syncedEggs = await Promise.all(eggs.map((egg) => fetchEggDetails(egg)));
     res.json({
       success: true,
-      source: eggs.some((egg) => egg.source === 'builtin') ? 'builtin' : 'panel',
-      warning: eggs.some((egg) => egg.source === 'builtin')
-        ? 'Panel haijaonyesha Nests API; zinaonyeshwa templates za ndani za Node.js, Python na Java.'
-        : '',
+      source: 'panel',
       eggs: syncedEggs.map((egg) => ({
         id: egg.id,
         name: egg.name,
+        nestName: egg.nestName || '',
         docker_image: egg.docker_image || '',
         startup: egg.startup || '',
         startup_command: egg.startup_command || egg.environment?.STARTUP_CMD || '',

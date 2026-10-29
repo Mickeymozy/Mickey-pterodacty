@@ -1130,9 +1130,12 @@
         panelEggs = data.eggs;
         const eggSelect = document.getElementById('pkgEggId');
         const currentEggId = String(eggSelect.value || '16');
-        eggSelect.innerHTML = panelEggs.map((egg) =>
-          `<option value="${egg.id}">${egg.name} (ID: ${egg.id})</option>`
-        ).join('');
+        eggSelect.replaceChildren(...panelEggs.map((egg) => {
+          const option = document.createElement('option');
+          option.value = String(egg.id);
+          option.textContent = `${egg.nestName ? `${egg.nestName} / ` : ''}${egg.name} (ID: ${egg.id})`;
+          return option;
+        }));
         eggSelect.value = panelEggs.some((egg) => String(egg.id) === currentEggId) ? currentEggId : String(panelEggs[0].id);
         const selectedEgg = panelEggs.find((egg) => String(egg.id) === String(eggSelect.value)) || panelEggs[0];
         applyPanelEgg(selectedEgg);
