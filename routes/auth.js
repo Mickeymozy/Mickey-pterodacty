@@ -11,6 +11,9 @@ const LoginActivity = require('../models/LoginActivity');
 const { isIP } = require('net');
 const { normalizePhone, sendTextMessage } = require('../services/smsService');
 
+const asyncHandler = (handler) => (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
+const callbackHandler = (handler, onError) => (...args) => Promise.resolve(handler(...args)).catch(onError);
+
 function isAcceptablePassword(password) {
   return validatePasswordComplexity(String(password || '')).isValid;
 }
@@ -175,7 +178,7 @@ router.get('/login', requireGuest, (req, res) => {
 });
 
 router.post('/auth/login', (req, res, next) => {
-  passport.authenticate('local', async (err, user, info) => {
+  passport.authenticate('local', callbackHandler(async (err, user, info) => {
     if (err) {
       console.error('❌ Login error:', err);
       return next(err);
@@ -203,7 +206,7 @@ router.post('/auth/login', (req, res, next) => {
       return res.redirect(`/login.html?error=1${returnToQuery}`);
     }
 
-    req.logIn(user, async (loginErr) => {
+    req.logIn(user, callbackHandler(async (loginErr) => {
       if (loginErr) {
         console.error('❌ Session error:', loginErr);
         return next(loginErr);
@@ -265,12 +268,12 @@ router.post('/auth/login', (req, res, next) => {
       }
 
       return res.redirect('/dashboard.html');
-    });
-  })(req, res, next);
+    }, next));
+  }, next))(req, res, next);
 });
 
 // IMEREKEBISHWA LOGIC YA USAJILI HAPA
-router.post('/auth/register', async (req, res) => {
+router.post('/auth/register', asyncHandler(async (req, res) => {
   const { username, email, password, confirmPassword, first_name, last_name } = req.body;
   const cleanUsername = String(username || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
   const cleanEmail = String(email || '').trim().toLowerCase();
@@ -369,9 +372,9 @@ router.post('/auth/register', async (req, res) => {
     req.flash('error_msg', '❌ Imefeli kusajili akaunti.');
     res.redirect('/login.html?tab=register');
   }
-});
+}));
 
-router.post('/auth/reset-password', async (req, res) => {
+router.post('/auth/reset-password', asyncHandler(async (req, res) => {
   const channel = String(req.body.channel || 'email').toLowerCase();
   const email = String(req.body.email || '').trim().toLowerCase();
   const phone = normalizePhone(req.body.phone);
@@ -436,9 +439,9 @@ router.post('/auth/reset-password', async (req, res) => {
   }
 
   res.redirect('/login.html?tab=reset');
-});
+}));
 
-router.post('/auth/reset-password/confirm', async (req, res) => {
+router.post('/auth/reset-password/confirm', asyncHandler(async (req, res) => {
   const { token, password } = req.body;
 
   if (!token || !password || !isAcceptablePassword(password)) {
@@ -463,7 +466,7 @@ router.post('/auth/reset-password/confirm', async (req, res) => {
 
   req.flash('success_msg', '✅ Password yako imebadilishwa.');
   res.redirect('/login.html?tab=login');
-});
+}));
 
 router.get('/auth/github', (req, res) => {
   const clientId = process.env.GITHUB_CLIENT_ID;
