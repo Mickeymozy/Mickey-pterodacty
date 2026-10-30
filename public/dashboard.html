@@ -213,14 +213,14 @@
               <div class="space-y-3 text-sm text-slate-300">
                 <div class="flex justify-between"><span>Panel URL</span><span id="modalSelectedServerPanel" class="font-semibold text-slate-100">-</span></div>
                 <div class="flex justify-between"><span>Username</span><span class="flex items-center gap-2"><span id="modalSelectedServerLoginUser" class="font-semibold text-slate-100">-</span><button class="copy-btn" type="button" onclick="copyField('modalSelectedServerLoginUser')" title="Nakili">📋</button></span></div>
-                <div class="flex justify-between"><span>Password</span><span class="flex items-center gap-2"><span id="modalSelectedServerLoginPassword" class="font-semibold text-slate-100">-</span><button class="copy-btn" type="button" onclick="copyField('modalSelectedServerLoginPassword')" title="Nakili">📋</button></span></div>
+                <div class="flex justify-between"><span>Panel password</span><span id="modalSelectedServerLoginPassword" class="font-semibold text-slate-100">-</span></div>
                 <div class="flex justify-between"><span>Email</span><span class="flex items-center gap-2"><span id="modalSelectedServerLoginEmail" class="font-semibold text-slate-100">-</span><button class="copy-btn" type="button" onclick="copyField('modalSelectedServerLoginEmail')" title="Nakili">📋</button></span></div>
               </div>
             </div>
 
             <div class="rounded-3xl border border-slate-800/70 bg-slate-900/70 p-4">
               <p class="text-xs uppercase tracking-[0.2em] text-slate-400 mb-3">Login Details</p>
-              <p class="text-sm text-slate-300">Tumia login hizi ikiwa zinapatikana kwenye server access API.</p>
+              <p class="text-sm text-slate-300">Tumia username au email na password ya akaunti yako ya Pterodactyl. Password haiwezi kuonyeshwa tena kwa usalama; ukiisahau, fungua Panel kisha chagua “Forgot password”.</p>
             </div>
           </div>
 
@@ -421,14 +421,14 @@
                     <div class="space-y-3 text-sm text-slate-300">
                       <div class="flex justify-between"><span>Panel URL</span><span id="selectedServerPanel" class="font-semibold text-slate-100">-</span></div>
                       <div class="flex justify-between"><span>Username</span><span class="flex items-center gap-2"><span id="selectedServerLoginUser" class="font-semibold text-slate-100">-</span><button class="copy-btn" type="button" onclick="copyField('selectedServerLoginUser')" title="Nakili">📋</button></span></div>
-                      <div class="flex justify-between gap-4"><span>Password</span><span class="flex items-center gap-2 text-right"><span id="selectedServerLoginPassword" class="font-semibold text-amber-200">-</span><button class="copy-btn" type="button" onclick="copyField('selectedServerLoginPassword')" title="Nakili">📋</button></span></div>
+                      <div class="flex justify-between gap-4"><span>Panel password</span><span id="selectedServerLoginPassword" class="font-semibold text-amber-200 text-right">-</span></div>
                       <div class="flex justify-between"><span>Email</span><span class="flex items-center gap-2"><span id="selectedServerLoginEmail" class="font-semibold text-slate-100">-</span><button class="copy-btn" type="button" onclick="copyField('selectedServerLoginEmail')" title="Nakili">📋</button></span></div>
                     </div>
                   </div>
 
                   <div class="rounded-3xl border border-slate-800/70 bg-slate-900/70 p-4">
                     <p class="text-xs uppercase tracking-[0.2em] text-slate-400 mb-3">Login Details</p>
-                    <p class="text-sm text-slate-300">Server hii hutumia account yako ya Pterodactyl. Password yake ni tofauti na ya website tu kama uli-set password tofauti kwenye Panel.</p>
+                    <p class="text-sm text-slate-300">Tumia username au email na password ya akaunti yako ya Pterodactyl. Password haiwezi kuonyeshwa tena kwa usalama; ukiisahau, fungua Panel kisha chagua “Forgot password”.</p>
                     <p id="selectedServerPanelHint" class="mt-2 text-xs text-slate-500">Chagua server ili kuona panel access.</p>
                   </div>
                 </div>
@@ -1050,7 +1050,7 @@
                         </span>
                       </div>
                 <p class="text-[11px] text-slate-500 font-mono mt-1">ID: ${server.identifier || server.uuid || server.id || 'N/A'}</p>
-                <p class="text-[11px] text-slate-500 mt-1">Host: ${server.ipAddress ? `${server.ipAddress}:${server.port || '25565'}` : (server.sftpHost || 'N/A')}</p>
+                <p class="text-[11px] text-slate-500 mt-1">Host: ${server.ipAddress ? `${server.ipAddress}${server.port ? `:${server.port}` : ''}` : (server.sftpHost || 'Connection haipatikani')}</p>
               </div>
               <div class="grid gap-2 sm:flex sm:flex-wrap sm:items-center">
                 <button data-server-id="${server.identifier || server.uuid || server.id}" class="select-server-btn rounded-lg bg-indigo-600 px-3 py-1 text-xs font-semibold text-white hover:bg-indigo-500 transition">Manage</button>
@@ -1171,11 +1171,11 @@
       if (modalOverlay) {
         document.getElementById('modalSelectedServerName').textContent = server.name || 'Server bila jina';
         document.getElementById('modalSelectedServerStatus').textContent = `Status: ${displayStatus}`;
-        document.getElementById('modalSelectedServerConnection').textContent = server.ipAddress ? `${server.ipAddress}:${server.port || '25565'}` : (server.sftpHost || 'N/A');
+        document.getElementById('modalSelectedServerConnection').textContent = server.ipAddress ? `${server.ipAddress}${server.port ? `:${server.port}` : ''}` : (server.sftpHost || 'Connection haipatikani');
         document.getElementById('modalSelectedServerUser').textContent = server.sftpUser || 'N/A';
         modalOverlay.classList.remove('hidden');
       }
-      document.getElementById('selectedServerConnection').textContent = server.ipAddress ? `${server.ipAddress}:${server.port || '25565'}` : (server.sftpHost || 'N/A');
+      document.getElementById('selectedServerConnection').textContent = server.ipAddress ? `${server.ipAddress}${server.port ? `:${server.port}` : ''}` : (server.sftpHost || 'Connection haipatikani');
       const initialPanelEl = document.getElementById('selectedServerPanel');
       const initialPanelUrl = server.panelUrl || '';
       const initialPanelShort = initialPanelUrl.replace(/https?:\/\//, '').replace(/\/$/, '');
@@ -1205,22 +1205,22 @@
           document.getElementById('openPanelBtn').dataset.panelUrl = panelUrl;
           document.getElementById('openPanelBtn')?.classList.remove('hidden');
           document.getElementById('selectedServerLoginUser').textContent = access.username || access.email || access.sftpUser || server.sftpUser || 'N/A';
-          document.getElementById('selectedServerLoginPassword').textContent = access.password || 'Haijahifadhiwa tofauti';
-          document.getElementById('selectedServerCredentialStatus').textContent = access.password ? 'Tofauti na website' : 'Panel account password';
+          document.getElementById('selectedServerLoginPassword').textContent = access.password || 'Haiwezi kuonyeshwa';
+          document.getElementById('selectedServerCredentialStatus').textContent = access.password ? 'Panel password' : 'Password ya Panel';
           document.getElementById('selectedServerLoginEmail').textContent = access.email || 'N/A';
-          document.getElementById('selectedServerPanelHint').textContent = 'Panel na login details zimetolewa kutoka kwenye server access API.';
+          document.getElementById('selectedServerPanelHint').textContent = 'Username na email zimetolewa kutoka kwenye akaunti yako. Password haionyeshwi; fungua Panel na utumie “Forgot password” ukiihitaji.';
           // Mirror into modal
           const modalPanelEl = document.getElementById('modalSelectedServerPanel');
           if (modalPanelEl) modalPanelEl.innerHTML = `<a href="${panelUrl}" target="_blank" rel="noopener noreferrer" class="text-indigo-400 underline">${shortLabel}</a>`;
           document.getElementById('modalOpenPanelBtn')?.classList.remove('hidden');
           document.getElementById('modalOpenPanelBtn').dataset.panelUrl = panelUrl;
           document.getElementById('modalSelectedServerLoginUser').textContent = access.username || access.email || access.sftpUser || server.sftpUser || 'N/A';
-          document.getElementById('modalSelectedServerLoginPassword').textContent = access.password || 'Haijahifadhiwa tofauti';
+          document.getElementById('modalSelectedServerLoginPassword').textContent = access.password || 'Haiwezi kuonyeshwa';
           document.getElementById('modalSelectedServerLoginEmail').textContent = access.email || 'N/A';
         } else {
           const errorBody = await accessRes.json().catch(() => ({}));
           document.getElementById('selectedServerLoginUser').textContent = 'N/A';
-          document.getElementById('selectedServerLoginPassword').textContent = 'Haijahifadhiwa tofauti';
+          document.getElementById('selectedServerLoginPassword').textContent = 'Haiwezi kuonyeshwa';
           document.getElementById('selectedServerLoginEmail').textContent = 'N/A';
           const panelEl = document.getElementById('selectedServerPanel');
           if (panelEl) panelEl.textContent = 'Haipatikani';
@@ -1232,13 +1232,13 @@
           if (modalPanelEl2) modalPanelEl2.textContent = 'Haipatikani';
           document.getElementById('modalOpenPanelBtn')?.classList.add('hidden');
           document.getElementById('modalSelectedServerLoginUser').textContent = 'N/A';
-          document.getElementById('modalSelectedServerLoginPassword').textContent = 'Haijahifadhiwa tofauti';
+          document.getElementById('modalSelectedServerLoginPassword').textContent = 'Haiwezi kuonyeshwa';
           document.getElementById('modalSelectedServerLoginEmail').textContent = 'N/A';
           document.getElementById('serverDetailsModalOverlay')?.classList.remove('hidden');
         }
       } catch (err) {
         document.getElementById('selectedServerLoginUser').textContent = 'N/A';
-        document.getElementById('selectedServerLoginPassword').textContent = 'Haijahifadhiwa tofauti';
+        document.getElementById('selectedServerLoginPassword').textContent = 'Haiwezi kuonyeshwa';
         document.getElementById('selectedServerLoginEmail').textContent = 'N/A';
         document.getElementById('selectedServerPanel').textContent = 'N/A';
         document.getElementById('openPanelBtn')?.classList.add('hidden');

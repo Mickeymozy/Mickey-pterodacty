@@ -88,7 +88,7 @@ const extractConnectionDetails = (serverData = {}) => {
   return {
     ipAddress: ipAddress || '',
     port: port ? String(port) : '',
-    sftpHost: host || process.env.PTERODACTYL_URL || '',
+    sftpHost: host || '',
     sftpUser: attrs?.identifier || attrs?.uuid || attrs?.id || ''
   };
 };
@@ -109,7 +109,7 @@ async function getServerConnectionDetails(ref) {
       return {
         ipAddress: attrs.ip || attrs.address || attrs.ipv4 || attrs.ip_address || '',
         port: attrs.port ? String(attrs.port) : '',
-        sftpHost: resolvedHost || process.env.PTERODACTYL_URL || '',
+        sftpHost: resolvedHost || '',
         sftpUser: String(identifier)
       };
     }
@@ -123,7 +123,7 @@ async function getServerConnectionDetails(ref) {
       return {
         ipAddress: attrs.ip || attrs.address || attrs.ipv4 || attrs.ip_address || '',
         port: attrs.port ? String(attrs.port) : '',
-        sftpHost: resolvedHost || process.env.PTERODACTYL_URL || '',
+        sftpHost: resolvedHost || '',
         sftpUser: String(id)
       };
     }
@@ -870,7 +870,7 @@ router.get('/api/servers/:id/access', requireAuth, async (req, res) => {
     }
 
     const connectionDetails = await getServerConnectionDetails(ref);
-    const panelUrl = process.env.PTERODACTYL_URL || '';
+    const panelUrl = PTERODACTYL_URL || '';
 
     res.json({
       success: true,
@@ -883,7 +883,7 @@ router.get('/api/servers/:id/access', requireAuth, async (req, res) => {
         serverId: attrs.identifier || attrs.id || '',
         ipAddress: connectionDetails.ipAddress,
         port: connectionDetails.port,
-        sftpHost: connectionDetails.sftpHost || panelUrl,
+        sftpHost: connectionDetails.sftpHost || '',
         sftpUser: req.user?.username || req.user?.displayName || ''
       }
     });
