@@ -1549,15 +1549,21 @@
           body: JSON.stringify(payload)
         });
         const data = await res.json();
-        if (data.success && data.data?.paymentUrl) {
-          formMessage.innerHTML = '<span class="text-emerald-400 font-bold">✅ Malipo yameanzishwa. Fungua link ya PalmPesa ili kukamilisha.</span>';
-          window.open(data.data.paymentUrl, '_blank', 'noopener,noreferrer');
-        } else if (data.success && data.data?.paymentInitiated) {
-          const paymentMessage = data.data?.paymentMessage || data.message || '✅ Malipo yameanzishwa. Endelea na mfumo wa USSD/mobile.';
-          formMessage.innerHTML = `<span class="text-emerald-400 font-bold">${paymentMessage}</span>`;
+        if (data.success && (data.data?.paymentUrl || data.data?.paymentInitiated)) {
+          const paymentMessage = data.data?.paymentMessage || data.message || 'Malipo yameanzishwa. Endelea na mfumo wa USSD/mobile.';
+          formMessage.textContent = paymentMessage;
+          formMessage.className = 'text-emerald-400 font-bold';
+          if (data.data?.paymentUrl) window.open(data.data.paymentUrl, '_blank', 'noopener,noreferrer');
           if (data.data?.transactionId) {
             await pollPaymentVerification(data.data.transactionId, formMessage, {
-              onComplete: () => {
+              onComplete: (verifiedData) => {
+                const paymentData = verifiedData?.data || {};
+                showPaymentSuccess({
+                  title: 'Malipo ya server yamepokelewa',
+                  message: 'Malipo yamethibitishwa na server yako imeandaliwa.',
+                  detail: paymentData.server?.name || paymentData.server?.identifier || paymentData.package || 'Server iko tayari.',
+                  smsMessage: paymentSmsNotice(paymentData.smsConfirmation)
+                });
                 loadUser();
                 setTimeout(() => { loadServers(); switchDashTab(null, 'my-servers'); }, 1200);
               }

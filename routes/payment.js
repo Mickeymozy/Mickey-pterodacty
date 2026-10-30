@@ -721,7 +721,8 @@ router.get('/verify/:transactionId', authenticate, async (req, res) => {
     );
 
     if (verificationResult.success) {
-      if (verificationResult.paymentStatus === 'completed' || verificationResult.paymentStatus === 'success' || verificationResult.paymentStatus === 'SUCCESS') {
+      const verifiedStatus = String(verificationResult.paymentStatus || '').toLowerCase();
+      if (['success', 'successful', 'completed', 'complete', 'succeeded', 'paid', 'confirmed', 'approved'].includes(verifiedStatus)) {
         const result = await fulfillSuccessfulTransaction(transactionId);
         const completedTransaction = result.transaction;
         const isTopup = completedTransaction.metadata?.type === 'topup';
