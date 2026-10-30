@@ -145,11 +145,6 @@ router.post('/checkout', async (req, res) => {
       description,
       webhookUrl: process.env.PALMPESA_WEBHOOK_URL || `${process.env.APP_URL || 'https://mickey-pterodacty.vercel.app'}/api/payment/webhook`
     });
-          smsConfirmation: {
-            sent: Boolean(payment.confirmationSmsSentAt),
-            status: payment.confirmationSmsStatus || 'unknown',
-            reason: payment.confirmationSmsReason || null
-          }
 
     if (!result.success) {
       payment.status = 'failed';
@@ -200,7 +195,12 @@ router.get('/:orderId', async (req, res) => {
         status: payment.status,
         amount: payment.amount,
         currency: payment.currency,
-        completedAt: payment.completedAt || null
+        completedAt: payment.completedAt || null,
+        smsConfirmation: {
+          sent: Boolean(payment.confirmationSmsSentAt),
+          status: payment.confirmationSmsStatus || 'unknown',
+          reason: payment.confirmationSmsReason || null
+        }
       }
     });
   } catch (error) {
