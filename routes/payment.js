@@ -250,11 +250,13 @@ async function fulfillSuccessfulTransaction(transactionId) {
 
     transaction.status = 'completed';
     transaction.completedAt = new Date();
+    if (isBotScript) transaction.purchaseKey = undefined;
     transaction.notes = transaction.notes || 'Payment fulfilled successfully.';
     await transaction.save();
     return { transaction, alreadyProcessed: false, userCoins, serverData };
   } catch (error) {
     transaction.status = 'failed';
+    if (transaction.metadata?.kind === 'bot-script') transaction.purchaseKey = undefined;
     transaction.notes = `Payment received but fulfillment failed: ${error.message}`;
     await transaction.save();
     throw error;
@@ -753,6 +755,14 @@ router.get('/verify/:transactionId', authenticate, async (req, res) => {
       return res.json({
         success: true,
         message: 'Payment is being processed.',
+        data: { status: 'pending', transactionId }
+      });
+    }
+
+    if (transaction.status === 'pending' && transaction.metadata?.kind === 'bot-script' && !transaction.metadata?.paymentInitiated) {
+      return res.json({
+        success: true,
+        message: 'PalmPesa checkout is still being prepared.',
         data: { status: 'pending', transactionId }
       });
     }

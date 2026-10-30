@@ -50,6 +50,12 @@ const transactionSchema = new mongoose.Schema({
     type: String
   },
 
+  purchaseKey: {
+    type: String,
+    unique: true,
+    sparse: true
+  },
+
   zenopayTransactionId: {
     type: String
   },

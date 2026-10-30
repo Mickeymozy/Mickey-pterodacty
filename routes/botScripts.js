@@ -81,15 +81,30 @@ router.post('/:id/purchase', requireAuth, async (req, res) => {
   const existing = await Transaction.findOne({ userId: req.user._id, type: 'purchase', status: 'completed', 'metadata.kind': 'bot-script', 'metadata.botScriptId': script._id });
   if (existing) return res.json({ success: true, message: 'Script tayari imenunuliwa.', data: { downloadUrl: downloadLinkFor(req.user._id, script._id) } });
 
-  const pending = await Transaction.findOne({ userId: req.user._id, type: 'purchase', status: 'pending', 'metadata.kind': 'bot-script', 'metadata.botScriptId': script._id }).sort({ createdAt: -1 });
-  if (pending) {
+  const purchaseKey = `bot-script:${req.user._id}:${script._id}`;
+  const activeTransaction = await Transaction.findOne({
+    userId: req.user._id,
+    type: 'purchase',
+    status: { $in: ['pending', 'processing'] },
+    $or: [
+      { purchaseKey },
+      { 'metadata.kind': 'bot-script', 'metadata.botScriptId': script._id }
+    ]
+  }).sort({ createdAt: -1 });
+  if (activeTransaction) {
+    if (!activeTransaction.purchaseKey) {
+      activeTransaction.purchaseKey = purchaseKey;
+      await activeTransaction.save().catch((error) => {
+        if (error.code !== 11000) throw error;
+      });
+    }
     return res.json({
       success: true,
-      message: 'Ombi la malipo ya script hii bado linasubiri uthibitisho.',
+      message: activeTransaction.status === 'processing' ? 'Malipo yanathibitishwa; subiri kidogo.' : 'Ombi la malipo ya script hii bado linasubiri uthibitisho.',
       data: {
-        transactionId: pending._id,
-        paymentUrl: pending.metadata?.paymentUrl || null,
-        paymentMessage: pending.metadata?.paymentMessage || 'Endelea na ombi la PalmPesa lililoanzishwa.',
+        transactionId: activeTransaction._id,
+        paymentUrl: activeTransaction.metadata?.paymentUrl || null,
+        paymentMessage: activeTransaction.metadata?.paymentMessage || 'Endelea na ombi la PalmPesa lililoanzishwa.',
         paymentInitiated: true
       }
     });
@@ -108,9 +123,27 @@ router.post('/:id/purchase', requireAuth, async (req, res) => {
     paymentMethod: 'palmpesa',
     paymentProvider: 'palmpesa',
     status: 'pending',
+    purchaseKey,
     description: `Bot script: ${script.title}`,
     metadata: { kind: 'bot-script', botScriptId: script._id, title: script.title, priceTzs, phone: req.body.phone || '', downloadUrl: downloadLinkFor(req.user._id, script._id) }
-  }).save();
+  });
+  try {
+    await transaction.save();
+  } catch (error) {
+    if (error.code !== 11000) throw error;
+    const active = await Transaction.findOne({ purchaseKey, status: { $in: ['pending', 'processing'] } });
+    if (!active) throw error;
+    return res.json({
+      success: true,
+      message: 'Ombi la malipo ya script hii lipo tayari; linaendelea kuthibitishwa.',
+      data: {
+        transactionId: active._id,
+        paymentUrl: active.metadata?.paymentUrl || null,
+        paymentMessage: active.metadata?.paymentMessage || 'Endelea na ombi la PalmPesa lililoanzishwa.',
+        paymentInitiated: true
+      }
+    });
+  }
   const paymentResult = await palmPesaService.createPayment({
     user_id: process.env.PALMPESA_USER_ID,
     vendor: process.env.PALMPESA_VENDOR,
@@ -126,7 +159,10 @@ router.post('/:id/purchase', requireAuth, async (req, res) => {
     description: `Bot script ${script.title} - ${req.user.email}`
   });
   if (!paymentResult.success) {
-    transaction.status = 'failed'; transaction.notes = paymentResult.error; await transaction.save();
+    transaction.status = 'failed';
+    transaction.purchaseKey = undefined;
+    transaction.notes = paymentResult.error;
+    await transaction.save();
     return res.status(400).json({ success: false, message: paymentResult.error || 'PalmPesa imeshindikana kuanzisha malipo.' });
   }
   transaction.zenopayTransactionId = paymentResult.orderId || paymentResult.transactionId;
