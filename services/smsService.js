@@ -33,7 +33,7 @@ async function getClient() {
     if (!TapsaSMS) throw new Error('sms-bulk-tz TapsaSMS constructor was not found.');
     return new TapsaSMS({
       apiKey,
-      baseUrl: process.env.SMSTAPSA_BASE_URL || process.env.TAPSA_BASE_URL || undefined,
+      baseUrl: 'https://api.smstapsa.my.id',
       timeout: Number(process.env.SMSTAPSA_TIMEOUT_MS || process.env.TAPSA_TIMEOUT_MS || 30000)
     });
   }).catch((error) => {

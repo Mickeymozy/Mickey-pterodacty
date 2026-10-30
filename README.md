@@ -220,8 +220,6 @@ BILLING_AUTOMATION_INTERVAL_MS=900000
 SMSTAPSA_API_KEY=your-smstapsa-api-key
 # Optional: set only if your custom sender ID has been approved
 # SMSTAPSA_SENDER_ID=YOUR_APPROVED_SENDER
-# Optional: defaults to the base URL configured by sms-bulk-tz
-# SMSTAPSA_BASE_URL=https://api.smstapsa.site
 ```
 
 `PANEL_ADMIN_API_KEY` must be a Client API key owned by a root administrator; it is required to list eggs through the Pterodactyl v2 Admin API. The Application API key remains in `PANEL_API_KEY` for user and server operations.
