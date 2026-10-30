@@ -162,17 +162,29 @@
     <div id="reset-tab" class="tab-content hidden">
       <form action="/auth/reset-password" method="POST" class="space-y-4">
         <div>
+          <label for="resetChannel" class="block text-slate-300 text-sm font-medium mb-1.5">Pokea token kupitia</label>
+          <select id="resetChannel" name="channel" class="input-field w-full px-4 py-3 text-white text-sm outline-none">
+            <option value="email">Email</option>
+            <option value="sms">SMS</option>
+          </select>
+        </div>
+        <div id="resetEmailField">
           <label class="block text-slate-300 text-sm font-medium mb-1.5">Barua Pepe Yako</label>
-          <input type="email" name="email" required placeholder="Weka email uliyosajilia"
+          <input id="resetEmail" type="email" name="email" required placeholder="Weka email uliyosajilia"
                  class="input-field w-full px-4 py-3 rounded-xl text-white text-sm outline-none" />
         </div>
-        <button type="submit" class="submit-btn w-full py-3.5 rounded-xl text-white font-semibold text-sm">Tuma Maelezo</button>
+        <div id="resetPhoneField" class="hidden">
+          <label class="block text-slate-300 text-sm font-medium mb-1.5">Namba ya simu iliyosajiliwa</label>
+          <input id="resetPhone" type="tel" name="phone" inputmode="tel" placeholder="07XXXXXXXX au 2557XXXXXXXX"
+                 class="input-field w-full px-4 py-3 text-white text-sm outline-none" />
+        </div>
+        <button type="submit" class="submit-btn w-full py-3.5 rounded-xl text-white font-semibold text-sm">Tuma Token ya Reset</button>
       </form>
 
       <form action="/auth/reset-password/confirm" method="POST" class="space-y-3 mt-4">
         <div>
           <label class="block text-slate-300 text-sm font-medium mb-1.5">Token ya Reset</label>
-          <input id="resetTokenInput" type="text" name="token" placeholder="Bandika token uliyopewa kwa email"
+          <input id="resetTokenInput" type="text" name="token" placeholder="Bandika token kutoka email au SMS"
                  class="input-field w-full px-4 py-3 rounded-xl text-white text-sm outline-none" />
         </div>
         <div>
@@ -183,7 +195,7 @@
         </div>
         <button type="submit" class="submit-btn w-full py-3.5 rounded-xl text-white font-semibold text-sm">Badilisha Password</button>
       </form>
-      <p class="text-center text-slate-500 text-xs mt-4">Tutakutumia maelezo ya kubadili password</p>
+      <p class="text-center text-slate-500 text-xs mt-4">Token itaisha baada ya dakika 30.</p>
     </div>
 
     <p class="text-center text-slate-500 text-xs mt-6">© 2026 MickeyPanel</p>
@@ -218,6 +230,21 @@
     function toggleThemeMode() {
       setThemeMode(document.body.classList.contains('light-mode') ? 'dark' : 'light');
     }
+
+    function updateResetChannel() {
+      const isSms = document.getElementById('resetChannel')?.value === 'sms';
+      const emailField = document.getElementById('resetEmailField');
+      const phoneField = document.getElementById('resetPhoneField');
+      const emailInput = document.getElementById('resetEmail');
+      const phoneInput = document.getElementById('resetPhone');
+      emailField?.classList.toggle('hidden', isSms);
+      phoneField?.classList.toggle('hidden', !isSms);
+      if (emailInput) emailInput.required = !isSms;
+      if (phoneInput) phoneInput.required = isSms;
+    }
+
+    document.getElementById('resetChannel')?.addEventListener('change', updateResetChannel);
+    updateResetChannel();
 
     try { setThemeMode(localStorage.getItem('uiMode') || 'dark'); } catch (e) { setThemeMode('dark'); }
 

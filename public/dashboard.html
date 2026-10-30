@@ -1676,11 +1676,10 @@
       });
     }
 
-    async function pollPaymentVerification(transactionId, messageBox, { onComplete, showReceipt = true, showSmsConfirmation = true } = {}) {
+    async function pollPaymentVerification(transactionId, messageBox, { onComplete, showReceipt = true, showSmsConfirmation = true, maxAttempts = 24 } = {}) {
       if (!transactionId) return;
 
       let attempts = 0;
-      const maxAttempts = 12;
 
       while (attempts < maxAttempts) {
         attempts += 1;
@@ -1858,12 +1857,13 @@
         pollPaymentVerification(result.data.transactionId, document.getElementById('topupMessage') || document.body, {
           showReceipt: false,
           showSmsConfirmation: false,
+          maxAttempts: 36,
           onComplete: (verifiedData) => {
             const paymentData = verifiedData?.data || {};
             loadBotScripts();
             showPaymentSuccess({
               title: 'Malipo ya script yamepokelewa',
-              message: `Malipo ya ${paymentData.productName || 'script'} yamethibitishwa.`,
+              message: `Malipo ya ${paymentData.productName || 'script'} yamethibitishwa. Unaweza kuipakua sasa au baadaye kwenye My Purchases.`,
               detail: paymentData.amountTzs ? `Tsh ${Number(paymentData.amountTzs).toLocaleString()}` : 'ZIP iko tayari kupakuliwa.',
               smsMessage: paymentSmsNotice(paymentData.smsConfirmation),
               downloadUrl: paymentData.downloadUrl

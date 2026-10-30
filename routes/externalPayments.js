@@ -145,6 +145,11 @@ router.post('/checkout', async (req, res) => {
       description,
       webhookUrl: process.env.PALMPESA_WEBHOOK_URL || `${process.env.APP_URL || 'https://mickey-pterodacty.vercel.app'}/api/payment/webhook`
     });
+          smsConfirmation: {
+            sent: Boolean(payment.confirmationSmsSentAt),
+            status: payment.confirmationSmsStatus || 'unknown',
+            reason: payment.confirmationSmsReason || null
+          }
 
     if (!result.success) {
       payment.status = 'failed';

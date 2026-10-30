@@ -182,6 +182,11 @@ RESEND_API_KEY=re_your_api_key
 SMTP_FROM=verified-sender@example.com
 SMTP_FROM_NAME=Your App Name
 
+# SMSTAPSA SMS (TAPSA is the default sender ID)
+SMSTAPSA_API_KEY=your-smstapsa-api-key
+# Optional: set only if your custom sender ID has been approved
+# SMSTAPSA_SENDER_ID=YOUR_APPROVED_SENDER
+
 # ZenoPay
 ZENOPAY_API_KEY=your-api-key
 ZENOPAY_MERCHANT_ID=your-merchant-id

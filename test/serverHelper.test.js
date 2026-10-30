@@ -5,7 +5,7 @@ const { normalizePanelBaseUrl } = require('../utils/panelUrl');
 const { fetchPterodactylEggs } = require('../utils/pterodactylEggs');
 const { fetchPaginatedApplicationData } = require('../utils/pterodactylPagination');
 const { validatePasswordComplexity } = require('../utils/passwordValidator');
-const { normalizePhone } = require('../services/smsService');
+const { normalizePhone, buildPaymentMessage } = require('../services/smsService');
 
 test('accepts simple passwords with at least 8 characters', () => {
   assert.equal(validatePasswordComplexity('abcdefgh').isValid, true);
@@ -21,6 +21,17 @@ test('normalizes Tanzanian mobile numbers for SMS account settings', () => {
   assert.equal(normalizePhone('+255 712 345 678'), '255712345678');
   assert.equal(normalizePhone('712345678'), '255712345678');
   assert.equal(/^255[67]\d{8}$/.test(normalizePhone('12345')), false);
+});
+
+test('builds SMSTAPSA payment confirmations within the 160-character limit', () => {
+  const message = buildPaymentMessage({
+    amount: 12500,
+    transactionId: '0123456789abcdef01234567',
+    product: 'Bot script '.repeat(20)
+  });
+  assert.ok(message.includes('Malipo ya TZS'));
+  assert.ok(message.length <= 160);
+  assert.ok(buildPaymentMessage({ amount: 25, currency: 'coins' }).includes('25 COINS'));
 });
 
 test('validates public git repository URLs', () => {

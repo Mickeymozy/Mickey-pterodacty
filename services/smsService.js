@@ -7,55 +7,78 @@ const normalizePhone = (phone) => {
   return value;
 };
 
-const MAX_SMS_LENGTH = 480;
+const MAX_SMS_LENGTH = 160;
 
 function formatAmount(amount) {
   return Number(amount || 0).toLocaleString('en-TZ');
 }
 
-function buildPaymentMessage({ amount, transactionId, product }) {
-  const message = `MickeyPanel: Malipo yako ya TZS ${formatAmount(amount)} yamepokelewa. Huduma: ${product || 'MickeyPanel'}. Kumbukumbu: ${transactionId || 'N/A'}. Asante.`;
-  return message.length > MAX_SMS_LENGTH ? `${message.slice(0, MAX_SMS_LENGTH - 3).trim()}...` : message;
+function buildPaymentMessage({ amount, currency = 'TZS', transactionId, product }) {
+  const safeProduct = String(product || 'MickeyPanel').replace(/\s+/g, ' ').trim().slice(0, 40);
+  const normalizedCurrency = String(currency || 'TZS').toUpperCase();
+  const amountLabel = normalizedCurrency === 'TZS'
+    ? `TZS ${formatAmount(amount)}`
+    : `${formatAmount(amount)} ${normalizedCurrency}`;
+  const message = `MickeyPanel: Malipo ya ${amountLabel} yamepokelewa. Huduma: ${safeProduct}. Kumbukumbu: ${transactionId || 'N/A'}. Asante.`;
+  return message.length > MAX_SMS_LENGTH ? message.slice(0, MAX_SMS_LENGTH - 3).trimEnd() + '...' : message;
 }
 
 let sdkPromise;
 
 async function getClient() {
-  if (!process.env.TAPSA_API_KEY) return null;
-  sdkPromise ||= import('sms-bulk-tz').then(({ TapsaSMS }) => new TapsaSMS({
-    apiKey: process.env.TAPSA_API_KEY,
-    baseUrl: process.env.TAPSA_BASE_URL || undefined,
-    timeout: Number(process.env.TAPSA_TIMEOUT_MS || 30000)
-  })).catch((error) => {
+  const apiKey = process.env.SMSTAPSA_API_KEY || process.env.TAPSA_API_KEY;
+  if (!apiKey) return null;
+  sdkPromise ||= import('sms-bulk-tz').then((sdk) => {
+    const SmsBulkTz = [sdk.default, sdk.SmsBulkTz, sdk.TapsaSMS].find((candidate) => typeof candidate === 'function');
+    if (!SmsBulkTz) throw new Error('sms-bulk-tz SDK constructor was not found.');
+    return new SmsBulkTz({
+      apiKey,
+      baseUrl: process.env.SMSTAPSA_BASE_URL || process.env.TAPSA_BASE_URL || undefined,
+      timeout: Number(process.env.SMSTAPSA_TIMEOUT_MS || process.env.TAPSA_TIMEOUT_MS || 30000),
+      retries: Number(process.env.SMSTAPSA_RETRIES || 2)
+    });
+  }).catch((error) => {
     sdkPromise = null;
     throw new Error(`SMS client initialization failed: ${error.message}`);
   });
   return sdkPromise;
 }
 
-async function sendPaymentConfirmation({ phone, amount, transactionId, product }) {
+function getSendSmsMethod(client) {
+  const method = client.sendSms || client.sendSMS;
+  if (typeof method !== 'function') throw new Error('SMSTAPSA client does not provide sendSms().');
+  return method.bind(client);
+}
+
+function isSuccessfulRecipient(recipient) {
+  return /^(success|sent|delivered)$/i.test(String(recipient?.status || ''));
+}
+
+function getSenderId() {
+  return process.env.SMSTAPSA_SENDER_ID || process.env.TAPSA_SENDER_ID || 'TAPSA';
+}
+
+async function sendPaymentConfirmation({ phone, amount, currency = 'TZS', transactionId, product }) {
   const normalizedPhone = normalizePhone(phone);
   if (!/^255[67]\d{8}$/.test(normalizedPhone)) return { sent: false, skipped: true, reason: 'Namba ya simu si sahihi.' };
 
   const client = await getClient();
-  if (!client) return { sent: false, skipped: true, reason: 'TAPSA_API_KEY is not configured.' };
+  if (!client) return { sent: false, skipped: true, reason: 'SMSTAPSA_API_KEY is not configured.' };
 
-  const message = buildPaymentMessage({ amount, transactionId, product });
-  let result;
-  let lastError;
-  const attempts = Math.max(1, Math.min(Number(process.env.TAPSA_RETRY_ATTEMPTS || 2), 3));
-  for (let attempt = 1; attempt <= attempts; attempt += 1) {
-    try {
-      result = await client.sendSMS({ phoneNumbers: [normalizedPhone], message, senderId: process.env.TAPSA_SENDER_ID || 'MICKEY' });
-      break;
-    } catch (error) {
-      lastError = error;
-      if (attempt < attempts) await new Promise((resolve) => setTimeout(resolve, 250 * attempt));
-    }
-  }
-  if (!result) throw new Error(`SMS sending failed after ${attempts} attempt(s): ${lastError?.message || 'Unknown provider error'}`);
-
-  return { sent: true, phone: normalizedPhone, message, result };
+  const message = buildPaymentMessage({ amount, currency, transactionId, product });
+  const result = await getSendSmsMethod(client)(
+    { phoneNumbers: [normalizedPhone], message, senderId: getSenderId() }
+  );
+  const recipients = Array.isArray(result?.recipients) ? result.recipients : [];
+  const sent = result?.success !== false && (!recipients.length || recipients.some(isSuccessfulRecipient));
+  const failedRecipient = recipients.find((recipient) => !isSuccessfulRecipient(recipient));
+  return {
+    sent,
+    phone: normalizedPhone,
+    message,
+    result,
+    reason: sent ? null : failedRecipient?.failureReason || failedRecipient?.status || result?.message || 'SMS haikufika kwa mpokeaji.'
+  };
 }
 
 async function sendTextMessage({ phoneNumbers, message }) {
@@ -69,32 +92,22 @@ async function sendTextMessage({ phoneNumbers, message }) {
   if (text.length > MAX_SMS_LENGTH) return { sent: false, skipped: true, reason: `Ujumbe wa SMS usizidi herufi ${MAX_SMS_LENGTH}.` };
 
   const client = await getClient();
-  if (!client) return { sent: false, skipped: true, reason: 'TAPSA_API_KEY is not configured.' };
+  if (!client) return { sent: false, skipped: true, reason: 'SMSTAPSA_API_KEY is not configured.' };
 
-  const results = [];
-  const attempts = Math.max(1, Math.min(Number(process.env.TAPSA_RETRY_ATTEMPTS || 2), 3));
-  for (let index = 0; index < normalizedPhones.length; index += 100) {
-    const batch = normalizedPhones.slice(index, index + 100);
-    let result;
-    let lastError;
-    for (let attempt = 1; attempt <= attempts; attempt += 1) {
-      try {
-        result = await client.sendSMS({
-          phoneNumbers: batch,
-          message: text,
-          senderId: process.env.TAPSA_SENDER_ID || 'MICKEY'
-        });
-        break;
-      } catch (error) {
-        lastError = error;
-        if (attempt < attempts) await new Promise((resolve) => setTimeout(resolve, 250 * attempt));
-      }
-    }
-    if (!result) throw new Error(`SMS sending failed after ${attempts} attempt(s): ${lastError?.message || 'Unknown provider error'}`);
-    results.push(result);
-  }
-
-  return { sent: true, count: normalizedPhones.length, phoneNumbers: normalizedPhones, results };
+  const result = await getSendSmsMethod(client)(
+    { phoneNumbers: normalizedPhones, message: text, senderId: getSenderId() }
+  );
+  const recipients = Array.isArray(result?.recipients) ? result.recipients : [];
+  const successfulCount = recipients.length
+    ? recipients.filter(isSuccessfulRecipient).length
+    : result?.success === false ? 0 : normalizedPhones.length;
+  return {
+    sent: successfulCount > 0,
+    count: successfulCount,
+    phoneNumbers: normalizedPhones,
+    result,
+    reason: successfulCount > 0 ? null : result?.message || 'SMS hazikutumwa kwa wapokeaji.'
+  };
 }
 
 module.exports = { normalizePhone, buildPaymentMessage, sendPaymentConfirmation, sendTextMessage };

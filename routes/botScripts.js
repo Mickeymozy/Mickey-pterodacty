@@ -81,6 +81,20 @@ router.post('/:id/purchase', requireAuth, async (req, res) => {
   const existing = await Transaction.findOne({ userId: req.user._id, type: 'purchase', status: 'completed', 'metadata.kind': 'bot-script', 'metadata.botScriptId': script._id });
   if (existing) return res.json({ success: true, message: 'Script tayari imenunuliwa.', data: { downloadUrl: downloadLinkFor(req.user._id, script._id) } });
 
+  const pending = await Transaction.findOne({ userId: req.user._id, type: 'purchase', status: 'pending', 'metadata.kind': 'bot-script', 'metadata.botScriptId': script._id }).sort({ createdAt: -1 });
+  if (pending) {
+    return res.json({
+      success: true,
+      message: 'Ombi la malipo ya script hii bado linasubiri uthibitisho.',
+      data: {
+        transactionId: pending._id,
+        paymentUrl: pending.metadata?.paymentUrl || null,
+        paymentMessage: pending.metadata?.paymentMessage || 'Endelea na ombi la PalmPesa lililoanzishwa.',
+        paymentInitiated: true
+      }
+    });
+  }
+
   const paymentMethod = String(req.body.paymentMethod || 'palmpesa').toLowerCase();
   if (paymentMethod !== 'palmpesa') return res.status(400).json({ success: false, message: 'Bot script inalipiwa kwa PalmPesa pekee.' });
   const priceTzs = getScriptPriceTzs(script);
@@ -121,6 +135,7 @@ router.post('/:id/purchase', requireAuth, async (req, res) => {
   transaction.metadata = {
     ...transaction.metadata,
     paymentUrl,
+    paymentMessage: paymentResult.paymentMessage || '',
     paymentInitiated: true,
     autoFulfill: true,
     paymentEndpoint: paymentResult.endpoint || 'palmpesa',

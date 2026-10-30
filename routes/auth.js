@@ -9,7 +9,7 @@ const sendEmail = require('../utils/email');
 const axios = require('axios');
 const LoginActivity = require('../models/LoginActivity');
 const { isIP } = require('net');
-const { normalizePhone } = require('../services/smsService');
+const { normalizePhone, sendTextMessage } = require('../services/smsService');
 
 function isAcceptablePassword(password) {
   return validatePasswordComplexity(String(password || '')).isValid;
@@ -372,16 +372,28 @@ router.post('/auth/register', async (req, res) => {
 });
 
 router.post('/auth/reset-password', async (req, res) => {
+  const channel = String(req.body.channel || 'email').toLowerCase();
   const email = String(req.body.email || '').trim().toLowerCase();
+  const phone = normalizePhone(req.body.phone);
 
-  if (!email) {
+  if (!['email', 'sms'].includes(channel)) {
+    req.flash('error_msg', '❌ Chagua email au SMS.');
+    return res.redirect('/login.html?tab=reset');
+  }
+  if (channel === 'email' && !email) {
     req.flash('error_msg', '❌ Taarifa ya email inahitajika.');
     return res.redirect('/login.html?tab=reset');
   }
+  if (channel === 'sms' && !/^255[67]\d{8}$/.test(phone)) {
+    req.flash('error_msg', '❌ Weka namba sahihi ya Tanzania kwa ajili ya SMS.');
+    return res.redirect('/login.html?tab=reset');
+  }
 
-  const user = await User.findOne({ email });
+  const user = channel === 'email'
+    ? await User.findOne({ email })
+    : await User.findOne({ phone });
   if (!user) {
-    req.flash('error_msg', '❌ Barua pepe hiyo haijasajiliwa.');
+    req.flash('success_msg', `Kama akaunti yenye taarifa hizo ipo, token ya reset itatumwa kwa ${channel === 'email' ? 'email' : 'SMS'}.`);
     return res.redirect('/login.html?tab=reset');
   }
 
@@ -390,18 +402,37 @@ router.post('/auth/reset-password', async (req, res) => {
   user.resetTokenExpires = Date.now() + 30 * 60 * 1000;
   await user.save();
 
-  const resetLink = `${process.env.APP_URL || 'http://localhost:3000'}/login.html?tab=reset&token=${token}`;
-  const sent = await sendEmail({
-    to: user.email,
-    subject: 'Badilisha password ya akaunti yako',
-    text: `Fungua link hii kubadilisha password yako: ${resetLink}. Link hii itaisha baada ya muda mfupi.`,
-    html: `<p style="margin:0 0 8px; color:#506466;">Ombi la usalama wa akaunti</p><h1 style="margin:0 0 18px; color:#173638; font-size:26px;">Badilisha password yako</h1><p style="margin:0 0 22px;">Bonyeza kitufe hapa chini kuweka password mpya. Link hii ni ya matumizi ya mara moja.</p><p style="margin:0 0 22px;"><a href="${resetLink}" style="display:inline-block; padding:13px 20px; border-radius:9px; background:#0f766e; color:#ffffff; font-weight:700; text-decoration:none;">Badilisha password</a></p><p style="margin:0; color:#718083; font-size:13px;">Kama kitufe hakifanyi kazi, tumia link hii: <a href="${resetLink}" style="color:#0f766e; word-break:break-all;">${resetLink}</a></p>`
-  });
+  let sent = false;
+  try {
+    if (channel === 'sms') {
+      const result = await sendTextMessage({
+        phoneNumbers: [user.phone],
+        message: `MickeyPanel: Token ya kubadili password ni ${token}. Itaisha baada ya dakika 30.`
+      });
+      sent = result.sent;
+      if (!sent) console.warn('Password reset SMS was not sent:', result.reason || 'Unknown SMS error');
+    } else {
+      const resetLink = `${process.env.APP_URL || 'http://localhost:3000'}/login.html?tab=reset&token=${token}`;
+      sent = await sendEmail({
+        to: user.email,
+        subject: 'Badilisha password ya akaunti yako',
+        text: `Fungua link hii kubadilisha password yako: ${resetLink}. Link hii itaisha baada ya muda mfupi.`,
+        html: `<p style="margin:0 0 8px; color:#506466;">Ombi la usalama wa akaunti</p><h1 style="margin:0 0 18px; color:#173638; font-size:26px;">Badilisha password yako</h1><p style="margin:0 0 22px;">Bonyeza kitufe hapa chini kuweka password mpya. Link hii ni ya matumizi ya mara moja.</p><p style="margin:0 0 22px;"><a href="${resetLink}" style="display:inline-block; padding:13px 20px; border-radius:9px; background:#0f766e; color:#ffffff; font-weight:700; text-decoration:none;">Badilisha password</a></p><p style="margin:0; color:#718083; font-size:13px;">Kama kitufe hakifanyi kazi, tumia link hii: <a href="${resetLink}" style="color:#0f766e; word-break:break-all;">${resetLink}</a></p>`
+      });
+    }
+  } catch (error) {
+    console.error(`Password reset ${channel} delivery failed:`, error.message);
+  }
 
   if (sent) {
-    req.flash('success_msg', `✅ Maelezo ya kubadili password yametumwa kwa ${email}`);
+    req.flash('success_msg', `✅ Token ya kubadili password imetumwa kwa ${channel === 'email' ? 'email' : 'SMS'}. Itaisha baada ya dakika 30.`);
   } else {
-    req.flash('error_msg', '❌ Haikuweza kutuma email ya reset. Angalia SMTP settings.');
+    user.resetToken = null;
+    user.resetTokenExpires = null;
+    await user.save();
+    req.flash('error_msg', channel === 'email'
+      ? '❌ Haikuweza kutuma email ya reset. Angalia SMTP settings.'
+      : '❌ Haikuweza kutuma SMS ya reset. Hakikisha SMSTAPSA imewekwa na salio linatosha.');
   }
 
   res.redirect('/login.html?tab=reset');

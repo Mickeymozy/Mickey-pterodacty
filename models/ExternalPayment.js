@@ -14,7 +14,11 @@ const externalPaymentSchema = new mongoose.Schema({
   providerMessage: String,
   notes: String,
   completedAt: Date,
-  webhookSentAt: Date
+  webhookSentAt: Date,
+  confirmationSmsStatus: String,
+  confirmationSmsReason: String,
+  confirmationSmsAttemptedAt: Date,
+  confirmationSmsSentAt: Date
 }, { timestamps: true });
 
 module.exports = mongoose.model('ExternalPayment', externalPaymentSchema);

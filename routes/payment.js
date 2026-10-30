@@ -100,6 +100,7 @@ async function notifyUserBySmsAfterPayment(user, transaction, productName) {
     const smsResult = await sendPaymentConfirmation({
       phone: transaction.metadata?.phone || user.phone,
       amount: transaction.metadata?.amountTzs ?? transaction.amount,
+      currency: transaction.metadata?.amountTzs != null ? 'TZS' : transaction.currency,
       transactionId: transaction._id,
       product: productName
     });
@@ -148,6 +149,33 @@ function getPaymentDeliveryDetails(transaction) {
       ? `/api/bot-scripts/${encodeURIComponent(String(scriptId))}/download`
       : null
   };
+}
+
+async function notifyExternalPaymentBySms(payment) {
+  const claimed = await ExternalPayment.findOneAndUpdate(
+    { _id: payment._id, confirmationSmsAttemptedAt: { $exists: false } },
+    { $set: { confirmationSmsAttemptedAt: new Date(), confirmationSmsStatus: 'sending' } },
+    { new: true }
+  );
+  if (!claimed) return;
+
+  try {
+    const result = await sendPaymentConfirmation({
+      phone: claimed.customerPhone,
+      amount: claimed.amount,
+      transactionId: claimed.merchantOrderId,
+      product: claimed.description
+    });
+    claimed.confirmationSmsStatus = result.sent ? 'sent' : result.skipped ? 'skipped' : 'failed';
+    claimed.confirmationSmsReason = result.reason || null;
+    if (result.sent) claimed.confirmationSmsSentAt = new Date();
+    await claimed.save();
+  } catch (error) {
+    console.error('External payment confirmation SMS failed:', error.message);
+    await ExternalPayment.findByIdAndUpdate(claimed._id, {
+      $set: { confirmationSmsStatus: 'failed', confirmationSmsReason: error.message }
+    }).catch(() => {});
+  }
 }
 
 async function fulfillSuccessfulTransaction(transactionId) {
@@ -716,6 +744,14 @@ router.get('/verify/:transactionId', authenticate, async (req, res) => {
       });
     }
 
+    if (transaction.status === 'processing') {
+      return res.json({
+        success: true,
+        message: 'Payment is being processed.',
+        data: { status: 'pending', transactionId }
+      });
+    }
+
     const verificationResult = await palmPesaService.verifyPayment(
       transaction.zenopayTransactionId
     );
@@ -725,6 +761,13 @@ router.get('/verify/:transactionId', authenticate, async (req, res) => {
       if (['success', 'successful', 'completed', 'complete', 'succeeded', 'paid', 'confirmed', 'approved'].includes(verifiedStatus)) {
         const result = await fulfillSuccessfulTransaction(transactionId);
         const completedTransaction = result.transaction;
+        if (completedTransaction.status !== 'completed') {
+          return res.json({
+            success: true,
+            message: 'Payment is being processed.',
+            data: { status: 'pending', transactionId }
+          });
+        }
         const isTopup = completedTransaction.metadata?.type === 'topup';
         const isGeneric = completedTransaction.type === 'generic' || completedTransaction.metadata?.type === 'generic';
         res.json({
@@ -996,6 +1039,10 @@ router.post('/webhook', async (req, res) => {
         externalPayment.status = 'failed';
         externalPayment.notes = JSON.stringify(req.body).slice(0, 2000);
         await externalPayment.save();
+      }
+
+      if (shouldCredit && externalPayment.status === 'completed') {
+        await notifyExternalPaymentBySms(externalPayment);
       }
 
       if ((shouldCredit || shouldFail) && !externalPayment.webhookSentAt && process.env.EXTERNAL_PAYMENT_WEBHOOK_URL) {
