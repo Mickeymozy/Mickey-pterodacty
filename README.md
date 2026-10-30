@@ -186,6 +186,8 @@ SMTP_FROM_NAME=Your App Name
 SMSTAPSA_API_KEY=your-smstapsa-api-key
 # Optional: set only if your custom sender ID has been approved
 # SMSTAPSA_SENDER_ID=YOUR_APPROVED_SENDER
+# Required to accept SMS delivery reports. Generate a long random token.
+SMSTAPSA_DELIVERY_WEBHOOK_TOKEN=use-a-long-random-token
 
 # ZenoPay
 ZENOPAY_API_KEY=your-api-key
@@ -215,15 +217,18 @@ BILLING_AUTOMATION_ENABLED=true
 BILLING_AUTOMATION_INTERVAL_MS=900000
 
 # SMS confirmations (SMSTAPSA / sms-bulk-tz)
-TAPSA_API_KEY=your-smstapsa-api-key
-TAPSA_SENDER_ID=TAPSA
-# Optional: defaults to https://api.smstapsa.site
-TAPSA_BASE_URL=https://api.smstapsa.site
+SMSTAPSA_API_KEY=your-smstapsa-api-key
+# Optional: set only if your custom sender ID has been approved
+# SMSTAPSA_SENDER_ID=YOUR_APPROVED_SENDER
+# Optional: defaults to the base URL configured by sms-bulk-tz
+# SMSTAPSA_BASE_URL=https://api.smstapsa.site
 ```
 
 `PANEL_ADMIN_API_KEY` must be a Client API key owned by a root administrator; it is required to list eggs through the Pterodactyl v2 Admin API. The Application API key remains in `PANEL_API_KEY` for user and server operations.
 
-After payment is confirmed by the provider API, webhook, or admin approval, the customer receives an SMS confirmation on the phone number used for that payment. Pending and failed payments do not trigger this SMS. Admins can also choose Email or SMS in the admin message composer; SMS requires `TAPSA_API_KEY` and a valid saved phone number.
+After payment is confirmed by the provider API, webhook, or admin approval, the customer receives an SMS confirmation on the phone number used for that payment. Pending and failed payments do not trigger this SMS. Admins can also choose Email or SMS in the admin message composer; SMS requires `SMSTAPSA_API_KEY` (legacy `TAPSA_API_KEY` is also accepted) and a valid saved phone number.
+
+Configure the SMSTAPSA Delivery Webhook URL as `https://YOUR_DOMAIN/api/sms/delivery/SMSTAPSA_DELIVERY_WEBHOOK_TOKEN` in the SMSTAPSA dashboard. The route accepts `sms.delivery` reports and updates delivery status for payment confirmations by provider `messageId`. Keep the token private and rotate it if the callback URL is exposed.
 
 Login alerts are sent only after at least three failed attempts in 15 minutes or when the optional IPinfo lookup flags a foreign-country, VPN, proxy, Tor, or hosting IP. Set `IPINFO_TOKEN` to enable those IP checks; without it, repeated failed attempts still trigger alerts.
 

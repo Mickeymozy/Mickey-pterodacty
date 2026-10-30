@@ -111,6 +111,8 @@ async function notifyUserBySmsAfterPayment(user, transaction, productName) {
       confirmationSmsSent: Boolean(smsResult.sent),
       confirmationSmsStatus: status,
       confirmationSmsPhone: smsResult.phone || null,
+      confirmationSmsMessageId: smsResult.messageId || null,
+      confirmationSmsDeliveryStatus: smsResult.sent ? (smsResult.messageId ? 'pending' : 'untracked') : status,
       confirmationSmsReason: smsResult.reason || null
     };
     await transaction.save();
@@ -141,6 +143,7 @@ function getPaymentDeliveryDetails(transaction) {
     smsConfirmation: {
       sent: smsSent,
       status: transaction.metadata?.confirmationSmsStatus || (smsSent ? 'sent' : 'unknown'),
+      deliveryStatus: transaction.metadata?.confirmationSmsDeliveryStatus || 'unknown',
       reason: transaction.metadata?.confirmationSmsReason || null
     },
     productName: isBotScript ? transaction.metadata?.title || 'Bot Script' : null,
@@ -168,6 +171,8 @@ async function notifyExternalPaymentBySms(payment) {
     });
     claimed.confirmationSmsStatus = result.sent ? 'sent' : result.skipped ? 'skipped' : 'failed';
     claimed.confirmationSmsReason = result.reason || null;
+    claimed.confirmationSmsMessageId = result.messageId || null;
+    claimed.confirmationSmsDeliveryStatus = result.sent ? (result.messageId ? 'pending' : 'untracked') : claimed.confirmationSmsStatus;
     if (result.sent) claimed.confirmationSmsSentAt = new Date();
     await claimed.save();
   } catch (error) {

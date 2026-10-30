@@ -199,7 +199,10 @@ router.get('/:orderId', async (req, res) => {
         smsConfirmation: {
           sent: Boolean(payment.confirmationSmsSentAt),
           status: payment.confirmationSmsStatus || 'unknown',
-          reason: payment.confirmationSmsReason || null
+          reason: payment.confirmationSmsReason || null,
+          deliveryStatus: payment.confirmationSmsDeliveryStatus || 'unknown',
+          deliveryReason: payment.confirmationSmsDeliveryReason || null,
+          deliveredAt: payment.confirmationSmsDeliveredAt || null
         }
       }
     });

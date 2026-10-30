@@ -17,6 +17,10 @@ const externalPaymentSchema = new mongoose.Schema({
   webhookSentAt: Date,
   confirmationSmsStatus: String,
   confirmationSmsReason: String,
+  confirmationSmsMessageId: { type: String, index: true },
+  confirmationSmsDeliveryStatus: String,
+  confirmationSmsDeliveryReason: String,
+  confirmationSmsDeliveredAt: Date,
   confirmationSmsAttemptedAt: Date,
   confirmationSmsSentAt: Date
 }, { timestamps: true });

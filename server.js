@@ -17,6 +17,7 @@ const externalPaymentsRouter = require('./routes/externalPayments');
 const botScriptsRouter = require('./routes/botScripts');
 const supportRouter = require('./routes/support');
 const userRouter = require('./routes/user');
+const smsDeliveryRouter = require('./routes/smsDelivery');
 const { requireAuth, requireAdmin, getUserFromSession } = require('./middleware/auth');
 const { startBillingAutomation } = require('./services/billingAutomation');
 
@@ -115,6 +116,7 @@ app.use('/', apiRoutes);
 app.use('/api', packagesRouter);
 app.use('/api/payment', paymentRouter);
 app.use('/api/integration/payments', externalPaymentsRouter);
+app.use('/api/sms', smsDeliveryRouter);
 app.use('/api/bot-scripts', botScriptsRouter);
 app.use('/api/support', supportRouter);
 app.use('/api/user', userRouter);

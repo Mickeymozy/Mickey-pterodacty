@@ -5,7 +5,7 @@ const { normalizePanelBaseUrl } = require('../utils/panelUrl');
 const { fetchPterodactylEggs } = require('../utils/pterodactylEggs');
 const { fetchPaginatedApplicationData } = require('../utils/pterodactylPagination');
 const { validatePasswordComplexity } = require('../utils/passwordValidator');
-const { normalizePhone, buildPaymentMessage } = require('../services/smsService');
+const { normalizePhone, buildPaymentMessage, normalizeSmsDeliveryReport } = require('../services/smsService');
 
 test('accepts simple passwords with at least 8 characters', () => {
   assert.equal(validatePasswordComplexity('abcdefgh').isValid, true);
@@ -32,6 +32,17 @@ test('builds SMSTAPSA payment confirmations within the 160-character limit', () 
   assert.ok(message.includes('Malipo ya TZS'));
   assert.ok(message.length <= 160);
   assert.ok(buildPaymentMessage({ amount: 25, currency: 'coins' }).includes('25 COINS'));
+});
+
+test('maps SMSTAPSA delivery reports to delivered, failed, or unknown states', () => {
+  const delivered = normalizeSmsDeliveryReport({ messageId: 'msg_1', status: 'Success', success: true });
+  assert.equal(delivered.messageId, 'msg_1');
+  assert.equal(delivered.deliveryStatus, 'delivered');
+  assert.equal(delivered.failureReason, null);
+  assert.ok(delivered.occurredAt instanceof Date);
+  assert.equal(normalizeSmsDeliveryReport({ status: 'Undelivered', success: false }).deliveryStatus, 'failed');
+  assert.equal(normalizeSmsDeliveryReport({ status: 'Success', success: false }).deliveryStatus, 'failed');
+  assert.equal(normalizeSmsDeliveryReport({ status: 'Queued', success: null }).deliveryStatus, 'unknown');
 });
 
 test('validates public git repository URLs', () => {

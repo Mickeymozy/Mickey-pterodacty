@@ -29,13 +29,12 @@ async function getClient() {
   const apiKey = process.env.SMSTAPSA_API_KEY || process.env.TAPSA_API_KEY;
   if (!apiKey) return null;
   sdkPromise ||= import('sms-bulk-tz').then((sdk) => {
-    const SmsBulkTz = [sdk.default, sdk.SmsBulkTz, sdk.TapsaSMS].find((candidate) => typeof candidate === 'function');
-    if (!SmsBulkTz) throw new Error('sms-bulk-tz SDK constructor was not found.');
-    return new SmsBulkTz({
+    const TapsaSMS = [sdk.TapsaSMS, sdk.default, sdk.SmsBulkTz].find((candidate) => typeof candidate === 'function');
+    if (!TapsaSMS) throw new Error('sms-bulk-tz TapsaSMS constructor was not found.');
+    return new TapsaSMS({
       apiKey,
       baseUrl: process.env.SMSTAPSA_BASE_URL || process.env.TAPSA_BASE_URL || undefined,
-      timeout: Number(process.env.SMSTAPSA_TIMEOUT_MS || process.env.TAPSA_TIMEOUT_MS || 30000),
-      retries: Number(process.env.SMSTAPSA_RETRIES || 2)
+      timeout: Number(process.env.SMSTAPSA_TIMEOUT_MS || process.env.TAPSA_TIMEOUT_MS || 30000)
     });
   }).catch((error) => {
     sdkPromise = null;
@@ -45,8 +44,8 @@ async function getClient() {
 }
 
 function getSendSmsMethod(client) {
-  const method = client.sendSms || client.sendSMS;
-  if (typeof method !== 'function') throw new Error('SMSTAPSA client does not provide sendSms().');
+  const method = client.sendSMS || client.sendSms;
+  if (typeof method !== 'function') throw new Error('SMSTAPSA client does not provide sendSMS().');
   return method.bind(client);
 }
 
@@ -56,6 +55,27 @@ function isSuccessfulRecipient(recipient) {
 
 function getSenderId() {
   return process.env.SMSTAPSA_SENDER_ID || process.env.TAPSA_SENDER_ID || 'TAPSA';
+}
+
+function normalizeSmsDeliveryReport(payload = {}) {
+  const providerStatus = String(payload.status || '').trim().toLowerCase();
+  const successfulStatuses = ['success', 'sent', 'delivered'];
+  const failedStatuses = ['failed', 'rejected', 'undelivered', 'expired'];
+  const occurredAt = payload.occurredAt ? new Date(payload.occurredAt) : new Date();
+  const deliveryStatus = typeof payload.success === 'boolean'
+    ? payload.success ? 'delivered' : 'failed'
+    : successfulStatuses.includes(providerStatus)
+      ? 'delivered'
+      : failedStatuses.includes(providerStatus)
+        ? 'failed'
+        : 'unknown';
+
+  return {
+    messageId: String(payload.messageId || '').trim(),
+    deliveryStatus,
+    failureReason: payload.failureReason ? String(payload.failureReason).slice(0, 500) : null,
+    occurredAt: Number.isNaN(occurredAt.getTime()) ? new Date() : occurredAt
+  };
 }
 
 async function sendPaymentConfirmation({ phone, amount, currency = 'TZS', transactionId, product }) {
@@ -70,14 +90,16 @@ async function sendPaymentConfirmation({ phone, amount, currency = 'TZS', transa
     { phoneNumbers: [normalizedPhone], message, senderId: getSenderId() }
   );
   const recipients = Array.isArray(result?.recipients) ? result.recipients : [];
-  const sent = result?.success !== false && (!recipients.length || recipients.some(isSuccessfulRecipient));
-  const failedRecipient = recipients.find((recipient) => !isSuccessfulRecipient(recipient));
+  const recipient = recipients.find((item) => normalizePhone(item?.number) === normalizedPhone) || recipients[0];
+  const sent = recipient ? isSuccessfulRecipient(recipient) : result?.success === true;
   return {
     sent,
     phone: normalizedPhone,
     message,
     result,
-    reason: sent ? null : failedRecipient?.failureReason || failedRecipient?.status || result?.message || 'SMS haikufika kwa mpokeaji.'
+    messageId: recipient?.messageId || null,
+    providerStatus: recipient?.status || null,
+    reason: sent ? null : recipient?.failureReason || recipient?.status || result?.message || 'SMS haikufika kwa mpokeaji.'
   };
 }
 
@@ -110,4 +132,4 @@ async function sendTextMessage({ phoneNumbers, message }) {
   };
 }
 
-module.exports = { normalizePhone, buildPaymentMessage, sendPaymentConfirmation, sendTextMessage };
+module.exports = { normalizePhone, buildPaymentMessage, normalizeSmsDeliveryReport, sendPaymentConfirmation, sendTextMessage };

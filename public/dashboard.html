@@ -1660,7 +1660,10 @@
 
     function paymentSmsNotice(confirmation = {}) {
       if (!confirmation.status || confirmation.status === 'unknown') return 'Taarifa ya SMS haipatikani.';
-      if (confirmation.sent) return 'SMS ya uthibitisho imetumwa.';
+      if (confirmation.deliveryStatus === 'delivered') return 'SMS imefika kwenye simu.';
+      if (confirmation.deliveryStatus === 'failed') return 'SMS imetumwa lakini haikufika kwenye simu.';
+      if (confirmation.deliveryStatus === 'untracked') return 'SMS imetumwa; provider hakutoa message ID ya delivery report.';
+      if (confirmation.sent) return 'SMS imetumwa; inasubiri delivery report.';
       return `SMS haikutumwa${confirmation.reason ? `: ${confirmation.reason}` : '.'}`;
     }
 
