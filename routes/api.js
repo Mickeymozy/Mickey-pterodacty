@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 const User = require('../models/User');
 const Transaction = require('../models/Transaction');
 const BotScript = require('../models/BotScript');
+const EggAvailability = require('../models/EggAvailability');
 const sendEmail = require('../utils/email');
 const { requireAuth, requireAdmin, isAdminUser } = require('../middleware/auth');
 const { createServerFromPackage, isValidGitUrl, buildStartupCommand } = require('../utils/serverHelper');
@@ -635,13 +636,17 @@ router.get('/api/admin/analytics', requireAuth, requireAdmin, async (req, res) =
 });
 
 // Get eggs available in the panel
-router.get('/api/eggs', requireAuth, async (req, res) => {
+router.get('/api/eggs', requireAuth, requireAdmin, async (req, res) => {
   if (!adminApi) {
     return res.status(503).json({ success: false, error: 'Egg sync requires PANEL_ADMIN_API_KEY with a root administrator Client API key (ptlc_). The Application API key cannot access eggs in Pterodactyl v2.' });
   }
 
   try {
-    const eggs = await fetchPanelEggOptions();
+    const [eggs, availability] = await Promise.all([
+      fetchPanelEggOptions(),
+      EggAvailability.find({ isAvailable: false }).select('eggId').lean()
+    ]);
+    const unavailableEggIds = new Set(availability.map((item) => Number(item.eggId)));
     if (!eggs.length) {
       return res.status(404).json({ success: false, error: 'Hakuna eggs zilizopatikana kupitia Pterodactyl Admin API.' });
     }
@@ -656,7 +661,8 @@ router.get('/api/eggs', requireAuth, async (req, res) => {
         startup: egg.startup || '',
         startup_command: egg.startup_command || egg.environment?.STARTUP_CMD || '',
         environment: egg.environment || {},
-        nestId: egg.nestId
+        nestId: egg.nestId,
+        isAvailable: !unavailableEggIds.has(Number(egg.id))
       }))
     });
   } catch (err) {
@@ -664,6 +670,28 @@ router.get('/api/eggs', requireAuth, async (req, res) => {
     const error = providerErrors || err.response?.data?.message || err.message || 'Failed to fetch eggs.';
     res.status(err.response?.status && err.response.status >= 400 && err.response.status < 500 ? err.response.status : 502)
       .json({ success: false, error });
+  }
+});
+
+router.patch('/api/eggs/:eggId/availability', requireAuth, requireAdmin, async (req, res) => {
+  const eggId = Number(req.params.eggId);
+  if (!Number.isSafeInteger(eggId) || eggId < 1 || typeof req.body?.isAvailable !== 'boolean') {
+    return res.status(400).json({ success: false, error: 'Egg ID au hali ya upatikanaji si sahihi.' });
+  }
+
+  try {
+    if (req.body.isAvailable) {
+      await EggAvailability.deleteOne({ eggId });
+    } else {
+      await EggAvailability.findOneAndUpdate(
+        { eggId },
+        { $set: { isAvailable: false, updatedBy: req.user?._id } },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      );
+    }
+    res.json({ success: true, isAvailable: req.body.isAvailable });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message || 'Imeshindikana kusasisha egg.' });
   }
 });
 

@@ -1,0 +1,46 @@
+:root {
+  color-scheme: dark;
+  --ui-accent: #c8ff4d;
+  --ui-cyan: #55e6d2;
+  --ui-border: rgba(157, 255, 202, .15);
+}
+
+html { scroll-behavior: smooth; }
+body { background-attachment: fixed; }
+::selection { color: #102013; background: var(--ui-accent); }
+
+.glass, .hero-panel {
+  border-radius: 12px;
+  border-color: var(--ui-border);
+}
+
+input, select, textarea {
+  max-width: 100%;
+  border-radius: 8px !important;
+}
+
+button, a { -webkit-tap-highlight-color: transparent; }
+button:not(:disabled), a { transition-duration: .18s; }
+
+:focus-visible {
+  outline: 2px solid var(--ui-cyan);
+  outline-offset: 3px;
+}
+
+body.light-mode {
+  color-scheme: light;
+  --ui-border: rgba(19, 92, 66, .18);
+}
+
+@media (max-width: 640px) {
+  main { min-width: 0; }
+  table { font-size: .8125rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    transition-duration: .01ms !important;
+  }
+}

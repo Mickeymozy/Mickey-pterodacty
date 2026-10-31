@@ -142,6 +142,7 @@
         <button class="admin-side-link" data-admin-tab="users"><span>◎</span><span>Watumiaji</span></button>
         <p class="admin-side-label mt-5">Catalog</p>
         <button class="admin-side-link" data-admin-tab="packages"><span>▦</span><span>Packages</span></button>
+        <button class="admin-side-link" data-admin-tab="eggManagement"><span>◇</span><span>Eggs</span></button>
         <button class="admin-side-link" data-admin-tab="botScripts"><span>⌘</span><span>Bot scripts</span></button>
         <p class="admin-side-label mt-5">Billing</p>
         <button class="admin-side-link" data-admin-tab="payments"><span>◉</span><span>Malipo</span></button>
@@ -244,6 +245,32 @@
         </div>
       </div>
     </section>
+    </div>
+
+    <div id="eggManagement" class="tab-content admin-section">
+      <div class="mb-6 flex flex-col gap-3 border-b border-emerald-100/10 pb-5 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-lime-300">Panel catalog</p>
+          <h2 class="mt-1 text-2xl font-bold text-white">Egg management</h2>
+        </div>
+        <button id="refreshEggsBtn" type="button" class="min-h-10 rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:bg-slate-800">Refresh eggs</button>
+      </div>
+      <section class="glass rounded-xl p-5 sm:p-6">
+        <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p class="text-sm font-semibold text-white">Pterodactyl eggs</p>
+            <p class="mt-1 max-w-2xl text-xs leading-5 text-slate-400">Kuficha egg kunaiondoa kwenye chaguo la packages mpya pekee. Hakufuti egg wala servers kutoka Pterodactyl.</p>
+          </div>
+          <input id="eggSearch" type="search" placeholder="Tafuta kwa jina, nest au ID" class="w-full sm:max-w-xs rounded-lg border border-slate-700/70 bg-black/20 px-3 py-2.5 text-sm text-white outline-none" aria-label="Tafuta eggs">
+        </div>
+        <div class="mb-3 flex items-center justify-between text-xs text-slate-400"><span id="eggsStatus">Inapakia eggs...</span><span id="eggsCount">0 eggs</span></div>
+        <div class="overflow-x-auto">
+          <table class="w-full min-w-[560px] text-left text-sm">
+            <thead><tr class="border-b border-slate-700/70 text-xs text-slate-400"><th class="px-3 py-3">Egg</th><th class="px-3 py-3">Nest</th><th class="px-3 py-3">ID</th><th class="px-3 py-3">Hali</th><th class="px-3 py-3 text-right">Kitendo</th></tr></thead>
+            <tbody id="eggManagementList"><tr><td colspan="5" class="p-5 text-center text-slate-500">Inapakia...</td></tr></tbody>
+          </table>
+        </div>
+      </section>
     </div>
 
     <!-- Packages Tab -->
@@ -1107,6 +1134,7 @@
     }
 
     let panelEggs = [];
+    let activePanelEggs = [];
 
     function applyPanelEgg(egg) {
       if (!egg) return;
@@ -1135,21 +1163,88 @@
         }
 
         panelEggs = data.eggs;
+        activePanelEggs = panelEggs.filter((egg) => egg.isAvailable !== false);
+        renderEggManagement();
         const eggSelect = document.getElementById('pkgEggId');
         const currentEggId = String(eggSelect.value || '16');
-        eggSelect.replaceChildren(...panelEggs.map((egg) => {
+        eggSelect.replaceChildren(...activePanelEggs.map((egg) => {
           const option = document.createElement('option');
           option.value = String(egg.id);
           option.textContent = `${egg.nestName ? `${egg.nestName} / ` : ''}${egg.name} (ID: ${egg.id})`;
           return option;
         }));
-        eggSelect.value = panelEggs.some((egg) => String(egg.id) === currentEggId) ? currentEggId : String(panelEggs[0].id);
-        const selectedEgg = panelEggs.find((egg) => String(egg.id) === String(eggSelect.value)) || panelEggs[0];
-        applyPanelEgg(selectedEgg);
+        if (activePanelEggs.length) {
+          eggSelect.value = activePanelEggs.some((egg) => String(egg.id) === currentEggId) ? currentEggId : String(activePanelEggs[0].id);
+          const selectedEgg = activePanelEggs.find((egg) => String(egg.id) === String(eggSelect.value)) || activePanelEggs[0];
+          applyPanelEgg(selectedEgg);
+        } else {
+          eggSelect.add(new Option('Hakuna egg inayopatikana kwa packages mpya', ''));
+          if (syncMessage) syncMessage.textContent = 'Egg zote zimefichwa. Washa egg moja ili kuunda package.';
+        }
         if (data.warning && syncMessage) syncMessage.textContent = data.warning;
       } catch (error) {
         if (syncMessage) syncMessage.textContent = `Sync ya Pterodactyl imefeli: ${error.message}`;
+        document.getElementById('eggsStatus').textContent = `Imeshindikana kupakia: ${error.message}`;
         notify('Imeshindikana kusoma Docker/Egg/Startup kutoka Pterodactyl.', 'error');
+      }
+    }
+
+    function renderEggManagement() {
+      const list = document.getElementById('eggManagementList');
+      const search = document.getElementById('eggSearch').value.trim().toLowerCase();
+      const filtered = panelEggs.filter((egg) => `${egg.name} ${egg.nestName} ${egg.id}`.toLowerCase().includes(search));
+      document.getElementById('eggsStatus').textContent = 'Egg sync imekamilika';
+      document.getElementById('eggsCount').textContent = `${filtered.length} / ${panelEggs.length} eggs`;
+      list.replaceChildren();
+
+      if (!filtered.length) {
+        const row = list.insertRow();
+        const cell = row.insertCell();
+        cell.colSpan = 5;
+        cell.className = 'p-5 text-center text-slate-500';
+        cell.textContent = panelEggs.length ? 'Hakuna egg inayolingana na utafutaji.' : 'Hakuna eggs zilizopakiwa.';
+        return;
+      }
+
+      filtered.forEach((egg) => {
+        const available = egg.isAvailable !== false;
+        const row = list.insertRow();
+        [egg.name || `Egg ${egg.id}`, egg.nestName || '—', String(egg.id)].forEach((value) => {
+          const cell = row.insertCell();
+          cell.className = 'border-b border-slate-800/60 px-3 py-3 text-slate-200';
+          cell.textContent = value;
+        });
+        const statusCell = row.insertCell();
+        statusCell.className = 'border-b border-slate-800/60 px-3 py-3';
+        const status = document.createElement('span');
+        status.className = available ? 'text-xs font-semibold text-emerald-300' : 'text-xs font-semibold text-amber-300';
+        status.textContent = available ? 'Inatumika' : 'Imefichwa';
+        statusCell.append(status);
+        const actionCell = row.insertCell();
+        actionCell.className = 'border-b border-slate-800/60 px-3 py-3 text-right';
+        const action = document.createElement('button');
+        action.type = 'button';
+        action.className = available ? 'rounded-lg border border-amber-400/20 px-3 py-1.5 text-xs font-semibold text-amber-200 hover:bg-amber-400/10' : 'rounded-lg border border-emerald-400/20 px-3 py-1.5 text-xs font-semibold text-emerald-200 hover:bg-emerald-400/10';
+        action.textContent = available ? 'Ficha' : 'Washa';
+        action.addEventListener('click', () => setEggAvailability(egg.id, !available));
+        actionCell.append(action);
+      });
+    }
+
+    async function setEggAvailability(eggId, isAvailable) {
+      if (!isAvailable && !await confirmDialog('Egg hii haitaonekana kwa packages mpya. Egg na servers zilizopo hazitafutwa.', { title: 'Ficha egg?' })) return;
+      try {
+        const response = await fetch(`${API_URL}/eggs/${encodeURIComponent(eggId)}/availability`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ isAvailable })
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) throw new Error(result.error || 'Imeshindikana kusasisha egg.');
+        notify(isAvailable ? 'Egg imerudishwa kwenye packages.' : 'Egg imefichwa kwenye packages mpya.', 'success');
+        await loadPanelEggs();
+      } catch (error) {
+        notify(error.message, 'error');
       }
     }
 
@@ -1484,7 +1579,12 @@
         document.getElementById('pkgStartupFile').value = pkg.serverConfig?.startupFile || 'index.js';
         document.getElementById('pkgStartupCommand').value = pkg.serverConfig?.startupCommand || 'npm start';
         const selectedPanelEgg = panelEggs.find((egg) => String(egg.id) === savedEggId);
-        if (selectedPanelEgg) applyPanelEgg(selectedPanelEgg);
+        if (selectedPanelEgg) {
+          if (selectedPanelEgg.isAvailable === false && !Array.from(eggSelect.options).some((option) => option.value === savedEggId)) {
+            eggSelect.add(new Option(`${selectedPanelEgg.name} (ID: ${savedEggId}, hidden legacy package)`, savedEggId));
+          }
+          applyPanelEgg(selectedPanelEgg);
+        }
         document.getElementById('pkgFormMsg').textContent = 'Hariri package yako kwa sasa';
         document.getElementById('pkgFormMsg').className = 'text-xs text-amber-400';
       } catch (e) {
@@ -1601,9 +1701,12 @@
         document.querySelectorAll('[data-admin-tab]').forEach((item) => item.classList.toggle('active', item === button));
         switchTab(null, button.dataset.adminTab);
         setAdminSideNavOpen(false);
+        if (button.dataset.adminTab === 'eggManagement') loadPanelEggs();
       });
     });
 
+    document.getElementById('eggSearch').addEventListener('input', renderEggManagement);
+    document.getElementById('refreshEggsBtn').addEventListener('click', loadPanelEggs);
     document.getElementById('packagesSearch').addEventListener('input', renderPackages);
 
     document.getElementById('packageForm').addEventListener('submit', async (e) => {
