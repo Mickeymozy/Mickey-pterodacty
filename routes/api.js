@@ -636,7 +636,7 @@ router.get('/api/admin/analytics', requireAuth, requireAdmin, async (req, res) =
 });
 
 // Get eggs available in the panel
-router.get('/api/eggs', requireAuth, requireAdmin, async (req, res) => {
+router.get('/api/eggs', requireAuth, async (req, res) => {
   if (!adminApi) {
     return res.status(503).json({ success: false, error: 'Egg sync requires PANEL_ADMIN_API_KEY with a root administrator Client API key (ptlc_). The Application API key cannot access eggs in Pterodactyl v2.' });
   }
