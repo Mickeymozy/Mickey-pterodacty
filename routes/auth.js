@@ -10,9 +10,11 @@ const axios = require('axios');
 const LoginActivity = require('../models/LoginActivity');
 const { isIP } = require('net');
 const { normalizePhone, sendTextMessage } = require('../services/smsService');
+const { generateResetToken, createAttemptLimiter } = require('../utils/resetToken');
 
 const asyncHandler = (handler) => (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
 const callbackHandler = (handler, onError) => (...args) => Promise.resolve(handler(...args)).catch(onError);
+const allowPasswordResetAttempt = createAttemptLimiter(10, 15 * 60 * 1000);
 
 function isAcceptablePassword(password) {
   return validatePasswordComplexity(String(password || '')).isValid;
@@ -139,10 +141,6 @@ async function getPteroUser(identifier) {
 
 function generateCode(length = 6) {
   return crypto.randomInt(0, 10 ** length).toString().padStart(length, '0');
-}
-
-function generateToken() {
-  return crypto.randomBytes(32).toString('hex');
 }
 
 async function sendVerificationMessage(user) {
@@ -400,7 +398,7 @@ router.post('/auth/reset-password', asyncHandler(async (req, res) => {
     return res.redirect('/login.html?tab=reset');
   }
 
-  const token = generateToken();
+  const token = generateResetToken();
   user.resetToken = token;
   user.resetTokenExpires = Date.now() + 30 * 60 * 1000;
   await user.save();
@@ -442,9 +440,15 @@ router.post('/auth/reset-password', asyncHandler(async (req, res) => {
 }));
 
 router.post('/auth/reset-password/confirm', asyncHandler(async (req, res) => {
-  const { token, password } = req.body;
+  const token = String(req.body.token || '').trim().toUpperCase();
+  const { password } = req.body;
 
-  if (!token || !password || !isAcceptablePassword(password)) {
+  if (!allowPasswordResetAttempt(req.ip)) {
+    req.flash('error_msg', '❌ Umejaribu mara nyingi. Subiri dakika 15 kabla ya kujaribu tena.');
+    return res.redirect('/login.html?tab=reset');
+  }
+
+  if (!/^(?=(?:.*[A-Z]){4})(?=(?:.*\d){4})[A-Z\d]{8}$/.test(token) || !password || !isAcceptablePassword(password)) {
     req.flash('error_msg', '❌ Token au password si sahihi. Password lazima iwe na angalau herufi 8.');
     return res.redirect('/login.html?tab=reset');
   }

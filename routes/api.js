@@ -341,9 +341,12 @@ async function resolveAndSavePteroId(user) {
 
       const matched = users.find((entry) => {
         const attrs = entry?.attributes || {};
+        const normalize = (value) => String(value || '').trim().toLowerCase();
+        const username = normalize(user.username);
+        const email = normalize(user.email);
         return (
-          attrs.username === String(user.username || '').toLowerCase() ||
-          attrs.email === String(user.email || '').toLowerCase()
+          (username && normalize(attrs.username) === username) ||
+          (email && normalize(attrs.email) === email)
         );
       });
 

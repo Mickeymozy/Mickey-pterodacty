@@ -6,6 +6,25 @@ const { fetchPterodactylEggs } = require('../utils/pterodactylEggs');
 const { fetchPaginatedApplicationData } = require('../utils/pterodactylPagination');
 const { validatePasswordComplexity } = require('../utils/passwordValidator');
 const { normalizePhone, buildPaymentMessage, normalizeSmsDeliveryReport } = require('../services/smsService');
+const { generateResetToken, createAttemptLimiter } = require('../utils/resetToken');
+
+test('generates reset tokens with four letters and four digits', () => {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    const token = generateResetToken();
+    assert.equal(token.length, 8);
+    assert.equal((token.match(/[A-Z]/g) || []).length, 4);
+    assert.equal((token.match(/\d/g) || []).length, 4);
+  }
+});
+
+test('limits reset token confirmation attempts per key and time window', () => {
+  const allowAttempt = createAttemptLimiter(2, 1000);
+  assert.equal(allowAttempt('client-a', 0), true);
+  assert.equal(allowAttempt('client-a', 1), true);
+  assert.equal(allowAttempt('client-a', 2), false);
+  assert.equal(allowAttempt('client-b', 2), true);
+  assert.equal(allowAttempt('client-a', 1000), true);
+});
 
 test('accepts simple passwords with at least 8 characters', () => {
   assert.equal(validatePasswordComplexity('abcdefgh').isValid, true);

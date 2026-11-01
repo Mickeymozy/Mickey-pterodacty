@@ -3,6 +3,7 @@
   --ui-accent: #c8ff4d;
   --ui-cyan: #55e6d2;
   --ui-border: rgba(157, 255, 202, .15);
+  --ui-surface: rgba(8, 20, 18, .72);
 }
 
 html { scroll-behavior: smooth; }
@@ -21,6 +22,22 @@ input, select, textarea {
 
 button, a { -webkit-tap-highlight-color: transparent; }
 button:not(:disabled), a { transition-duration: .18s; }
+button:disabled { cursor: wait; opacity: .62; }
+
+table { border-collapse: separate; border-spacing: 0; }
+th { color: #a4b9b0; font-size: .68rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+td, th { vertical-align: middle; }
+tbody tr { transition: background-color .16s ease; }
+tbody tr:hover { background-color: rgba(200, 255, 77, .035); }
+
+.tab-content.active { animation: content-enter .22s ease both; }
+@keyframes content-enter { from { opacity: .72; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
+
+.side-nav, .admin-side-nav { background: var(--ui-surface); }
+.side-nav-link, .admin-side-link { min-height: 2.75rem; }
+.side-nav-link:focus-visible, .admin-side-link:focus-visible { outline-offset: -2px; }
+
+[role="status"] { white-space: normal; }
 
 :focus-visible {
   outline: 2px solid var(--ui-cyan);
@@ -30,11 +47,16 @@ button:not(:disabled), a { transition-duration: .18s; }
 body.light-mode {
   color-scheme: light;
   --ui-border: rgba(19, 92, 66, .18);
+  --ui-surface: rgba(255, 255, 255, .9);
 }
+
+body.light-mode th { color: #46625f; }
+body.light-mode tbody tr:hover { background-color: rgba(19, 92, 66, .045); }
 
 @media (max-width: 640px) {
   main { min-width: 0; }
   table { font-size: .8125rem; }
+  .glass { max-width: 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {

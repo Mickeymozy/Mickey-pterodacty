@@ -185,7 +185,7 @@
       <form action="/auth/reset-password/confirm" method="POST" class="space-y-3 mt-4">
         <div>
           <label class="block text-slate-300 text-sm font-medium mb-1.5">Token ya Reset</label>
-          <input id="resetTokenInput" type="text" name="token" placeholder="Bandika token kutoka email au SMS"
+             <input id="resetTokenInput" type="text" name="token" required minlength="8" maxlength="8" inputmode="text" autocapitalize="characters" autocomplete="one-time-code" spellcheck="false" placeholder="A1B2C3D4"
                  class="input-field w-full px-4 py-3 rounded-xl text-white text-sm outline-none" />
         </div>
         <div>
@@ -279,6 +279,10 @@
       if (tokenInput) tokenInput.value = token;
       switchTab('reset');
     }
+
+    document.getElementById('resetTokenInput')?.addEventListener('input', (event) => {
+      event.target.value = event.target.value.replace(/[^a-z\d]/gi, '').slice(0, 8).toUpperCase();
+    });
 
     const loginError = urlParams.get('error');
     if (loginError) {

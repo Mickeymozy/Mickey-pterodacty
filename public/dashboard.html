@@ -261,7 +261,7 @@
           <div class="flex items-center gap-2">
             <button id="menuToggle" type="button" class="menu-toggle rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2 text-lg text-slate-200" aria-label="Fungua menu" aria-controls="sideNav" aria-expanded="false">☰</button>
             <p class="text-sm text-slate-400 font-semibold">Mtumiaji:</p>
-            <span id="nodeStatus" class="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 animate-pulse">● INASYNCHRONIZE...</span>
+            <span id="nodeStatus" role="status" aria-live="polite" class="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 animate-pulse">● INASYNCHRONIZE...</span>
           </div>
           <h1 id="userName" class="mt-1 text-2xl font-bold text-white">Inapakia profile...</h1>
         </div>
@@ -372,7 +372,7 @@
             </div>
             <div class="flex flex-wrap items-center gap-3">
               <input id="serverSearchInput" type="search" placeholder="Tafuta server..." class="rounded-2xl border border-slate-700/60 bg-slate-950/80 px-4 py-2 text-sm text-white outline-none focus:border-indigo-500" />
-              <button id="refreshBtn" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-xs font-medium text-white rounded-xl transition">🔄 Live Sync</button>
+              <button id="refreshBtn" type="button" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-xs font-medium text-white rounded-xl transition">↻ Live Sync</button>
             </div>
           </div>
           <div id="serverList" class="grid gap-4">
@@ -899,17 +899,19 @@
     async function syncPterodactylStatus() {
       try {
         const startCheck = Date.now();
-        const res = await fetch('/api/health');
-        if (res.ok) {
+        const res = await fetch('/api/health', { cache: 'no-store' });
+        const health = await res.json().catch(() => ({}));
+        if (health.checks?.pterodactyl) {
           const ping = Date.now() - startCheck;
           statusIndicator.className = "text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold";
-          statusIndicator.textContent = `● PTERODACTYL ONLINE (${ping}ms) ⚡`;
+          statusIndicator.textContent = `● PANEL ONLINE (${ping}ms)`;
         } else {
-          throw new Error();
+          statusIndicator.className = "text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/25 font-bold";
+          statusIndicator.textContent = health.checks?.panelUrl ? '● PANEL API HAIPATIKANI' : '● PANEL HAIJASANIDIWA';
         }
       } catch (e) {
-        statusIndicator.className = "text-[10px] px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/30 font-bold";
-        statusIndicator.textContent = "● PTERODACTYL OFFLINE ❌";
+        statusIndicator.className = "text-[10px] px-2 py-0.5 rounded-full bg-red-500/20 text-red-300 border border-red-500/30 font-bold";
+        statusIndicator.textContent = '● STATUS HAIJULIKANI';
       }
     }
 
@@ -923,9 +925,6 @@
 
     function showPhoneSetupIfNeeded(phone) {
       if (normalizeTanzaniaPhone(phone)) return false;
-      try {
-        if (sessionStorage.getItem('phoneSetupDismissed') === '1') return false;
-      } catch (error) {}
       const overlay = document.getElementById('phoneSetupOverlay');
       overlay?.classList.remove('hidden');
       overlay?.classList.add('flex');
@@ -937,7 +936,6 @@
       const overlay = document.getElementById('phoneSetupOverlay');
       overlay?.classList.add('hidden');
       overlay?.classList.remove('flex');
-      try { sessionStorage.setItem('phoneSetupDismissed', '1'); } catch (error) {}
     }
 
     document.getElementById('skipPhoneSetupBtn')?.addEventListener('click', closePhoneSetup);
@@ -965,7 +963,6 @@
         });
         const result = await response.json();
         if (!response.ok || !result.success) throw new Error(result.message || 'Imeshindikana kuhifadhi namba.');
-        try { sessionStorage.removeItem('phoneSetupDismissed'); } catch (error) {}
         const overlay = document.getElementById('phoneSetupOverlay');
         overlay?.classList.add('hidden');
         overlay?.classList.remove('flex');
@@ -1064,7 +1061,10 @@
       }).join('');
     }
 
+    let serverSyncInProgress = false;
     async function loadServers() {
+      if (serverSyncInProgress) return;
+      serverSyncInProgress = true;
       try {
         const res = await fetch('/api/servers');
         const data = await res.json();
@@ -1091,6 +1091,8 @@
         errorMessage.className = 'rounded-lg border border-red-400/15 bg-red-400/5 p-4 text-center text-sm text-red-200';
         errorMessage.textContent = e.message || 'Imeshindwa kusoma data halisi kutoka Pterodactyl Node.';
         serverList.replaceChildren(errorMessage);
+      } finally {
+        serverSyncInProgress = false;
       }
     }
 
@@ -1445,27 +1447,39 @@
     // PACKAGES & EGGS CONFIGURATION DISPLAYER
     async function fetchConfigs() {
       try {
-        const eggRes = await fetch('/api/eggs');
-        const eggData = await eggRes.json().catch(() => ({}));
         const eggSelect = document.getElementById('eggSelect');
         const eggStatus = document.getElementById('runtimeSyncMessage');
-        if (eggRes.ok && eggData.success && Array.isArray(eggData.eggs) && eggData.eggs.length) {
-          globalEggs = eggData.eggs;
-          eggSelect.replaceChildren(...globalEggs.map((egg) => {
-            const option = document.createElement('option');
-            option.value = egg.id;
-            option.textContent = `${egg.nestName ? `${egg.nestName} / ` : ''}${egg.name} (ID: ${egg.id})`;
-            return option;
-          }));
-          applyEggDefaults();
-          if (eggData.warning && eggStatus) {
-            eggStatus.textContent = eggData.warning;
+        eggSelect.disabled = true;
+        eggStatus.textContent = 'Inasoma eggs na runtime kutoka Pterodactyl...';
+        try {
+          const eggRes = await fetch('/api/eggs', { cache: 'no-store' });
+          const eggData = await eggRes.json().catch(() => ({}));
+          if (eggRes.ok && eggData.success && Array.isArray(eggData.eggs) && eggData.eggs.length) {
+            globalEggs = eggData.eggs;
+            eggSelect.replaceChildren(...globalEggs.map((egg) => {
+              const option = document.createElement('option');
+              option.value = egg.id;
+              option.textContent = `${egg.nestName ? `${egg.nestName} / ` : ''}${egg.name} (ID: ${egg.id})`;
+              return option;
+            }));
+            applyEggDefaults();
+            if (eggData.warning && eggStatus) {
+              eggStatus.textContent = eggData.warning;
+              eggStatus.className = 'mt-2 text-[11px] text-amber-300';
+            }
+          } else {
+            globalEggs = [];
+            eggSelect.replaceChildren(new Option('Eggs hazipatikani', ''));
+            eggStatus.textContent = eggData.error || 'Imeshindikana kusoma eggs kutoka Pterodactyl.';
             eggStatus.className = 'mt-2 text-[11px] text-amber-300';
           }
-        } else if (eggStatus) {
-          eggSelect.innerHTML = '<option value="">Eggs hazipatikani</option>';
-          eggStatus.textContent = eggData.error || 'Imeshindikana kusoma eggs kutoka Pterodactyl.';
+        } catch (error) {
+          globalEggs = [];
+          eggSelect.replaceChildren(new Option('Egg sync haipatikani', ''));
+          eggStatus.textContent = `Sync ya Pterodactyl imeshindikana: ${error.message || 'Hitilafu ya mtandao.'}`;
           eggStatus.className = 'mt-2 text-[11px] text-amber-300';
+        } finally {
+          eggSelect.disabled = false;
         }
 
         const pkgRes = await fetch('/api/packages');
@@ -1896,7 +1910,20 @@
       showToast('Access denied', 'error', true);
     }, true);
 
-    document.getElementById('refreshBtn').addEventListener('click', () => { loadUser(); loadServers(); syncPterodactylStatus(); });
+    document.getElementById('refreshBtn').addEventListener('click', async (event) => {
+      const button = event.currentTarget;
+      if (button.disabled) return;
+      button.disabled = true;
+      button.setAttribute('aria-busy', 'true');
+      button.textContent = 'Inasawazisha...';
+      try {
+        await Promise.allSettled([loadUser(), loadServers(), syncPterodactylStatus()]);
+      } finally {
+        button.disabled = false;
+        button.removeAttribute('aria-busy');
+        button.textContent = '↻ Live Sync';
+      }
+    });
     document.getElementById('serverSearchInput')?.addEventListener('input', renderServerList);
     document.querySelectorAll('[data-open-tab]').forEach((button) => {
       button.addEventListener('click', () => {
