@@ -247,7 +247,7 @@
     document.getElementById('resetChannel')?.addEventListener('change', updateResetChannel);
     updateResetChannel();
 
-    try { setThemeMode(localStorage.getItem('uiMode') || 'dark'); } catch (e) { setThemeMode('dark'); }
+    try { setThemeMode(localStorage.getItem('uiMode') || 'light'); } catch (e) { setThemeMode('light'); }
 
     async function checkAlerts() {
       try {

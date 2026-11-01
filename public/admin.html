@@ -140,10 +140,10 @@
         <button class="admin-side-link active" data-admin-tab="overview"><span>◈</span><span>Overview</span></button>
         <p class="admin-side-label mt-5">Panel operations</p>
         <button class="admin-side-link" data-admin-tab="adminServers"><span>◇</span><span>Servers</span></button>
-        <button class="admin-side-link" data-admin-tab="users"><span>◎</span><span>Watumiaji</span></button>
-        <p class="admin-side-label mt-5">Catalog</p>
-        <button class="admin-side-link" data-admin-tab="packages"><span>▦</span><span>Packages</span></button>
         <button class="admin-side-link" data-admin-tab="eggManagement"><span>◇</span><span>Eggs</span></button>
+        <p class="admin-side-label mt-5">People & catalog</p>
+        <button class="admin-side-link" data-admin-tab="users"><span>◎</span><span>Watumiaji</span></button>
+        <button class="admin-side-link" data-admin-tab="packages"><span>▦</span><span>Packages</span></button>
         <button class="admin-side-link" data-admin-tab="botScripts"><span>⌘</span><span>Bot scripts</span></button>
         <p class="admin-side-label mt-5">Billing</p>
         <button class="admin-side-link" data-admin-tab="payments"><span>◉</span><span>Malipo</span></button>
@@ -1045,7 +1045,7 @@
       setThemeMode(document.body.classList.contains('light-mode') ? 'dark' : 'light');
     }
 
-    try { setThemeMode(localStorage.getItem('uiMode') || 'dark'); } catch (e) { setThemeMode('dark'); }
+    try { setThemeMode(localStorage.getItem('uiMode') || 'light'); } catch (e) { setThemeMode('light'); }
 
     async function loadStats() {
       try {
