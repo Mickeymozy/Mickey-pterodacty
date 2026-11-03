@@ -385,10 +385,13 @@
           <div class="glass rounded-2xl p-6">
               <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-4">
               <div>
-                <h2 class="text-xl font-semibold text-white">📄 Server Details</h2>
-                <p class="text-[11px] text-slate-400">Angalia login, panel access, na stats za server hapa wakati umechagua server.</p>
+                <h2 class="text-xl font-semibold text-white">Server Details</h2>
+                <p class="text-[11px] text-slate-400">Taarifa za server zilizosawazishwa moja kwa moja na Pterodactyl.</p>
               </div>
-              <button id="deselectServerBtn" class="rounded-lg border border-slate-700/70 px-3 py-1 text-xs text-slate-200 hover:bg-slate-800 transition">Toka</button>
+              <div class="flex items-center gap-2">
+                <span id="serverDetailSyncStatus" role="status" aria-live="polite" class="server-sync-status">Inasubiri sync</span>
+                <button id="deselectServerBtn" type="button" class="rounded-lg border border-slate-700/70 px-3 py-1 text-xs text-slate-200 hover:bg-slate-800 transition">Funga</button>
+              </div>
             </div>
 
             <div id="serverDetailsContent" class="space-y-4">
@@ -405,9 +408,9 @@
                 </div>
               </div>
 
-              <div class="flex flex-wrap gap-2">
-                <span class="inline-flex items-center rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.16em] text-cyan-200">Manage Console</span>
-                <button id="refreshManageBtn" type="button" class="rounded-xl border border-slate-700 bg-slate-800/80 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:bg-slate-700">↻ Refresh</button>
+              <div class="server-actions-bar flex flex-wrap items-center gap-2">
+                <span class="mr-auto px-1 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">Server actions</span>
+                <button id="refreshManageBtn" type="button" class="rounded-xl border border-slate-700 bg-slate-800/80 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:bg-slate-700" title="Soma taarifa mpya kutoka panel">↻ Sync panel</button>
                 <button id="powerStartBtn" type="button" class="hidden rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-500">▶ Start</button>
                 <button id="powerStopBtn" type="button" class="hidden rounded-xl bg-amber-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-amber-500">■ Stop</button>
                 <button id="powerRestartBtn" type="button" class="hidden rounded-xl bg-cyan-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-cyan-500">↻ Restart</button>
@@ -437,12 +440,13 @@
 
                 <div class="rounded-3xl border border-slate-800/70 bg-slate-900/70 p-4">
                   <p class="text-xs uppercase tracking-[0.2em] text-slate-400 mb-3">Server Information</p>
-                  <div class="grid gap-3 text-sm text-slate-300">
-                            <div class="flex justify-between"><span>IP / Host</span><span id="selectedServerConnection" class="font-semibold text-slate-100">-</span></div>
-                    <div class="flex justify-between"><span>User</span><span id="selectedServerUser" class="font-semibold text-slate-100">-</span></div>
-                    <div class="flex justify-between"><span>CPU</span><span id="selectedServerCpu" class="font-semibold text-cyan-300">-</span></div>
-                    <div class="flex justify-between"><span>Memory</span><span id="selectedServerMemory" class="font-semibold text-cyan-300">-</span></div>
-                    <div class="flex justify-between"><span>Disk</span><span id="selectedServerDisk" class="font-semibold text-cyan-300">-</span></div>
+                    <div class="server-detail-rows grid gap-3 text-sm text-slate-300">
+                      <div class="flex justify-between gap-4"><span>IP / Host</span><span id="selectedServerConnection" class="font-semibold text-slate-100 text-right">-</span></div>
+                      <div class="flex justify-between gap-4"><span>Node</span><span id="selectedServerNode" class="font-semibold text-slate-100 text-right">-</span></div>
+                      <div class="flex justify-between gap-4"><span>User</span><span id="selectedServerUser" class="font-semibold text-slate-100 text-right">-</span></div>
+                      <div class="flex justify-between gap-4"><span>CPU</span><span id="selectedServerCpu" class="font-semibold text-cyan-300 text-right">-</span></div>
+                      <div class="flex justify-between gap-4"><span>Memory</span><span id="selectedServerMemory" class="font-semibold text-cyan-300 text-right">-</span></div>
+                      <div class="flex justify-between gap-4"><span>Disk</span><span id="selectedServerDisk" class="font-semibold text-cyan-300 text-right">-</span></div>
                   </div>
                 </div>
               </div>
@@ -1129,6 +1133,7 @@
       document.getElementById('selectedServerName').textContent = 'Server husika';
       document.getElementById('selectedServerStatus').textContent = 'Chagua server ili kuona actions, panel access, na details za server.';
       document.getElementById('selectedServerConnection').textContent = '-';
+      document.getElementById('selectedServerNode').textContent = '-';
       document.getElementById('selectedServerCpu').textContent = '-';
       document.getElementById('selectedServerMemory').textContent = '-';
       document.getElementById('selectedServerDisk').textContent = '-';
@@ -1140,6 +1145,96 @@
       document.getElementById('selectedServerLoginEmail').textContent = '-';
       document.getElementById('selectedServerPanelHint').textContent = 'Bonyeza Fungua Panel au tumia vitufe upande wa kulia.';
       ['powerStartBtn', 'powerStopBtn', 'powerRestartBtn', 'openPanelBtn', 'deleteServerBtn', 'modalDeleteServerBtn', 'selectedServerNotice', 'loadServerLogsBtn'].forEach((id) => document.getElementById(id)?.classList.add('hidden'));
+    }
+
+    function setServerDetailSyncStatus(message, state = 'loading') {
+      const status = document.getElementById('serverDetailSyncStatus');
+      if (!status) return;
+      status.textContent = message;
+      status.dataset.state = state;
+    }
+
+    function renderPanelLink(element, value) {
+      if (!element) return '';
+      try {
+        const url = new URL(String(value || ''));
+        if (!['http:', 'https:'].includes(url.protocol)) throw new Error('Unsupported panel URL');
+        const link = document.createElement('a');
+        link.href = url.href;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.className = 'panel-link';
+        link.textContent = url.host;
+        element.replaceChildren(link);
+        return url.href;
+      } catch (error) {
+        element.textContent = 'Haijawekwa';
+        return '';
+      }
+    }
+
+    async function syncSelectedServerDetails(serverId) {
+      setServerDetailSyncStatus('Inasoma panel...', 'loading');
+      try {
+        const encodedId = encodeURIComponent(serverId);
+        const [detailsResponse, accessResponse] = await Promise.all([
+          fetch(`/api/servers/${encodedId}/details`, { cache: 'no-store' }),
+          fetch(`/api/servers/${encodedId}/access`, { cache: 'no-store' })
+        ]);
+        const [detailsData, accessData] = await Promise.all([
+          detailsResponse.json().catch(() => ({})),
+          accessResponse.json().catch(() => ({}))
+        ]);
+        if (!detailsResponse.ok || !detailsData.success) {
+          throw new Error(detailsData.error || 'Imeshindikana kusoma server details kutoka Pterodactyl.');
+        }
+
+        const currentId = selectedServer?.identifier || selectedServer?.uuid || selectedServer?.id;
+        if (String(currentId) !== String(serverId)) return;
+
+        const panel = detailsData.server || {};
+        const access = accessResponse.ok && accessData.success ? accessData.access || {} : {};
+        selectedServer = { ...selectedServer, ...panel };
+        const displayStatus = String(panel.status || selectedServer.status || 'unknown').toUpperCase();
+        const connection = panel.ipAddress
+          ? `${panel.ipAddress}${panel.port ? `:${panel.port}` : ''}`
+          : panel.sftpHost || 'Haipatikani';
+        document.getElementById('selectedServerName').textContent = panel.name || selectedServer.name || 'Server bila jina';
+        document.getElementById('selectedServerStatus').textContent = `Hali kutoka panel: ${displayStatus}`;
+        document.getElementById('selectedServerConnection').textContent = connection;
+        document.getElementById('selectedServerNode').textContent = panel.node || 'N/A';
+        document.getElementById('selectedServerUser').textContent = access.sftpUser || selectedServer.sftpUser || 'N/A';
+
+        const resources = panel.resources || {};
+        const limits = panel.limits || {};
+        const cpu = Number(resources.cpu_absolute);
+        const memory = Number(resources.memory_bytes);
+        const disk = Number(resources.disk_bytes);
+        document.getElementById('selectedServerCpu').textContent = Number.isFinite(cpu)
+          ? `${cpu.toFixed(1)}%${Number(limits.cpu) > 0 ? ` / ${Number(limits.cpu)}%` : ''}` : 'N/A';
+        document.getElementById('selectedServerMemory').textContent = Number.isFinite(memory)
+          ? `${(memory / 1024 / 1024).toFixed(0)} MB${Number(limits.memory) > 0 ? ` / ${(Number(limits.memory) / 1024).toFixed(0)} MB` : ''}` : 'N/A';
+        document.getElementById('selectedServerDisk').textContent = Number.isFinite(disk)
+          ? `${(disk / 1024 / 1024 / 1024).toFixed(2)} GB${Number(limits.disk) > 0 ? ` / ${(Number(limits.disk) / 1024).toFixed(1)} GB` : ''}` : 'N/A';
+
+        const panelUrl = renderPanelLink(document.getElementById('selectedServerPanel'), access.panelUrl || panel.panelUrl);
+        const openPanelButton = document.getElementById('openPanelBtn');
+        openPanelButton.dataset.panelUrl = panelUrl;
+        openPanelButton.classList.toggle('hidden', !panelUrl);
+        document.getElementById('selectedServerLoginUser').textContent = access.username || access.email || selectedServer.sftpUser || 'N/A';
+        document.getElementById('selectedServerLoginPassword').textContent = 'Haionekani kwa usalama';
+        document.getElementById('selectedServerCredentialStatus').textContent = 'Salama';
+        document.getElementById('selectedServerLoginEmail').textContent = access.email || 'N/A';
+        document.getElementById('selectedServerPanelHint').textContent = accessResponse.ok
+          ? 'Taarifa zimesomwa kutoka panel. Password haionyeshwi; tumia Forgot password kwenye panel ukiihitaji.'
+          : accessData.error || 'Server details zimesawazishwa, lakini taarifa za akaunti hazikupatikana.';
+
+        const syncedAt = panel.syncedAt ? new Date(panel.syncedAt) : new Date();
+        const timeLabel = syncedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        setServerDetailSyncStatus(accessResponse.ok ? `Panel synced · ${timeLabel}` : `Details synced · ${timeLabel}`, accessResponse.ok ? 'success' : 'partial');
+      } catch (error) {
+        setServerDetailSyncStatus(error.message || 'Sync ya panel imeshindikana.', 'error');
+      }
     }
 
     async function selectServer(serverId) {
@@ -1169,21 +1264,12 @@
         displayStatus = 'ONLINE';
       }
       document.getElementById('selectedServerStatus').textContent = `Status: ${displayStatus}`;
-
-      // Populate modal copy of the details and show modal
-      const modalOverlay = document.getElementById('serverDetailsModalOverlay');
-      if (modalOverlay) {
-        document.getElementById('modalSelectedServerName').textContent = server.name || 'Server bila jina';
-        document.getElementById('modalSelectedServerStatus').textContent = `Status: ${displayStatus}`;
-        document.getElementById('modalSelectedServerConnection').textContent = server.ipAddress ? `${server.ipAddress}${server.port ? `:${server.port}` : ''}` : (server.sftpHost || 'Connection haipatikani');
-        document.getElementById('modalSelectedServerUser').textContent = server.sftpUser || 'N/A';
-        modalOverlay.classList.remove('hidden');
-      }
+      document.getElementById('server-details')?.classList.remove('hidden');
+      document.getElementById('serverDetailsModalOverlay')?.classList.add('hidden');
       document.getElementById('selectedServerConnection').textContent = server.ipAddress ? `${server.ipAddress}${server.port ? `:${server.port}` : ''}` : (server.sftpHost || 'Connection haipatikani');
       const initialPanelEl = document.getElementById('selectedServerPanel');
       const initialPanelUrl = server.panelUrl || '';
-      const initialPanelShort = initialPanelUrl.replace(/https?:\/\//, '').replace(/\/$/, '');
-      if (initialPanelEl) initialPanelEl.innerHTML = initialPanelUrl ? `<a href="${initialPanelUrl}" target="_blank" rel="noopener noreferrer" class="text-indigo-400 underline">${initialPanelShort}</a>` : 'Haijawekwa';
+      renderPanelLink(initialPanelEl, initialPanelUrl);
       document.getElementById('selectedServerUser').textContent = server.sftpUser || 'N/A';
       document.getElementById('selectedServerPanelHint').textContent = 'Bonyeza Fungua Panel au tumia vitufe upande wa kulia.';
       document.getElementById('selectedServerLoginUser').textContent = '...';
@@ -1195,59 +1281,10 @@
       document.getElementById('openPanelBtn')?.classList.add('hidden');
       document.getElementById('openPanelBtn').textContent = '🖥️ Fungua Panel';
       document.getElementById('openPanelBtn').dataset.panelUrl = '';
-
-      try {
-        const accessRes = await fetch(`/api/servers/${encodeURIComponent(server.identifier || server.uuid || server.id)}/access`);
-        if (accessRes.ok) {
-          const accessData = await accessRes.json();
-          const access = accessData.access || {};
-          const panelUrl = access.panelUrl || server.panelUrl || '';
-          if (!panelUrl) throw new Error('PTERODACTYL_URL haijawekwa kwenye server.');
-          const panelEl = document.getElementById('selectedServerPanel');
-          const shortLabel = panelUrl.replace(/https?:\/\//, '').replace(/\/$/, '');
-          if (panelEl) panelEl.innerHTML = `<a href="${panelUrl}" target="_blank" rel="noopener noreferrer" class="text-indigo-400 underline">${shortLabel}</a>`;
-          document.getElementById('openPanelBtn').dataset.panelUrl = panelUrl;
-          document.getElementById('openPanelBtn')?.classList.remove('hidden');
-          document.getElementById('selectedServerLoginUser').textContent = access.username || access.email || access.sftpUser || server.sftpUser || 'N/A';
-          document.getElementById('selectedServerLoginPassword').textContent = access.password || 'Haiwezi kuonyeshwa';
-          document.getElementById('selectedServerCredentialStatus').textContent = access.password ? 'Panel password' : 'Password ya Panel';
-          document.getElementById('selectedServerLoginEmail').textContent = access.email || 'N/A';
-          document.getElementById('selectedServerPanelHint').textContent = 'Username na email zimetolewa kutoka kwenye akaunti yako. Password haionyeshwi; fungua Panel na utumie “Forgot password” ukiihitaji.';
-          // Mirror into modal
-          const modalPanelEl = document.getElementById('modalSelectedServerPanel');
-          if (modalPanelEl) modalPanelEl.innerHTML = `<a href="${panelUrl}" target="_blank" rel="noopener noreferrer" class="text-indigo-400 underline">${shortLabel}</a>`;
-          document.getElementById('modalOpenPanelBtn')?.classList.remove('hidden');
-          document.getElementById('modalOpenPanelBtn').dataset.panelUrl = panelUrl;
-          document.getElementById('modalSelectedServerLoginUser').textContent = access.username || access.email || access.sftpUser || server.sftpUser || 'N/A';
-          document.getElementById('modalSelectedServerLoginPassword').textContent = access.password || 'Haiwezi kuonyeshwa';
-          document.getElementById('modalSelectedServerLoginEmail').textContent = access.email || 'N/A';
-        } else {
-          const errorBody = await accessRes.json().catch(() => ({}));
-          document.getElementById('selectedServerLoginUser').textContent = 'N/A';
-          document.getElementById('selectedServerLoginPassword').textContent = 'Haiwezi kuonyeshwa';
-          document.getElementById('selectedServerLoginEmail').textContent = 'N/A';
-          const panelEl = document.getElementById('selectedServerPanel');
-          if (panelEl) panelEl.textContent = 'Haipatikani';
-          document.getElementById('openPanelBtn').dataset.panelUrl = '';
-          document.getElementById('openPanelBtn')?.classList.add('hidden');
-          document.getElementById('selectedServerPanelHint').textContent = errorBody.error ? `Imeshindikana kupata login details: ${errorBody.error}` : 'Haiwezi kupata login details sasa.';
-          // Mirror into modal for error branch
-          const modalPanelEl2 = document.getElementById('modalSelectedServerPanel');
-          if (modalPanelEl2) modalPanelEl2.textContent = 'Haipatikani';
-          document.getElementById('modalOpenPanelBtn')?.classList.add('hidden');
-          document.getElementById('modalSelectedServerLoginUser').textContent = 'N/A';
-          document.getElementById('modalSelectedServerLoginPassword').textContent = 'Haiwezi kuonyeshwa';
-          document.getElementById('modalSelectedServerLoginEmail').textContent = 'N/A';
-          document.getElementById('serverDetailsModalOverlay')?.classList.remove('hidden');
-        }
-      } catch (err) {
-        document.getElementById('selectedServerLoginUser').textContent = 'N/A';
-        document.getElementById('selectedServerLoginPassword').textContent = 'Haiwezi kuonyeshwa';
-        document.getElementById('selectedServerLoginEmail').textContent = 'N/A';
-        document.getElementById('selectedServerPanel').textContent = 'N/A';
-        document.getElementById('openPanelBtn')?.classList.add('hidden');
-        document.getElementById('selectedServerPanelHint').textContent = 'Haiwezi kupata login details kwa sasa.';
-      }
+      document.getElementById('selectedServerLoginUser').textContent = 'Inasoma...';
+      document.getElementById('selectedServerLoginPassword').textContent = 'Haionyeshwi';
+      document.getElementById('selectedServerLoginEmail').textContent = 'Inasoma...';
+      await syncSelectedServerDetails(serverId);
     }
 
     serverList.addEventListener('click', async (e) => {
@@ -1338,11 +1375,20 @@
     document.getElementById('powerRestartBtn')?.addEventListener('click', () => handleSelectedServerAction('restart'));
     document.getElementById('openPanelBtn')?.addEventListener('click', () => handleSelectedServerAction('openPanel'));
     document.getElementById('deleteServerBtn')?.addEventListener('click', () => handleSelectedServerAction('delete'));
-    document.getElementById('refreshManageBtn')?.addEventListener('click', () => {
+    document.getElementById('refreshManageBtn')?.addEventListener('click', async (event) => {
       if (!selectedServer) return;
-      loadServers();
-      selectServer(selectedServer.identifier || selectedServer.uuid || selectedServer.id);
-      showToast('Manage details zime-refresh.', 'success', true);
+      const button = event.currentTarget;
+      const serverId = selectedServer.identifier || selectedServer.uuid || selectedServer.id;
+      button.disabled = true;
+      button.setAttribute('aria-busy', 'true');
+      button.textContent = 'Inasoma panel...';
+      try {
+        await syncSelectedServerDetails(serverId);
+      } finally {
+        button.disabled = false;
+        button.removeAttribute('aria-busy');
+        button.textContent = '↻ Sync panel';
+      }
     });
 
     document.getElementById('loadServerLogsBtn')?.addEventListener('click', async () => {

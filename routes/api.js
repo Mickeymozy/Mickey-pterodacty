@@ -958,13 +958,16 @@ router.get('/api/servers/:id/details', requireAuth, async (req, res) => {
         uuid: attrs.uuid,
         identifier: attrs.identifier,
         name: attrs.name,
+        node: attrs.node || attrs.node_id || null,
+        allocationId: attrs.allocation || attrs.allocation_id || null,
         status: normalizeServerStatus(resourceAttrs.current_state || attrs.status || 'unknown'),
         limits: attrs.limits || {},
         resources: resourceAttrs,
         panelUrl: PTERODACTYL_URL || '',
         ipAddress: connectionDetails.ipAddress,
         port: connectionDetails.port,
-        sftpHost: connectionDetails.sftpHost
+        sftpHost: connectionDetails.sftpHost,
+        syncedAt: new Date().toISOString()
       }
     });
   } catch (err) {

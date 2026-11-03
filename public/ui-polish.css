@@ -128,6 +128,16 @@ tbody tr:hover { background-color: rgba(200, 255, 77, .035); }
 .side-nav, .admin-side-nav { background: var(--ui-surface) !important; }
 .side-nav-link, .admin-side-link { min-height: 2.75rem; }
 .side-nav-link:focus-visible, .admin-side-link:focus-visible { outline-offset: -2px; }
+.server-actions-bar { padding: .65rem 0; border-top: 1px solid var(--ui-border); border-bottom: 1px solid var(--ui-border); }
+.server-detail-rows > div { min-height: 2.5rem; align-items: center; border-bottom: 1px solid var(--ui-border); padding-bottom: .6rem; }
+.server-detail-rows > div:last-child { border-bottom: 0; padding-bottom: 0; }
+.server-sync-status { color: var(--ui-muted); font-size: .68rem; font-weight: 700; }
+.server-sync-status[data-state="loading"] { color: #b46b13; }
+.server-sync-status[data-state="success"] { color: #14835b; }
+.server-sync-status[data-state="partial"], .server-sync-status[data-state="error"] { color: var(--ui-accent); }
+.panel-link { color: var(--ui-cyan); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+[data-state="loading"] { animation: sync-pulse 1.1s ease-in-out infinite alternate; }
+@keyframes sync-pulse { to { opacity: .58; } }
 
 [role="status"] { white-space: normal; }
 
@@ -171,6 +181,7 @@ body:not(.light-mode) .glass-hover:hover { box-shadow: 0 14px 28px rgba(0, 0, 0,
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
+  [data-state="loading"] { animation: none; }
   *, *::before, *::after {
     animation-duration: .01ms !important;
     transition-duration: .01ms !important;
