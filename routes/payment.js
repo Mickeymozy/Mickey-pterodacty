@@ -8,6 +8,7 @@ const palmPesaService = require('../services/palmPesaService');
 const ServerPackage = require('../models/ServerPackage');
 const Transaction = require('../models/Transaction');
 const User = require('../models/User');
+const EggAvailability = require('../models/EggAvailability');
 const { createServerFromPackage } = require('../utils/serverHelper');
 const sendEmail = require('../utils/email');
 const axios = require('axios');
@@ -285,6 +286,15 @@ router.post('/checkout', authenticate, async (req, res) => {
     const pkg = await ServerPackage.findById(packageId);
     if (!pkg || !pkg.isActive) {
       return res.status(404).json({ success: false, message: 'Package not found or inactive' });
+    }
+
+    const selectedEggId = Number(eggId ?? pkg.serverConfig?.eggId);
+    if (!Number.isSafeInteger(selectedEggId) || selectedEggId < 1) {
+      return res.status(400).json({ success: false, message: 'Chagua egg sahihi kabla ya kuanzisha malipo.' });
+    }
+    const hiddenEgg = await EggAvailability.exists({ eggId: selectedEggId, isAvailable: false });
+    if (hiddenEgg) {
+      return res.status(400).json({ success: false, message: 'Egg hii imefichwa na admin. Chagua egg nyingine kabla ya kulipa.' });
     }
 
     const user = await User.findById(userId);

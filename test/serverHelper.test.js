@@ -103,12 +103,20 @@ test('keeps the startup command unchanged when no repository is configured', () 
   assert.equal(buildStartupCommand(startupCommand), startupCommand);
 });
 
-test('initializes a repository before running the original startup command', () => {
+test('keeps the panel startup command unchanged when a repository is configured', () => {
   const startupCommand = 'npm start';
   const repositoryStartup = buildStartupCommand(startupCommand, 'https://github.com/example/bot.git');
 
-  assert.match(repositoryStartup, /git clone --depth=1/);
-  assert.ok(repositoryStartup.endsWith('cd /home/container\nnpm start'));
+  assert.equal(repositoryStartup, startupCommand);
+});
+
+test('passes the git repository URL as a server environment variable', () => {
+  const environment = buildServerEnvironment({ id: 99, environment: {} }, {
+    botRepoUrl: 'https://github.com/example/bot.git'
+  });
+
+  assert.equal(environment.BOT_REPO_URL, 'https://github.com/example/bot.git');
+  assert.equal(environment.BOT_REPO_DIR, '/home/container');
 });
 
 test('normalizes panel URLs with optional API path suffixes', () => {

@@ -551,7 +551,7 @@
               <div>
                 <label for="botRepoUrl" class="mb-1 block text-xs font-medium text-slate-300">Git Repo ya Bot (hiari)</label>
                 <input id="botRepoUrl" placeholder="https://github.com/username/repo.git" class="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-4 py-2.5 text-sm text-white outline-none focus:border-indigo-500" />
-                <p class="text-[11px] text-slate-400 mt-2">Ikiwa umeweka repo, server itaweka repo na kuitumia kuendesha bot yako.</p>
+                <p class="text-[11px] text-slate-400 mt-2">URL itatumwa kwa egg kama BOT_REPO_URL; startup command ya Pterodactyl haitabadilishwa.</p>
               </div>
 
               <div>
@@ -564,7 +564,7 @@
               <ol id="deploymentProgress" class="hidden space-y-2 rounded-2xl border border-slate-800 bg-slate-950/50 p-4 text-xs text-slate-400">
                 <li data-deploy-step="payment">1. Inathibitisha malipo</li>
                 <li data-deploy-step="server">2. Inaunda server kwenye panel</li>
-                <li data-deploy-step="repo">3. Inaandaa GitHub repository</li>
+                <li data-deploy-step="repo">3. Inaweka Git Repo kwenye environment</li>
                 <li data-deploy-step="start">4. Inaanzisha server</li>
               </ol>
             </div>
@@ -1490,12 +1490,14 @@
       const selectedEgg = globalEggs.find(e => String(e.id) === String(eggSelect?.value)) || globalEggs[0] || {};
       const eggId = Number(selectedEgg.id);
       const defaultFile = eggId === 27 ? 'main.py' : eggId === 28 ? 'server.jar' : 'index.js';
-      const defaultCommand = selectedEgg.startup || selectedEgg.startup_command || (eggId === 27 ? 'python3 main.py' : eggId === 28 ? 'java -jar server.jar' : 'npm start');
+      const defaultCommand = selectedEgg.startup || selectedEgg.startup_command || '';
       if (dockerInput) dockerInput.value = selectedEgg.docker_image || '';
       if (startupFileInput) startupFileInput.value = selectedEgg.environment?.MAIN_FILE || selectedEgg.environment?.PY_FILE || selectedEgg.environment?.SERVER_JARFILE || defaultFile;
       if (startupCommandInput) startupCommandInput.value = defaultCommand;
       const syncMessage = document.getElementById('runtimeSyncMessage');
-      if (syncMessage) syncMessage.textContent = selectedEgg.docker_image ? `Runtime synced: ${selectedEgg.name || 'Egg'} itatumia Docker na startup yake ya panel.` : 'Chagua engine yenye Docker image kutoka panel.';
+      if (syncMessage) syncMessage.textContent = !defaultCommand
+        ? `Egg ${selectedEgg.name || ''} haina startup command kutoka Pterodactyl.`
+        : selectedEgg.docker_image ? `Runtime synced: ${selectedEgg.name || 'Egg'} itatumia Docker na startup yake ya panel.` : 'Chagua engine yenye Docker image kutoka panel.';
     }
 
     // PACKAGES & EGGS CONFIGURATION DISPLAYER
@@ -1509,16 +1511,22 @@
           const eggRes = await fetch('/api/eggs', { cache: 'no-store' });
           const eggData = await eggRes.json().catch(() => ({}));
           if (eggRes.ok && eggData.success && Array.isArray(eggData.eggs) && eggData.eggs.length) {
-            globalEggs = eggData.eggs;
-            eggSelect.replaceChildren(...globalEggs.map((egg) => {
-              const option = document.createElement('option');
-              option.value = egg.id;
-              option.textContent = `${egg.nestName ? `${egg.nestName} / ` : ''}${egg.name} (ID: ${egg.id})`;
-              return option;
-            }));
-            applyEggDefaults();
-            if (eggData.warning && eggStatus) {
-              eggStatus.textContent = eggData.warning;
+            globalEggs = eggData.eggs.filter((egg) => egg.isAvailable !== false);
+            if (globalEggs.length) {
+              eggSelect.replaceChildren(...globalEggs.map((egg) => {
+                const option = document.createElement('option');
+                option.value = egg.id;
+                option.textContent = `${egg.nestName ? `${egg.nestName} / ` : ''}${egg.name} (ID: ${egg.id})`;
+                return option;
+              }));
+              applyEggDefaults();
+              if (eggData.warning && eggStatus) {
+                eggStatus.textContent = eggData.warning;
+                eggStatus.className = 'mt-2 text-[11px] text-amber-300';
+              }
+            } else {
+              eggSelect.replaceChildren(new Option('Hakuna egg isiyofichwa', ''));
+              eggStatus.textContent = 'Egg zote zimefichwa na admin. Server haiwezi kuundwa kwa sasa.';
               eggStatus.className = 'mt-2 text-[11px] text-amber-300';
             }
           } else {

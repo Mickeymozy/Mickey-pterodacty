@@ -262,7 +262,10 @@ async function resolveEggConfig(rawEgg) {
   const configKey = Number.isFinite(numericValue) ? numericValue : normalized;
 
   const panelEggOptions = await fetchPanelEggOptions();
-  return panelEggOptions.find((egg) => Number(egg.id) === Number(configKey)) || null;
+  const egg = panelEggOptions.find((item) => Number(item.id) === Number(configKey)) || null;
+  if (!egg) return null;
+  const isHidden = await EggAvailability.exists({ eggId: egg.id, isAvailable: false });
+  return isHidden ? null : egg;
 }
 
 function getDefaultStartupFile(eggConfig = {}) {
@@ -732,7 +735,7 @@ router.post('/api/servers/create', requireAuth, async (req, res) => {
       botRepoUrl
     });
 
-    const resolvedStartupCommand = buildStartupCommand(syncedStartupCommand, botRepoUrl);
+    const resolvedStartupCommand = buildStartupCommand(syncedStartupCommand);
 
     const resolvedPteroId = await resolveAndSavePteroId(req.user);
     if (!resolvedPteroId) {

@@ -4,6 +4,7 @@
 
 const axios = require('axios');
 const ServerPackage = require('../models/ServerPackage');
+const EggAvailability = require('../models/EggAvailability');
 const sendEmail = require('./email');
 const { normalizePanelBaseUrl } = require('./panelUrl');
 const { fetchPterodactylEggs } = require('./pterodactylEggs');
@@ -59,28 +60,8 @@ function isValidGitUrl(url) {
   return gitUrlPattern.test(trimmed);
 }
 
-function buildStartupCommand(startupCommand, repoUrl) {
-  const command = normalizeEnvironmentValue(startupCommand) || '';
-  const repository = normalizeEnvironmentValue(repoUrl);
-  if (!repository) return command;
-
-  return `set -e
-echo "[BOT_REPO] Starting repo initialization..."
-if [ -z "$BOT_REPO_URL" ]; then
-  echo "[BOT_REPO] ERROR: BOT_REPO_URL is not set"
-  exit 1
-elif [ -d "/home/container/.git" ]; then
-  cd /home/container
-  git pull --depth=1 origin main 2>&1 || git pull --depth=1 origin master 2>&1
-else
-  rm -rf /tmp/mickey-bot-repo
-  git clone --depth=1 "$BOT_REPO_URL" /tmp/mickey-bot-repo 2>&1
-  cp -a /tmp/mickey-bot-repo/. /home/container/
-  rm -rf /tmp/mickey-bot-repo
-fi
-echo "[BOT_REPO] Initialization complete"
-cd /home/container
-${command}`.trim();
+function buildStartupCommand(startupCommand) {
+  return normalizeEnvironmentValue(startupCommand) || '';
 }
 
 function buildServerEnvironment(eggConfig, options = {}) {
@@ -348,6 +329,10 @@ async function createServerFromPackage(user, packageId, serverName, options = {}
   if (!resolvedEggConfig) {
     throw new Error('Egg iliyochaguliwa haipo tena kwenye Pterodactyl. Refresh eggs kisha chagua tena.');
   }
+  const isEggHidden = await EggAvailability.exists({ eggId: resolvedEggConfig.id, isAvailable: false });
+  if (isEggHidden) {
+    throw new Error('Egg hii imefichwa na admin na haiwezi kutumika kuunda server. Chagua egg nyingine.');
+  }
 
   const name = serverName || pkg.name + '-' + Date.now();
   const limits = buildPteroLimitsFromPackage(pkg.specifications || {});
@@ -377,7 +362,7 @@ async function createServerFromPackage(user, packageId, serverName, options = {}
   if (botRepoUrl && !isValidGitUrl(botRepoUrl)) {
     throw new Error('Invalid GitHub/Git repository URL. Use a public HTTPS .git URL.');
   }
-  const botRepoStartup = buildStartupCommand(resolvedStartupCommand, botRepoUrl);
+  const botRepoStartup = buildStartupCommand(resolvedStartupCommand);
 
   const basePayload = {
     name,
