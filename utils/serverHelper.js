@@ -352,7 +352,16 @@ async function createServerFromPackage(user, packageId, serverName, options = {}
   const name = serverName || pkg.name + '-' + Date.now();
   const limits = buildPteroLimitsFromPackage(pkg.specifications || {});
 
-  const preferredStartupCommand = normalizeEnvironmentValue(options.startupCommand || pkg.serverConfig.startupCommand || resolvedEggConfig.startup || 'npm start');
+  const preferredStartupCommand = normalizeEnvironmentValue(
+    resolvedEggConfig.startup ||
+    resolvedEggConfig.startup_command ||
+    resolvedEggConfig.environment?.STARTUP_CMD ||
+    options.startupCommand ||
+    pkg.serverConfig.startupCommand
+  );
+  if (!preferredStartupCommand) {
+    throw new Error('Egg iliyochaguliwa haina startup command kwenye Pterodactyl. Weka startup command kwenye egg kisha ujaribu tena.');
+  }
   const preferredDockerImage = normalizeEnvironmentValue(options.dockerImage || pkg.serverConfig.dockerImage || resolvedEggConfig.docker_image || '');
 
   const safeEnvironment = buildServerEnvironment(resolvedEggConfig, {

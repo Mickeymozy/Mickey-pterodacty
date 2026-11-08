@@ -49,7 +49,7 @@ async function fetchPterodactylEggs(adminApi) {
       nestName: attrs.nest_name || attrs.nest?.name || '',
       docker_image: attrs.docker_image || attrs.dockerImage || '',
       startup: attrs.startup || '',
-      startup_command: attrs.startup_command || environment.STARTUP_CMD || '',
+      startup_command: attrs.startup || attrs.startup_command || environment.STARTUP_CMD || '',
       environment
     };
   }).filter((egg) => Number.isFinite(egg.id) && egg.id > 0);

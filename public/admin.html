@@ -346,7 +346,7 @@
                 </div>
                 <div>
                   <label class="mb-1.5 block text-xs font-medium text-slate-300" for="pkgStartupCommand">Startup command</label>
-                  <input type="text" id="pkgStartupCommand" value="npm start" readonly class="w-full min-w-0 rounded-lg border border-slate-700/70 bg-black/20 px-3 py-2.5 text-xs text-emerald-100">
+                  <input type="text" id="pkgStartupCommand" value="" placeholder="Sync kutoka Pterodactyl egg" readonly class="w-full min-w-0 rounded-lg border border-slate-700/70 bg-black/20 px-3 py-2.5 text-xs text-emerald-100">
                 </div>
               </div>
               <div>
@@ -1142,16 +1142,16 @@
       const environment = egg.environment || {};
       const startupFile = environment.MAIN_FILE || environment.PY_FILE || environment.SERVER_JARFILE ||
         (Number(egg.id) === 27 ? 'main.py' : Number(egg.id) === 28 ? 'server.jar' : 'index.js');
-      const startupCommand = egg.startup_command ||
-        (Number(egg.id) === 27 ? 'python3 main.py' : Number(egg.id) === 28 ? 'java -jar server.jar' : 'npm start');
+      const startupCommand = egg.startup || egg.startup_command || environment.STARTUP_CMD || '';
 
       document.getElementById('pkgDocker').value = egg.docker_image || '';
       document.getElementById('pkgEggId').value = egg.id || '';
       document.getElementById('pkgEggName').value = egg.name || '';
       document.getElementById('pkgStartupFile').value = startupFile;
       document.getElementById('pkgStartupCommand').value = startupCommand;
-      document.getElementById('pkgRuntimeSyncMsg').textContent =
-        `Runtime synced kutoka Pterodactyl: ${egg.name || 'Egg'} (${egg.id}).`;
+      document.getElementById('pkgRuntimeSyncMsg').textContent = startupCommand
+        ? `Startup synced moja kwa moja kutoka Pterodactyl: ${egg.name || 'Egg'} (${egg.id}).`
+        : `Egg ${egg.name || egg.id} haina startup command kutoka Pterodactyl.`;
     }
 
     async function loadPanelEggs() {

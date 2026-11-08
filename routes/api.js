@@ -639,7 +639,7 @@ router.get('/api/admin/analytics', requireAuth, requireAdmin, async (req, res) =
 });
 
 // Get eggs available in the panel
-router.get('/api/eggs', requireAuth, async (req, res) => {
+router.get('/api/eggs', requireAuth, requireAdmin, async (req, res) => {
   if (!adminApi) {
     return res.status(503).json({ success: false, error: 'Egg sync requires PANEL_ADMIN_API_KEY with a root administrator Client API key (ptlc_). The Application API key cannot access eggs in Pterodactyl v2.' });
   }
@@ -662,7 +662,7 @@ router.get('/api/eggs', requireAuth, async (req, res) => {
         nestName: egg.nestName || '',
         docker_image: egg.docker_image || '',
         startup: egg.startup || '',
-        startup_command: egg.startup_command || egg.environment?.STARTUP_CMD || '',
+        startup_command: egg.startup || egg.startup_command || egg.environment?.STARTUP_CMD || '',
         environment: egg.environment || {},
         nestId: egg.nestId,
         isAvailable: !unavailableEggIds.has(Number(egg.id))

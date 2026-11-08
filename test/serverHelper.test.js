@@ -150,6 +150,8 @@ test('loads all eggs and variable defaults through the Admin API', async () => {
   assert.equal(eggs.length, 1);
   assert.equal(eggs[0].id, 42);
   assert.equal(eggs[0].name, 'Custom Node');
+  assert.equal(eggs[0].startup, 'node server.js');
+  assert.equal(eggs[0].startup_command, 'node server.js');
   assert.equal(eggs[0].environment.NODE_ENV, 'production');
   assert.equal(requests.length, 2);
   assert.ok(requests.every(({ path, params }) => path === '/eggs' && params.include === 'variables'));
