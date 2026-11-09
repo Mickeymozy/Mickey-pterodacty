@@ -14,6 +14,7 @@ const sendEmail = require('../utils/email');
 const axios = require('axios');
 const { writeAuditLog } = require('../utils/auditLog');
 const { normalizePhone, sendPaymentConfirmation } = require('../services/smsService');
+const { shouldSendPaymentSms } = require('../utils/paymentHelper');
 const ExternalPayment = require('../models/ExternalPayment');
 const { getActiveApiKeyConfig } = require('../utils/paymentCredentials');
 const { normalizePanelBaseUrl } = require('../utils/panelUrl');
@@ -91,6 +92,10 @@ async function notifyUserAboutPendingPayment(user, transaction, packageDoc, requ
 }
 
 async function notifyUserBySmsAfterPayment(user, transaction, productName) {
+  if (!shouldSendPaymentSms(transaction)) {
+    return { sent: false, status: 'skipped', reason: 'Wallet coin deductions do not send payment SMS.' };
+  }
+
   try {
     const suppliedPhone = normalizePhone(transaction.metadata?.phone);
     if (!user.phone && /^255[67]\d{8}$/.test(suppliedPhone)) {
@@ -340,7 +345,6 @@ router.post('/checkout', authenticate, async (req, res) => {
         await transaction.save();
 
         await notifyUserAboutPayment(user, transaction, pkg, serverData);
-        await notifyUserBySmsAfterPayment(user, transaction, pkg.name);
 
         res.json({
           success: true,

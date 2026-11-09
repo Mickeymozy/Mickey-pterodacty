@@ -14,6 +14,12 @@ const formatCurrency = (amount, currency = 'USD') => {
   return `$${amount.toFixed(2)}`;
 };
 
+const shouldSendPaymentSms = (transaction = {}) => {
+  const paymentMethod = String(transaction.paymentMethod || '').trim().toLowerCase();
+  const paymentProvider = String(transaction.paymentProvider || '').trim().toLowerCase();
+  return paymentMethod !== 'wallet' && paymentProvider !== 'wallet';
+};
+
 const calculateExpirationDate = (billingCycle) => {
   const today = new Date();
   const expiration = new Date(today);
@@ -41,5 +47,6 @@ const calculateExpirationDate = (billingCycle) => {
 module.exports = {
   calculateTotalCost,
   formatCurrency,
+  shouldSendPaymentSms,
   calculateExpirationDate
 };

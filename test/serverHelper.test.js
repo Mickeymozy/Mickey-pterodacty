@@ -7,6 +7,14 @@ const { fetchPaginatedApplicationData } = require('../utils/pterodactylPaginatio
 const { validatePasswordComplexity } = require('../utils/passwordValidator');
 const { normalizePhone, buildPaymentMessage, normalizeSmsDeliveryReport } = require('../services/smsService');
 const { generateResetToken, createAttemptLimiter } = require('../utils/resetToken');
+const { shouldSendPaymentSms } = require('../utils/paymentHelper');
+
+test('sends payment SMS for paid transactions but not wallet coin deductions', () => {
+  assert.equal(shouldSendPaymentSms({ paymentMethod: 'wallet', paymentProvider: 'wallet', currency: 'coins' }), false);
+  assert.equal(shouldSendPaymentSms({ paymentMethod: 'WALLET', paymentProvider: 'wallet' }), false);
+  assert.equal(shouldSendPaymentSms({ paymentMethod: 'palmpesa', paymentProvider: 'palmpesa', currency: 'coins' }), true);
+  assert.equal(shouldSendPaymentSms({ paymentMethod: 'admin', paymentProvider: 'admin', currency: 'coins' }), true);
+});
 
 test('generates reset tokens with four letters and four digits', () => {
   for (let attempt = 0; attempt < 100; attempt += 1) {
