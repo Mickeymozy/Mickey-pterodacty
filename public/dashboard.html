@@ -493,18 +493,22 @@
       </div>
 
       <div id="deploy-panel" class="tab-content space-y-4">
-        <div class="glass rounded-2xl border border-slate-800/70 bg-slate-950/60 p-6 shadow-2xl shadow-slate-950/30">
-          <div class="mb-6 flex flex-col gap-2 border-b border-slate-800/70 pb-4 md:flex-row md:items-end md:justify-between">
-            <div>
-              <h2 class="text-xl font-semibold text-white">🚀 Setup & Deploy Server</h2>
-              <p class="text-sm text-slate-400">Chagua kifurushi, malipo, na engine yako kabla ya kupeleka ombi kwenye panel.</p>
+        <div class="deploy-card glass rounded-xl border border-slate-800/70 p-0 shadow-2xl shadow-slate-950/20">
+          <div class="deploy-header">
+            <div class="deploy-header-copy">
+              <span class="deploy-eyebrow"><span class="deploy-live-dot" aria-hidden="true"></span> Deployment workspace</span>
+              <h2 class="mt-2 text-2xl font-bold text-white">Setup & Deploy Server</h2>
+              <p class="mt-1 max-w-2xl text-sm leading-6 text-slate-400">Sanidi malipo, runtime na package kabla ya kuanzisha server kwenye panel.</p>
             </div>
-            <div class="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.2em] text-cyan-300">Pterodactyl Deploy</div>
-            <button id="openServerGuideBtn" type="button" class="inline-flex items-center justify-center gap-2 rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-xs font-semibold text-cyan-200 transition hover:bg-cyan-400/20">&#9654; Fungua video ya maelekezo</button>
+            <div class="deploy-header-actions">
+              <span class="deploy-provider">Pterodactyl</span>
+              <button id="openServerGuideBtn" type="button" class="deploy-guide-button">&#9654; Video ya maelekezo</button>
+            </div>
           </div>
-          <form id="createForm" class="grid gap-6 md:grid-cols-[1.5fr_1fr]">
+          <form id="createForm" class="deploy-form grid gap-6 md:grid-cols-[minmax(0,1.55fr)_minmax(260px,.75fr)]">
             
-            <div class="space-y-4">
+            <div class="deploy-fields space-y-4">
+              <div class="deploy-step-heading"><span>01</span><div><strong>Server & malipo</strong><small>Jina la server na njia ya kulipia</small></div></div>
               <div>
                 <label for="serverName" class="mb-1 block text-xs font-medium text-slate-300">Jina la Server *</label>
                 <input id="serverName" required placeholder="Mfano: Mickey Realtime" class="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-4 py-2.5 text-sm text-white outline-none focus:border-indigo-500" />
@@ -526,6 +530,7 @@
                 <p class="text-[11px] text-slate-400">Utapokea link ya malipo kwa PalmPesa ya moja kwa moja. Akilia na malizo haraka.</p>
               </div>
 
+              <div class="deploy-step-heading"><span>02</span><div><strong>Runtime ya server</strong><small>Egg, Docker image na startup kutoka panel</small></div></div>
               <div>
                 <label for="eggSelect" class="mb-1 block text-xs font-medium text-slate-300">Chagua Server Egg (Engine) *</label>
                 <select id="eggSelect" class="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-4 py-2.5 text-sm text-white outline-none focus:border-indigo-500"></select>
@@ -554,12 +559,13 @@
                 <p class="text-[11px] text-slate-400 mt-2">URL itatumwa kwa egg kama BOT_REPO_URL; startup command ya Pterodactyl haitabadilishwa.</p>
               </div>
 
+              <div class="deploy-step-heading"><span>03</span><div><strong>Package & deployment</strong><small>Chagua rasilimali za server yako</small></div></div>
               <div>
                 <label for="packageSelect" class="mb-1 block text-xs font-medium text-slate-300">Chagua Package (Kifurushi) *</label>
                 <select id="packageSelect" onchange="updatePackageSpecsDisplay()" class="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-4 py-2.5 text-sm text-white outline-none focus:border-indigo-500"></select>
               </div>
 
-              <button type="submit" class="w-full rounded-xl bg-cyan-600 hover:bg-cyan-500 px-4 py-2.5 text-sm font-semibold text-white transition shadow-lg">⚡ Deploy Sasa</button>
+              <button type="submit" class="deploy-submit w-full rounded-lg bg-cyan-600 px-4 py-3 text-sm font-semibold text-white transition shadow-lg">Deploy server</button>
               <p id="formMessage" class="mt-2 text-xs text-slate-400"></p>
               <ol id="deploymentProgress" class="hidden space-y-2 rounded-2xl border border-slate-800 bg-slate-950/50 p-4 text-xs text-slate-400">
                 <li data-deploy-step="payment">1. Inathibitisha malipo</li>
@@ -569,9 +575,10 @@
               </ol>
             </div>
 
-            <div class="glass rounded-xl p-5 border border-slate-800 flex flex-col justify-between bg-gradient-to-br from-slate-950/70 to-slate-900/40">
+            <div class="deploy-summary glass flex flex-col justify-between rounded-xl border border-slate-800 p-5">
               <div>
-                <h3 class="text-xs font-bold text-lime-200 uppercase tracking-wider mb-3">📋 Kifurushi Specifications</h3>
+                <p class="deploy-summary-label">Package summary</p>
+                <h3 class="mb-4 text-base font-semibold text-white">Rasilimali utakazopata</h3>
                 <div class="space-y-3 text-xs">
                   <div class="flex justify-between border-b border-slate-800/60 pb-2">
                     <span class="text-slate-400">Jina la Package:</span>

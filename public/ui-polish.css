@@ -106,6 +106,83 @@ body:not(.light-mode) .admin-side-link:not(.active):hover { color: var(--ui-ink)
 body:not(.light-mode) .quick-action-card,
 body:not(.light-mode) .mini-metric { background: #20282b !important; }
 
+#deploy-panel { --deploy-accent: #087f8c; --deploy-accent-soft: rgba(8, 127, 140, .09); }
+.deploy-card.glass { overflow: hidden; }
+.deploy-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: clamp(1.25rem, 3vw, 2rem);
+  border-bottom: 1px solid var(--ui-border);
+  background: linear-gradient(110deg, rgba(8, 127, 140, .10), transparent 62%);
+}
+.deploy-header-copy { min-width: 0; }
+.deploy-eyebrow, .deploy-provider, .deploy-summary-label {
+  color: var(--deploy-accent, #087f8c);
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.deploy-eyebrow { display: inline-flex; align-items: center; gap: .55rem; }
+.deploy-live-dot { width: .5rem; height: .5rem; border-radius: 50%; background: #16835d; box-shadow: 0 0 0 3px rgba(22, 131, 93, .12); }
+.deploy-header-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .6rem; }
+.deploy-provider, .deploy-guide-button {
+  display: inline-flex;
+  min-height: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--ui-border);
+  border-radius: 7px;
+  padding: .55rem .8rem;
+  background: var(--ui-surface);
+}
+.deploy-provider { letter-spacing: .06em; }
+.deploy-guide-button { color: var(--ui-ink); font-size: .75rem; font-weight: 700; transition: background .18s ease, border-color .18s ease; }
+.deploy-guide-button:hover { border-color: var(--deploy-accent); background: var(--deploy-accent-soft); }
+.deploy-form { align-items: start; padding: clamp(1rem, 2.5vw, 1.75rem); }
+.deploy-fields { min-width: 0; }
+.deploy-fields input, .deploy-fields select { min-height: 2.75rem; }
+.deploy-fields > .deploy-step-heading {
+  display: flex;
+  align-items: center;
+  gap: .8rem;
+  margin-top: .5rem;
+  padding: .35rem 0 .75rem;
+  border-bottom: 1px solid var(--ui-border);
+}
+.deploy-step-heading > span {
+  display: grid;
+  width: 1.85rem;
+  height: 1.85rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid rgba(8, 127, 140, .22);
+  border-radius: 6px;
+  color: var(--deploy-accent);
+  background: var(--deploy-accent-soft);
+  font-size: .7rem;
+  font-weight: 800;
+}
+.deploy-step-heading strong, .deploy-step-heading small { display: block; }
+.deploy-step-heading strong { color: var(--ui-ink); font-size: .82rem; }
+.deploy-step-heading small { margin-top: .15rem; color: var(--ui-muted); font-size: .68rem; }
+.deploy-summary.glass { position: sticky; top: 1rem; background: var(--ui-surface) !important; }
+.deploy-summary-label { margin-bottom: .35rem; }
+.deploy-summary > div > div { gap: .75rem; }
+.deploy-submit { border: 0; background: var(--deploy-accent, #087f8c) !important; box-shadow: 0 8px 18px rgba(8, 127, 140, .18); }
+.deploy-submit:hover { filter: brightness(1.08); transform: translateY(-1px); }
+body:not(.light-mode) #deploy-panel { --deploy-accent: #55b8b2; --deploy-accent-soft: rgba(85, 184, 178, .10); }
+body:not(.light-mode) .deploy-header { background: linear-gradient(110deg, rgba(85, 184, 178, .11), transparent 62%); }
+body:not(.light-mode) .deploy-provider, body:not(.light-mode) .deploy-guide-button { background: rgba(255,255,255,.035); }
+
+@media (max-width: 767px) {
+  .deploy-header { align-items: flex-start; flex-direction: column; }
+  .deploy-header-actions { justify-content: flex-start; }
+  .deploy-summary.glass { position: static; }
+}
+
 body.light-mode .auth-brand-mark { color: var(--ui-accent) !important; background: var(--ui-accent-soft) !important; border-color: rgba(228, 91, 72, .24) !important; }
 body.light-mode .glass, body.light-mode .hero-panel { background: #ffffff !important; border-color: var(--ui-border) !important; }
 body.light-mode .auth-brand-line { background: linear-gradient(90deg, var(--ui-accent), var(--ui-cyan)) !important; }
