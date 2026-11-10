@@ -181,21 +181,24 @@ async function resolveServerRef(serverIdentifier) {
   }
 
   try {
-    const listResponse = await appApi.get('/servers?per_page=1000');
-    const match = (listResponse.data?.data || []).find((server) => {
+    const servers = await fetchPaginatedApplicationData(appApi, '/servers');
+    const normalizedValue = rawValue.toLowerCase();
+    const match = servers.find((server) => {
       const attrs = server?.attributes || {};
       const ids = [attrs.id, attrs.uuid, attrs.identifier, attrs.external_id];
-      return ids.some((value) => String(value) === rawValue);
+      return ids.some((value) => String(value ?? '').trim().toLowerCase() === normalizedValue);
     });
 
     if (match?.attributes?.id) {
       return { id: String(match.attributes.id), identifier: match.attributes.identifier || rawValue };
     }
   } catch (err) {
-    return fallback;
+    throw err;
   }
 
-  return fallback;
+  const error = new Error('Server haijapatikana kwenye Pterodactyl Application API. Hakiki server identifier na ruhusa za Application API key.');
+  error.response = { status: 404, data: { message: error.message } };
+  throw error;
 }
 
 async function resolveServerId(serverIdentifier) {
@@ -1022,7 +1025,7 @@ router.post('/api/servers/:id/power/:action', requireAuth, async (req, res) => {
       status === 401 || status === 403
         ? 'Client API key haina ruhusa kwa server hii. Hakikisha ni key ya "ptlc_" yenye access ya server husika.'
         : status === 404
-          ? 'Server haipo kwenye Client API. Hakikisha akaunti ya key inamiliki server hii.'
+          ? detail?.includes('Application API') ? detail : 'Server haipo kwenye Client API. Hakikisha akaunti ya key inamiliki server hii.'
           : detail || 'Imeshindwa kubadilisha hali ya server.';
     res.status(status && status !== 500 ? status : 500).json({ success: false, error: friendly });
   }
