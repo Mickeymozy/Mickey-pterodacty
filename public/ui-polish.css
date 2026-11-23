@@ -264,3 +264,362 @@ body:not(.light-mode) .glass-hover:hover { box-shadow: 0 14px 28px rgba(0, 0, 0,
     transition-duration: .01ms !important;
   }
 }
+
+/* Consolidated operational UI system */
+:root {
+  --ui-radius: 8px;
+  --ui-control-height: 44px;
+  --ui-accent: #087f8c;
+  --ui-accent-strong: #0a6670;
+  --ui-accent-soft: #edf7f6;
+}
+
+body {
+  letter-spacing: 0;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app-shell,
+.admin-shell {
+  width: min(1540px, 100%);
+  margin-inline: auto;
+}
+
+.app-shell main,
+.admin-shell main {
+  min-width: 0;
+}
+
+header.glass,
+.app-shell header.glass,
+.admin-shell header.glass {
+  min-height: 112px;
+  display: flex;
+  align-items: center;
+  border-radius: var(--ui-radius) !important;
+}
+
+header.glass > div,
+.app-shell header.glass > div,
+.admin-shell header.glass > div {
+  width: 100%;
+}
+
+.glass,
+.hero-panel,
+.deploy-card.glass,
+.side-nav,
+.admin-side-nav {
+  border-radius: var(--ui-radius) !important;
+}
+
+.glass > h2,
+.glass h2,
+.glass h3 {
+  letter-spacing: 0;
+}
+
+.side-nav,
+.admin-side-nav {
+  border-right: 1px solid var(--ui-border) !important;
+}
+
+.side-nav-link,
+.admin-side-link {
+  min-height: var(--ui-control-height);
+  border-radius: 7px !important;
+}
+
+.side-nav-link.active,
+.admin-side-link.active,
+.tab-button.active,
+.tab-btn.active {
+  background: var(--ui-accent) !important;
+  border-color: var(--ui-accent) !important;
+  box-shadow: 0 7px 18px rgba(8, 127, 140, .16) !important;
+}
+
+.side-nav-link.active::before,
+.admin-side-link.active::before {
+  background: #ffffff;
+}
+
+button,
+.button,
+.tab-button,
+.tab-btn,
+.side-nav-link,
+.admin-side-link {
+  letter-spacing: 0;
+}
+
+button:not(.copy-btn):not(.rounded-full),
+.tab-button,
+.tab-btn,
+a.inline-flex {
+  min-height: 36px;
+}
+
+input,
+select,
+textarea,
+.input-field {
+  min-height: var(--ui-control-height);
+  border-radius: 7px !important;
+}
+
+textarea {
+  min-height: 112px;
+  resize: vertical;
+}
+
+form .grid {
+  align-items: start;
+}
+
+.glass .overflow-x-auto,
+.glass table {
+  width: 100%;
+}
+
+.glass table {
+  min-width: 560px;
+}
+
+.glass th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  border-bottom: 1px solid var(--ui-border);
+  background: var(--ui-surface);
+  height: 44px;
+}
+
+.glass td {
+  min-height: 52px;
+  border-bottom: 1px solid var(--ui-border);
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+.glass tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.glass tbody tr {
+  transition: background-color .16s ease, box-shadow .16s ease;
+}
+
+.quick-action-card,
+.mini-metric {
+  min-height: 74px;
+  border-radius: 8px !important;
+}
+
+.hero-panel {
+  min-height: 190px;
+}
+
+.hero-panel h2 {
+  max-width: 620px;
+}
+
+.tab-content.active,
+.admin-section.active {
+  animation: content-enter .22s ease both;
+}
+
+.admin-nav,
+.dash-nav {
+  border: 1px solid var(--ui-border);
+  border-radius: 8px;
+  background: var(--ui-surface);
+}
+
+.server-actions-bar {
+  border-radius: 0;
+}
+
+.server-detail-rows {
+  display: grid;
+}
+
+.server-detail-rows > div,
+.modal-server-detail-row {
+  min-width: 0;
+}
+
+.auth-layout {
+  width: min(1160px, 100%);
+}
+
+.auth-card {
+  width: min(440px, 100%);
+  border-radius: 8px !important;
+}
+
+.auth-brand {
+  max-width: 620px;
+}
+
+.auth-brand-mark {
+  border-radius: 8px !important;
+}
+
+.submit-btn,
+.github-btn,
+.theme-toggle {
+  min-height: var(--ui-control-height);
+  border-radius: 7px !important;
+}
+
+.submit-btn {
+  background: var(--ui-accent) !important;
+}
+
+@media (min-width: 1025px) {
+  .side-nav,
+  .admin-side-nav {
+    height: calc(100dvh - 3rem);
+  }
+}
+
+@media (max-width: 1024px) {
+  .app-shell,
+  .admin-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .side-nav,
+  .admin-side-nav {
+    height: 100dvh;
+  }
+
+  header.glass {
+    min-height: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  :root {
+    --ui-control-height: 42px;
+  }
+
+  .app-shell,
+  .admin-shell {
+    padding-inline: 12px;
+    padding-top: 12px;
+  }
+
+  header.glass,
+  .app-shell header.glass,
+  .admin-shell header.glass {
+    padding: 16px !important;
+  }
+
+  header.glass h1,
+  header.glass h2 {
+    line-height: 1.2;
+  }
+
+  .glass {
+    padding: 16px !important;
+  }
+
+  .glass table {
+    min-width: 620px;
+  }
+
+  .hero-panel {
+    min-height: 0;
+  }
+
+  .hero-panel > div {
+    width: 100%;
+  }
+
+  .quick-action-card {
+    min-height: 68px;
+  }
+
+  .auth-layout {
+    min-height: 100dvh;
+  }
+
+  .auth-card {
+    margin-block: 8px;
+  }
+
+  .admin-nav,
+  .dash-nav {
+    border-radius: 7px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
+
+/* Page-level visual identity */
+body[data-page="admin"] header.glass,
+body[data-page="dashboard"] header.glass {
+  position: relative;
+  overflow: hidden;
+}
+
+body[data-page="admin"] header.glass::after,
+body[data-page="dashboard"] header.glass::after {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 2px;
+  background: linear-gradient(90deg, var(--ui-accent), transparent 58%);
+  content: "";
+}
+
+body[data-page="auth"] .auth-card {
+  box-shadow: 0 24px 64px rgba(32, 48, 51, .16) !important;
+}
+
+body[data-page="auth"] .tab-btn,
+body[data-page="auth"] .input-field,
+body[data-page="auth"] .submit-btn,
+body[data-page="auth"] .github-btn {
+  font-size: 14px;
+}
+
+body[data-page="dashboard"] .hero-panel,
+body[data-page="admin"] .glass {
+  isolation: isolate;
+}
+
+body[data-page="dashboard"] #dash-overview > section,
+body[data-page="admin"] .tab-content.active > section {
+  scroll-margin-top: 18px;
+}
+
+body[data-page="dashboard"] .quick-action-card,
+body[data-page="admin"] .users-row,
+body[data-page="admin"] tbody tr {
+  border-radius: 6px;
+}
+
+body[data-page="admin"] .tab-content,
+body[data-page="dashboard"] .tab-content {
+  max-width: 100%;
+}
+
+@media (max-width: 640px) {
+  body[data-page="auth"] .auth-card {
+    min-height: auto;
+  }
+
+  body[data-page="admin"] header.glass,
+  body[data-page="dashboard"] header.glass {
+    align-items: flex-start;
+  }
+}
