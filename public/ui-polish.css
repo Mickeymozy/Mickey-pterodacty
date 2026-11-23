@@ -565,6 +565,36 @@ form .grid {
   }
 }
 
+.workspace-search {
+  min-height: 40px;
+  border: 1px solid var(--ui-border);
+  border-radius: 7px;
+  background: var(--ui-surface);
+  padding: 0 10px;
+}
+
+.workspace-search > span {
+  color: var(--ui-muted);
+  font-size: 16px;
+  line-height: 1;
+}
+
+.workspace-search input {
+  width: 150px;
+  min-height: 38px !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 2px !important;
+}
+
+.side-nav-link[hidden],
+.admin-side-link[hidden],
+.side-nav-label[hidden],
+.admin-side-label[hidden] {
+  display: none !important;
+}
+
 /* Page-level visual identity */
 body[data-page="admin"] header.glass,
 body[data-page="dashboard"] header.glass {

@@ -267,6 +267,10 @@
           <h1 id="userName" class="mt-1 text-2xl font-bold text-white">Inapakia profile...</h1>
         </div>
         <div class="flex items-center gap-3 flex-wrap justify-end">
+          <label class="workspace-search hidden items-center gap-2 md:flex">
+            <span aria-hidden="true">⌕</span>
+            <input id="dashboardWorkspaceSearch" type="search" placeholder="Search workspace" autocomplete="off" />
+          </label>
           <span class="rounded-full border border-lime-300/25 bg-lime-300/10 px-2.5 py-1 text-[10px] font-bold text-lime-200">v2.7.21</span>
           <div class="coin-pill px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2" title="Salio lako la coins">
             <span class="text-base">🪙</span>
@@ -906,6 +910,41 @@
         detailsSection?.classList.add('hidden');
       }
     }
+
+    function setupDashboardWorkspaceSearch() {
+      const input = document.getElementById('dashboardWorkspaceSearch');
+      if (!input) return;
+      input.addEventListener('input', () => {
+        const query = input.value.trim().toLowerCase();
+        document.querySelectorAll('[data-side-tab]').forEach((button) => {
+          const label = button.textContent.trim().toLowerCase();
+          button.hidden = Boolean(query) && !label.includes(query);
+        });
+        document.querySelectorAll('.side-nav-label').forEach((label) => {
+          if (!query) { label.hidden = false; return; }
+          const nextButtons = [];
+          let sibling = label.nextElementSibling;
+          while (sibling && !sibling.classList.contains('side-nav-label')) {
+            if (sibling.matches('[data-side-tab]')) nextButtons.push(sibling);
+            sibling = sibling.nextElementSibling;
+          }
+          label.hidden = !nextButtons.some((button) => !button.hidden);
+        });
+      });
+      input.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          input.value = '';
+          input.dispatchEvent(new Event('input'));
+          input.blur();
+        }
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          document.querySelector('[data-side-tab]:not([hidden])')?.click();
+        }
+      });
+    }
+
+    setupDashboardWorkspaceSearch();
 
     // LIVE SYNC INDICATOR & SERVER STATISTICS
     async function syncPterodactylStatus() {

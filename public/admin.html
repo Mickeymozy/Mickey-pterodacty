@@ -163,6 +163,10 @@
           <p class="mt-1 text-sm text-slate-400">Usimamizi wa mfumo, malipo na watumiaji</p>
         </div>
         <div class="flex items-center gap-3">
+          <label class="workspace-search hidden items-center gap-2 md:flex">
+            <span aria-hidden="true">⌕</span>
+            <input id="adminWorkspaceSearch" type="search" placeholder="Search modules" autocomplete="off" />
+          </label>
           <span class="admin-version">v2.7.21</span>
           <button type="button" id="themeModeBtn" onclick="toggleThemeMode()" class="px-4 py-2.5 rounded-xl bg-slate-800/50 text-sm font-medium text-slate-300 hover:bg-slate-700/50 transition border border-slate-700/50" title="Badilisha light/dark mode">☀️ Light</button>
           <a href="/dashboard.html" class="px-4 py-2.5 rounded-xl bg-slate-800/50 text-sm font-medium text-slate-300 hover:bg-slate-700/50 transition border border-slate-700/50">📊 Dashboard</a>
@@ -769,6 +773,41 @@
       if(tabName === 'activity') loadAuditLogs();
       if(tabName === 'paymentApi') loadPaymentApiConfig();
     }
+
+    function setupAdminWorkspaceSearch() {
+      const input = document.getElementById('adminWorkspaceSearch');
+      if (!input) return;
+      input.addEventListener('input', () => {
+        const query = input.value.trim().toLowerCase();
+        document.querySelectorAll('[data-admin-tab]').forEach((button) => {
+          const label = button.textContent.trim().toLowerCase();
+          button.hidden = Boolean(query) && !label.includes(query);
+        });
+        document.querySelectorAll('.admin-side-label').forEach((label) => {
+          if (!query) { label.hidden = false; return; }
+          const nextButtons = [];
+          let sibling = label.nextElementSibling;
+          while (sibling && !sibling.classList.contains('admin-side-label')) {
+            if (sibling.matches('[data-admin-tab]')) nextButtons.push(sibling);
+            sibling = sibling.nextElementSibling;
+          }
+          label.hidden = !nextButtons.some((button) => !button.hidden);
+        });
+      });
+      input.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          input.value = '';
+          input.dispatchEvent(new Event('input'));
+          input.blur();
+        }
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          document.querySelector('[data-admin-tab]:not([hidden])')?.click();
+        }
+      });
+    }
+
+    setupAdminWorkspaceSearch();
 
     async function loadPaymentApiConfig() {
       const statusValue = document.getElementById('paymentApiStatusValue');

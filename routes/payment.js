@@ -1174,7 +1174,7 @@ router.get('/methods', (req, res) => {
   }
 });
 
-router.get('/debug/config', (req, res) => {
+router.get('/debug/config', requireAdmin, (req, res) => {
   const config = {
     palmpesaConfigured: {
       apiToken: !!process.env.PALMPESA_API_TOKEN,
@@ -1189,7 +1189,7 @@ router.get('/debug/config', (req, res) => {
   res.json({ success: true, data: config });
 });
 
-router.post('/debug/test-payment', authenticate, async (req, res) => {
+router.post('/debug/test-payment', requireAdmin, async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
     if (!user) {
