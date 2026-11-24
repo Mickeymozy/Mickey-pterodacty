@@ -79,8 +79,13 @@ const normalizeServerStatus = (value) => {
 
 const extractConnectionDetails = (serverData = {}) => {
   const attrs = serverData?.attributes || {};
-  const allocations = attrs?.relationships?.allocations || attrs?.allocations || [];
-  const primaryAllocation = Array.isArray(allocations) ? allocations[0] : null;
+  const relationshipAllocations = attrs?.relationships?.allocations?.data || attrs?.relationships?.allocations || [];
+  const allocations = Array.isArray(relationshipAllocations) ? relationshipAllocations : (Array.isArray(attrs?.allocations) ? attrs.allocations : []);
+  const usableAllocations = allocations.map((item) => item?.attributes || item).filter((item) => {
+    const ip = String(item?.ip || item?.address || item?.ipv4 || item?.ip_address || '').trim();
+    return ip && !['0.0.0.0', '::', '[::]'].includes(ip);
+  });
+  const primaryAllocation = usableAllocations.find((item) => item?.is_primary) || usableAllocations[0] || null;
   const allocationAttrs = primaryAllocation?.attributes || primaryAllocation || {};
   const ipAddress = allocationAttrs.ip || allocationAttrs.address || allocationAttrs.ipv4 || allocationAttrs.ip_address || '';
   const port = allocationAttrs.port || allocationAttrs.public_port || allocationAttrs.port_number || '';
@@ -103,9 +108,12 @@ async function getServerConnectionDetails(ref) {
   try {
     if (clientApiUsable && clientApi && identifier) {
       const response = await clientApi.get(`/servers/${encodeURIComponent(identifier)}/network/allocations`);
-      const allocations = response.data?.data || [];
-      const allocation = allocations.find((item) => item?.attributes?.is_primary) || allocations[0];
-      const attrs = allocation?.attributes || {};
+      const allocations = (response.data?.data || []).map((item) => item?.attributes || item).filter((item) => {
+        const ip = String(item?.ip || item?.address || item?.ipv4 || item?.ip_address || '').trim();
+        return ip && !['0.0.0.0', '::', '[::]'].includes(ip);
+      });
+      const allocation = allocations.find((item) => item?.is_primary) || allocations[0] || null;
+      const attrs = allocation?.attributes || allocation || {};
       const resolvedHost = attrs.alias || attrs.hostname || attrs.domain || attrs.ip || attrs.address || '';
       return {
         ipAddress: attrs.ip || attrs.address || attrs.ipv4 || attrs.ip_address || '',
@@ -117,9 +125,12 @@ async function getServerConnectionDetails(ref) {
 
     if (appApi && id) {
       const response = await appApi.get(`/servers/${encodeURIComponent(id)}/network/allocations`);
-      const allocations = response.data?.data || [];
-      const allocation = allocations.find((item) => item?.attributes?.is_primary) || allocations[0];
-      const attrs = allocation?.attributes || {};
+      const allocations = (response.data?.data || []).map((item) => item?.attributes || item).filter((item) => {
+        const ip = String(item?.ip || item?.address || item?.ipv4 || item?.ip_address || '').trim();
+        return ip && !['0.0.0.0', '::', '[::]'].includes(ip);
+      });
+      const allocation = allocations.find((item) => item?.is_primary) || allocations[0] || null;
+      const attrs = allocation?.attributes || allocation || {};
       const resolvedHost = attrs.alias || attrs.hostname || attrs.domain || attrs.ip || attrs.address || '';
       return {
         ipAddress: attrs.ip || attrs.address || attrs.ipv4 || attrs.ip_address || '',
@@ -148,6 +159,8 @@ const sanitizeServer = (server, resourceAttrs = {}, user = null, connectionDetai
     user: attrs.user,
     limits: attrs.limits || {},
     resources: resourceAttrs || {},
+    node: attrs.relationships?.node?.attributes?.name || attrs.relationships?.node?.attributes?.fqdn || attrs.node || attrs.node_id || null,
+    nodeId: attrs.relationships?.node?.attributes?.id || attrs.node || attrs.node_id || null,
     panelUrl: PTERODACTYL_URL || '',
     ipAddress: resolvedConnection.ipAddress || '',
     port: resolvedConnection.port || '',
@@ -900,7 +913,7 @@ router.get('/api/servers/:id/access', requireAuth, async (req, res) => {
 
   try {
     const ref = await resolveServerRef(req.params.id);
-    const serverResponse = await appApi.get(`/servers/${encodeURIComponent(ref.id)}`);
+    const serverResponse = await appApi.get(`/servers/${encodeURIComponent(ref.id)}`, { params: { include: 'allocations,node,user' } });
     const attrs = serverResponse.data?.attributes || {};
     if (!(await requireOwnedServer(req.user, ref))) {
       return res.status(403).json({ success: false, error: 'Huna ruhusa ya kuona server hii.' });
@@ -908,6 +921,7 @@ router.get('/api/servers/:id/access', requireAuth, async (req, res) => {
 
     const connectionDetails = await getServerConnectionDetails(ref);
     const panelUrl = PTERODACTYL_URL || '';
+    const ownerDetails = await fetchPteroUserById(attrs.user);
 
     res.json({
       success: true,
@@ -918,6 +932,8 @@ router.get('/api/servers/:id/access', requireAuth, async (req, res) => {
         password: null,
         serverName: attrs.name || '',
         serverId: attrs.identifier || attrs.id || '',
+        ownerUsername: ownerDetails?.username || req.user?.username || '',
+        ownerEmail: ownerDetails?.email || req.user?.email || '',
         ipAddress: connectionDetails.ipAddress,
         port: connectionDetails.port,
         sftpHost: connectionDetails.sftpHost || '',
@@ -943,7 +959,7 @@ router.get('/api/servers/:id/details', requireAuth, async (req, res) => {
       return res.status(403).json({ success: false, error: 'Huna ruhusa ya kuona server hii.' });
     }
     const [serverResponse, resourcesResponse] = await Promise.allSettled([
-      appApi.get(`/servers/${encodeURIComponent(ref.id)}`),
+      appApi.get(`/servers/${encodeURIComponent(ref.id)}`, { params: { include: 'allocations,node,user' } }),
       (clientApiUsable && clientApi && ref.identifier)
         ? clientApi.get(`/servers/${encodeURIComponent(ref.identifier)}/resources`)
         : Promise.resolve(null)
@@ -956,6 +972,15 @@ router.get('/api/servers/:id/details', requireAuth, async (req, res) => {
     const attrs = serverResponse.value?.data?.attributes || {};
     const resourceAttrs = resourcesResponse.status === 'fulfilled' ? resourcesResponse.value?.data?.attributes || {} : {};
     const connectionDetails = await getServerConnectionDetails(ref);
+    let nodeDetails = attrs.relationships?.node?.attributes || null;
+    const nodeId = nodeDetails?.id || attrs.node || attrs.node_id || null;
+    if (!nodeDetails && nodeId && appApi) {
+      try {
+        const nodeResponse = await appApi.get(`/nodes/${encodeURIComponent(nodeId)}`);
+        nodeDetails = nodeResponse.data?.attributes || null;
+      } catch (_) {}
+    }
+    const ownerDetails = await fetchPteroUserById(attrs.user);
 
     res.json({
       success: true,
@@ -964,11 +989,16 @@ router.get('/api/servers/:id/details', requireAuth, async (req, res) => {
         uuid: attrs.uuid,
         identifier: attrs.identifier,
         name: attrs.name,
-        node: attrs.node || attrs.node_id || null,
+        node: nodeDetails?.name || nodeDetails?.fqdn || attrs.node || attrs.node_id || null,
+        nodeId,
+        nodeFqdn: nodeDetails?.fqdn || '',
+        ownerUsername: ownerDetails?.username || '',
+        ownerEmail: ownerDetails?.email || '',
         allocationId: attrs.allocation || attrs.allocation_id || null,
         status: normalizeServerStatus(resourceAttrs.current_state || attrs.status || 'unknown'),
         limits: attrs.limits || {},
         resources: resourceAttrs,
+        resourceSource: resourcesResponse.status === 'fulfilled' && resourcesResponse.value ? 'client' : 'limits-only',
         panelUrl: PTERODACTYL_URL || '',
         ipAddress: connectionDetails.ipAddress,
         port: connectionDetails.port,

@@ -1248,8 +1248,10 @@
         document.getElementById('selectedServerName').textContent = panel.name || selectedServer.name || 'Server bila jina';
         document.getElementById('selectedServerStatus').textContent = `Hali kutoka panel: ${displayStatus}`;
         document.getElementById('selectedServerConnection').textContent = connection;
-        document.getElementById('selectedServerNode').textContent = panel.node || 'N/A';
-        document.getElementById('selectedServerUser').textContent = access.sftpUser || selectedServer.sftpUser || 'N/A';
+        document.getElementById('selectedServerNode').textContent = panel.nodeFqdn
+          ? `${panel.node || 'Node'} · ${panel.nodeFqdn}`
+          : panel.nodeId ? `Node ${panel.nodeId}${panel.node ? ` · ${panel.node}` : ''}` : 'Haipatikani';
+        document.getElementById('selectedServerUser').textContent = panel.ownerUsername || access.ownerUsername || access.sftpUser || 'Haipatikani';
 
         const resources = panel.resources || {};
         const limits = panel.limits || {};
@@ -1257,11 +1259,14 @@
         const memory = Number(resources.memory_bytes);
         const disk = Number(resources.disk_bytes);
         document.getElementById('selectedServerCpu').textContent = Number.isFinite(cpu)
-          ? `${cpu.toFixed(1)}%${Number(limits.cpu) > 0 ? ` / ${Number(limits.cpu)}%` : ''}` : 'N/A';
+          ? `${cpu.toFixed(1)}%${Number(limits.cpu) > 0 ? ` / ${Number(limits.cpu)}%` : ''}`
+          : Number(limits.cpu) > 0 ? `Limit ${Number(limits.cpu)}%` : 'Live data haipatikani';
         document.getElementById('selectedServerMemory').textContent = Number.isFinite(memory)
-          ? `${(memory / 1024 / 1024).toFixed(0)} MB${Number(limits.memory) > 0 ? ` / ${(Number(limits.memory) / 1024).toFixed(0)} MB` : ''}` : 'N/A';
+          ? `${(memory / 1024 / 1024).toFixed(0)} MB${Number(limits.memory) > 0 ? ` / ${(Number(limits.memory) / 1024).toFixed(0)} MB` : ''}`
+          : Number(limits.memory) > 0 ? `Limit ${(Number(limits.memory) / 1024).toFixed(0)} MB` : 'Live data haipatikani';
         document.getElementById('selectedServerDisk').textContent = Number.isFinite(disk)
-          ? `${(disk / 1024 / 1024 / 1024).toFixed(2)} GB${Number(limits.disk) > 0 ? ` / ${(Number(limits.disk) / 1024).toFixed(1)} GB` : ''}` : 'N/A';
+          ? `${(disk / 1024 / 1024 / 1024).toFixed(2)} GB${Number(limits.disk) > 0 ? ` / ${(Number(limits.disk) / 1024).toFixed(1)} GB` : ''}`
+          : Number(limits.disk) > 0 ? `Limit ${(Number(limits.disk) / 1024).toFixed(1)} GB` : 'Live data haipatikani';
 
         const panelUrl = renderPanelLink(document.getElementById('selectedServerPanel'), access.panelUrl || panel.panelUrl);
         const openPanelButton = document.getElementById('openPanelBtn');
@@ -1293,13 +1298,17 @@
           const response = await fetch(`/api/servers/${encodeURIComponent(serverId)}/monitor`);
           const result = await response.json();
           const resources = result.data || {};
-          document.getElementById('selectedServerCpu').textContent = resources.cpu_absolute !== undefined ? `${Number(resources.cpu_absolute).toFixed(1)}%` : 'N/A';
-          document.getElementById('selectedServerMemory').textContent = resources.memory_bytes !== undefined ? `${(Number(resources.memory_bytes) / 1024 / 1024).toFixed(0)} MB` : 'N/A';
-          document.getElementById('selectedServerDisk').textContent = resources.disk_bytes !== undefined ? `${(Number(resources.disk_bytes) / 1024 / 1024 / 1024).toFixed(2)} GB` : 'N/A';
+          if (resources.cpu_absolute !== undefined && Number.isFinite(Number(resources.cpu_absolute))) {
+            document.getElementById('selectedServerCpu').textContent = `${Number(resources.cpu_absolute).toFixed(1)}%`;
+          }
+          if (resources.memory_bytes !== undefined && Number.isFinite(Number(resources.memory_bytes))) {
+            document.getElementById('selectedServerMemory').textContent = `${(Number(resources.memory_bytes) / 1024 / 1024).toFixed(0)} MB`;
+          }
+          if (resources.disk_bytes !== undefined && Number.isFinite(Number(resources.disk_bytes))) {
+            document.getElementById('selectedServerDisk').textContent = `${(Number(resources.disk_bytes) / 1024 / 1024 / 1024).toFixed(2)} GB`;
+          }
         } catch (_) {
-          document.getElementById('selectedServerCpu').textContent = 'N/A';
-          document.getElementById('selectedServerMemory').textContent = 'N/A';
-          document.getElementById('selectedServerDisk').textContent = 'N/A';
+          // Keep the direct Pterodactyl limits/last-known values when live resource data is unavailable.
         }
       };
       refreshMonitor();
